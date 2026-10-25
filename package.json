@@ -17,7 +17,8 @@
   "license": "ISC",
   "workspaces": [
     "client",
-    "server"
+    "server",
+    "shared"
   ],
   "devDependencies": {
     "@commitlint/cli": "^21.2.4",
