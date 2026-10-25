@@ -1,0 +1,8 @@
+{
+  "name": "@graphalaxy/client",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "lint": "eslint . --no-error-on-unmatched-pattern"
+  }
+}
