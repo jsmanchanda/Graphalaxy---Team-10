@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "lint": "eslint . --no-error-on-unmatched-pattern"
+    "lint": "eslint . --no-error-on-unmatched-pattern",
+    "db:migrate": "tsx src/db/migrate.ts",
+    "db:seed": "tsx src/db/seed.ts",
+    "db:reset": "node -e \"require('fs').rmSync('var/game.db',{force:true})\" && npm run db:migrate && npm run db:seed",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
   },
   "dependencies": {
     "better-sqlite3": "^13.0.3",
