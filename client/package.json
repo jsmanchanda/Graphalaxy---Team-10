@@ -5,11 +5,14 @@
   "scripts": {
     "lint": "eslint . --no-error-on-unmatched-pattern",
     "dev": "vite",
-    "dev:demo": "vite --open /demo.html"
+    "dev:demo": "vite --open /demo.html",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
-    "konva": "^10.9.0",
-    "@graphalaxy/shared": "*"
+    "@graphalaxy/shared": "*",
+    "evaluate": "^1.0.2",
+    "konva": "^10.9.0"
   },
   "devDependencies": {
     "vite": "^8.3.5",
