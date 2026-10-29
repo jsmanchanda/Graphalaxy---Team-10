@@ -2,7 +2,11 @@
   @fileoverview Defines the models that store the parsed data from backend's JSON strings.
 */
 
-import {MISSING_FIELDS_ERROR, CLASS_CREATION_ERROR} from './ErrorMessages';
+import {
+  MISSING_FIELDS_ERROR,
+  CLASS_CREATION_ERROR,
+  FIELD_RANGE_ERROR,
+} from './ErrorMessages';
 
 /**
  * Stores user-specific gameplay settings.
@@ -16,6 +20,40 @@ export class Settings {
     this.musicVolume = musicVolume;
     this.sfxVolume = sfxVolume;
   }
+
+  private static validateJson(
+    json: unknown,
+  ): asserts json is {musicVolume: number; sfxVolume: number} {
+    if (typeof json !== 'object' || json === null) {
+      throw new Error(MISSING_FIELDS_ERROR(['musicVolume', 'sfxVolume']));
+    }
+    const settings = json as Record<string, unknown>;
+    const missingFields = [];
+    if (!('musicVolume' in settings)) {
+      missingFields.push('musicVolume');
+    }
+    if (!('sfxVolume' in settings)) {
+      missingFields.push('sfxVolume');
+    }
+    if (missingFields.length > 0) {
+      throw new Error(MISSING_FIELDS_ERROR(missingFields));
+    }
+
+    if (
+      typeof settings.musicVolume !== 'number' ||
+      settings.musicVolume < 0 ||
+      settings.musicVolume > 1
+    ) {
+      throw new Error(FIELD_RANGE_ERROR('musicVolume', 0, 1));
+    }
+    if (
+      typeof settings.sfxVolume !== 'number' ||
+      settings.sfxVolume < 0 ||
+      settings.sfxVolume > 1
+    ) {
+      throw new Error(FIELD_RANGE_ERROR('sfxVolume', 0, 1));
+    }
+  }
   /**
    * Creates a Settings instance from a JSON string.
    * @param jsonString The JSON string representing the settings.
@@ -25,16 +63,7 @@ export class Settings {
   static createFromJson(jsonString: string): Settings {
     const json = JSON.parse(jsonString);
     // check the fields
-    const missingFields = [];
-    if (!('musicVolume' in json)) {
-      missingFields.push('musicVolume');
-    }
-    if (!('sfxVolume' in json)) {
-      missingFields.push('sfxVolume');
-    }
-    if (missingFields.length > 0) {
-      throw new Error(MISSING_FIELDS_ERROR(missingFields));
-    }
+    Settings.validateJson(json);
     const settings = new Settings(json.musicVolume, json.sfxVolume);
     return settings;
   }
@@ -52,6 +81,39 @@ export class Player {
   hintQuota: number;
   settings: Settings;
   name: string;
+
+  /**
+   * Validates the JSON object for required fields.
+   * @param json The JSON object representing the player.
+   * @throws {Error} An error if required fields are missing.
+   */
+  private static validateJson(json: unknown): asserts json is {
+    userId: string;
+    name: string;
+    hintQuota: number;
+  } {
+    if (typeof json !== 'object' || json === null) {
+      throw new Error(MISSING_FIELDS_ERROR(['userId', 'name', 'hintQuota']));
+    }
+    const player = json as Record<string, unknown>;
+    const missingFields = [];
+    if (!('userId' in player)) {
+      missingFields.push('userId');
+    }
+    if (!('name' in player)) {
+      missingFields.push('name');
+    }
+    if (!('hintQuota' in player)) {
+      missingFields.push('hintQuota');
+    }
+    if (missingFields.length > 0) {
+      throw new Error(MISSING_FIELDS_ERROR(missingFields));
+    }
+    if (typeof player.hintQuota !== 'number' || player.hintQuota < 0) {
+      throw new Error(FIELD_RANGE_ERROR('hintQuota', 0, Infinity));
+    }
+  }
+
   /**
    * Creates a Player instance from a JSON string.
    * @param jsonString The JSON string representing the player.
@@ -67,22 +129,7 @@ export class Player {
       throw new Error(CLASS_CREATION_ERROR('Settings', error));
     }
 
-    const missingFields = [];
-    if (!('userId' in json)) {
-      missingFields.push('userId');
-    }
-    if (!('name' in json)) {
-      missingFields.push('name');
-    }
-    if (!('hintQuota' in json)) {
-      missingFields.push('hintQuota');
-    }
-    if (!('settings' in json)) {
-      missingFields.push('settings');
-    }
-    if (missingFields.length > 0) {
-      throw new Error(MISSING_FIELDS_ERROR(missingFields));
-    }
+    Player.validateJson(json);
 
     const player = new Player(json.userId, json.name, json.hintQuota, settings);
     return player;

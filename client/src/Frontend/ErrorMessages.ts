@@ -10,4 +10,10 @@ const MISSING_FIELDS_ERROR = (fields: string[]) =>
 const CLASS_CREATION_ERROR = (className: string, error: unknown) =>
   `Failed to create ${className} from JSON: ${error}`;
 
-export {MISSING_FIELDS_ERROR, CLASS_CREATION_ERROR};
+/**
+ * Error message template for fields outside their allowed range.
+ */
+const FIELD_RANGE_ERROR = (field: string, min: number, max: number) =>
+  `Field ${field} must be between ${min} and ${max}`;
+
+export {MISSING_FIELDS_ERROR, CLASS_CREATION_ERROR, FIELD_RANGE_ERROR};
