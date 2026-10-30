@@ -75,18 +75,15 @@ export class UiManager {
     switch (model.type) {
       case 'title':
         this.currentView = new TitleScreenView(this.onAction, model);
-        this.layer.add(this.currentView.getGroup());
         break;
       case 'intro':
         this.currentView = new LessonIntroScreenView(this.onAction, model);
-        this.layer.add(this.currentView.getGroup());
         break;
       case 'reading':
         this.currentView = new ReadingScreenView(this.onAction, model);
         break;
       case 'question':
         this.currentView = new QuestionScreenView(this.onAction, model);
-        this.layer.add(this.currentView.getGroup());
         break;
       case 'questionResult':
         this.currentView = new QuestionResultScreenView(this.onAction, model);
@@ -100,5 +97,6 @@ export class UiManager {
         throw new Error(`Unknown screen: ${JSON.stringify(unhandled)}`);
       }
     }
+    this.layer.add(this.currentView.getGroup());
   }
 }
