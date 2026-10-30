@@ -10,7 +10,8 @@ describe('parseSettings', () => {
   it('parse valid setting JSON strings', () => {
     const JSON_STRING = JSON.stringify({musicVolume: 0.5, sfxVolume: 0.75});
     const settings = Settings.createFromJson(JSON_STRING);
-    expect(settings).toStrictEqual({musicVolume: 0.5, sfxVolume: 0.75});
+    expect(settings).toBeInstanceOf(Settings);
+    expect(settings).toEqual({musicVolume: 0.5, sfxVolume: 0.75});
   });
   it('throws an error when missing sfxVolume', () => {
     const JSON_STRING = JSON.stringify({musicVolume: 0.5});

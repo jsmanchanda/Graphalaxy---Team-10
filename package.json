@@ -4,7 +4,7 @@
   "description": "CSE-110 Team 10 Group Project",
   "scripts": {
     "lint": "gts lint",
-    "test": "npm run lint",
+    "test": "npm run lint && npm test --workspaces",
     "clean": "gts clean",
     "compile": "tsc",
     "fix": "gts fix",

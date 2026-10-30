@@ -130,6 +130,10 @@ export class Player {
     const json = JSON.parse(jsonString);
     let settings;
     try {
+      // json may be undefined if jsonString is undefined
+      if (typeof json !== 'object' || json === null || !('settings' in json)) {
+        throw new Error(MISSING_FIELDS_ERROR(['settings']));
+      }
       settings = Settings.createFromJson(JSON.stringify(json.settings));
     } catch (error) {
       throw new Error(CLASS_CREATION_ERROR('Settings', error));
