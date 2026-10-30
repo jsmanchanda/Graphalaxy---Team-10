@@ -51,9 +51,92 @@ describe('parseSettings', () => {
       FIELD_RANGE_ERROR('sfxVolume', 0, 1),
     );
   });
+  it.each([0, 1])('accepts volumes at the boundary value %s', volume => {
+    const JSON_STRING = JSON.stringify({
+      musicVolume: volume,
+      sfxVolume: volume,
+    });
+    expect(Settings.createFromJson(JSON_STRING)).toEqual({
+      musicVolume: volume,
+      sfxVolume: volume,
+    });
+  });
+  it.each(['musicVolume', 'sfxVolume'])(
+    'throws an error when %s is not a number',
+    field => {
+      const JSON_STRING = JSON.stringify({
+        musicVolume: 0.5,
+        sfxVolume: 0.75,
+        [field]: '0.5',
+      });
+      expect(() => Settings.createFromJson(JSON_STRING)).toThrowError(
+        FIELD_RANGE_ERROR(field, 0, 1),
+      );
+    },
+  );
 });
 
+const VALID_PLAYER = {
+  userId: 123,
+  name: 'Player1',
+  hintQuota: 3,
+  settings: {musicVolume: 0.5, sfxVolume: 0.75},
+};
+
 describe('parsePlayer', () => {
+  it('parses a valid player with nested settings', () => {
+    const player = Player.createFromJson(JSON.stringify(VALID_PLAYER));
+    expect(player).toBeInstanceOf(Player);
+    expect(player.settings).toBeInstanceOf(Settings);
+    expect(player).toEqual(VALID_PLAYER);
+  });
+  it('accepts a hintQuota of 0', () => {
+    const JSON_STRING = JSON.stringify({...VALID_PLAYER, hintQuota: 0});
+    expect(Player.createFromJson(JSON_STRING).hintQuota).toBe(0);
+  });
+  it('throws an error listing all missing fields', () => {
+    const JSON_STRING = JSON.stringify({settings: VALID_PLAYER.settings});
+    expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
+      MISSING_FIELDS_ERROR(['userId', 'name', 'hintQuota']),
+    );
+  });
+  it('throws an error when hintQuota is missing', () => {
+    const JSON_STRING = JSON.stringify({
+      userId: 123,
+      name: 'Player1',
+      settings: VALID_PLAYER.settings,
+    });
+    expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
+      MISSING_FIELDS_ERROR(['hintQuota']),
+    );
+  });
+  it.each(['userId', 'hintQuota'])(
+    'throws an error when %s is not a number',
+    field => {
+      const JSON_STRING = JSON.stringify({...VALID_PLAYER, [field]: '1'});
+      expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
+        FIELD_RANGE_ERROR(field, 0, Infinity),
+      );
+    },
+  );
+  it('throws an error when name is blank', () => {
+    const JSON_STRING = JSON.stringify({...VALID_PLAYER, name: '   '});
+    expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
+      TYPE_ERROR('name', 'string'),
+    );
+  });
+  it('wraps the error when settings values are invalid', () => {
+    const JSON_STRING = JSON.stringify({
+      ...VALID_PLAYER,
+      settings: {musicVolume: 2, sfxVolume: 0.75},
+    });
+    expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
+      CLASS_CREATION_ERROR(
+        'Settings',
+        new Error(FIELD_RANGE_ERROR('musicVolume', 0, 1)),
+      ),
+    );
+  });
   it('throws an error when missing userId', () => {
     const JSON_STRING = JSON.stringify({
       name: 'Player1',
@@ -360,5 +443,62 @@ describe('parsePlanet', () => {
     expect(() => Planet.createFromJson(JSON_STRING)).toThrowError(
       TYPE_ERROR('lessonName', 'string'),
     );
+  });
+});
+
+describe.each([
+  {
+    model: 'Settings',
+    parse: (json: string) => Settings.createFromJson(json),
+    nonObjectError: MISSING_FIELDS_ERROR(['musicVolume', 'sfxVolume']),
+  },
+  {
+    model: 'Player',
+    parse: (json: string) => Player.createFromJson(json),
+    nonObjectError: CLASS_CREATION_ERROR(
+      'Settings',
+      new Error(MISSING_FIELDS_ERROR(['settings'])),
+    ),
+  },
+  {
+    model: 'ReadingTask',
+    parse: (json: string) => ReadingTask.createFromJson(json),
+    nonObjectError: MISSING_FIELDS_ERROR(['text']),
+  },
+  {
+    model: 'QuestionTask',
+    parse: (json: string) => QuestionTask.createFromJson(json),
+    nonObjectError: MISSING_FIELDS_ERROR(['prompt', 'options', 'correct']),
+  },
+  {
+    model: 'Lesson',
+    parse: (json: string) => Lesson.createFromJson(json),
+    nonObjectError: MISSING_FIELDS_ERROR([
+      'lessonNumber',
+      'introText',
+      'lessonName',
+      'tasks',
+    ]),
+  },
+  {
+    model: 'Planet',
+    parse: (json: string) => Planet.createFromJson(json),
+    nonObjectError: MISSING_FIELDS_ERROR([
+      'planetId',
+      'name',
+      'introText',
+      'graphOrder',
+      'lessons',
+    ]),
+  },
+])('$model edge cases', ({parse, nonObjectError}) => {
+  it.each(['null', '[]', '5', '"text"'])(
+    'throws an error when the JSON is %s instead of an object',
+    json => {
+      expect(() => parse(json)).toThrowError(nonObjectError);
+    },
+  );
+  it('throws a SyntaxError for malformed JSON', () => {
+    expect(() => parse('{bad')).toThrowError(SyntaxError);
   });
 });
