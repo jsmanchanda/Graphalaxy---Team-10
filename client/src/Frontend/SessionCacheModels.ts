@@ -192,7 +192,7 @@ export class Planet {
    * @param graphOrder Planet order in the game map.
    * @param lessons The list of associated lessons.
    */
-  constructor(
+  private constructor(
     planetId: number,
     name: string,
     introText: string,
@@ -226,7 +226,10 @@ export class Planet {
   }
 }
 
-abstract class Task {
+/**
+ * Generic task in a lesson.
+ */
+export abstract class Task {
   abstract readonly taskType: 'Reading' | 'Question';
   abstract toType(): TaskType;
 }
@@ -280,7 +283,7 @@ export class QuestionTask extends Task {
    * @param options The list of answer options.
    * @param correct The index of the correct answer.
    */
-  constructor(prompt: string, options: string[], correct: number) {
+  private constructor(prompt: string, options: string[], correct: number) {
     super();
     this.prompt = prompt;
     this.options = options;
@@ -327,7 +330,7 @@ export class Lesson {
    * @param lessonName The name of the lesson.
    * @param tasks The list of tasks associated with the lesson.
    */
-  constructor(
+  private constructor(
     lessonNumber: number,
     introText: string,
     lessonName: string,
