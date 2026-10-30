@@ -1,10 +1,10 @@
 /// <reference lib="dom" />
 
 import Konva from 'konva';
-import {TitleScreenView} from './screens/titleScreenView';
+import {TitleScreenView} from './screens/TitleScreenView';
 import {ReadingScreenView} from './screens/ReadingScreenView';
-import {QuestionScreenView} from './screens/questionScreenView';
-import {QuestionResultScreenView} from './screens/questionResultView';
+import {QuestionScreenView} from './screens/QuestionScreenView';
+import {QuestionResultScreenView} from './screens/QuestionResultView';
 import {LessonResultScreenView} from './screens/LessonResultScreenView';
 
 import {DESIGN_HEIGHT, DESIGN_WIDTH} from './constants';
