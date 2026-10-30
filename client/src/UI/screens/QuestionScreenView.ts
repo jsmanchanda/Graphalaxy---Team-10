@@ -11,6 +11,7 @@ import {
   MULTIPLE_CHOICE_PROMPT_WIDTH,
   MULTIPLE_CHOICE_PROMPT_HEIGHT,
   ALIEN_FRIEND_WIDTH,
+  DESIGN_WIDTH,
 } from '../constants';
 import {QuestionScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
@@ -72,13 +73,23 @@ export class QuestionScreenView implements View {
     );
 
     const alienCat = new ImageComponent(
-      0,
+      DESIGN_WIDTH - ALIEN_FRIEND_WIDTH,
       0,
       ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_WIDTH,
       'public/assets/alien-cat.png',
     );
 
+    const backButton = new ButtonComponent(
+      0,
+      0,
+      130,
+      80,
+      'Back To Lesson',
+      () => onAction({type: 'back'}),
+    );
+
+    this.group.add(backButton.getGroup());
     this.group.add(alienCat.getGroup());
     this.group.add(prompt.getGroup());
     this.group.add(option1.getGroup());
