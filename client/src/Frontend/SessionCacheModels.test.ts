@@ -4,6 +4,7 @@ import {
   MISSING_FIELDS_ERROR,
   CLASS_CREATION_ERROR,
   FIELD_RANGE_ERROR,
+  TYPE_ERROR,
 } from './ErrorMessages';
 
 describe('parseSettings', () => {
@@ -58,7 +59,7 @@ describe('parsePlayer', () => {
   });
   it('throws an error when class creation fails for settings', () => {
     const JSON_STRING = JSON.stringify({
-      userId: 'user123',
+      userId: 123,
       name: 'Player1',
       hintQuota: 3,
     });
@@ -71,13 +72,34 @@ describe('parsePlayer', () => {
   });
   it('throws an error when hintQuota is negative', () => {
     const JSON_STRING = JSON.stringify({
-      userId: 'user123',
+      userId: 123,
       name: 'Player1',
       hintQuota: -1,
       settings: {musicVolume: 0.5, sfxVolume: 0.75},
     });
     expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
       FIELD_RANGE_ERROR('hintQuota', 0, Infinity),
+    );
+  });
+  it('throws an error when name is missing', () => {
+    const JSON_STRING = JSON.stringify({
+      userId: 123,
+      hintQuota: 3,
+      settings: {musicVolume: 0.5, sfxVolume: 0.75},
+    });
+    expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
+      MISSING_FIELDS_ERROR(['name']),
+    );
+  });
+  it('throws an error when name is not a string', () => {
+    const JSON_STRING = JSON.stringify({
+      userId: 123,
+      name: 456,
+      hintQuota: 3,
+      settings: {musicVolume: 0.5, sfxVolume: 0.75},
+    });
+    expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
+      TYPE_ERROR('name', 'string'),
     );
   });
 });

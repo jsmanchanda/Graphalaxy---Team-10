@@ -6,6 +6,7 @@ import {
   MISSING_FIELDS_ERROR,
   CLASS_CREATION_ERROR,
   FIELD_RANGE_ERROR,
+  TYPE_ERROR,
 } from './ErrorMessages';
 
 import type {
@@ -94,7 +95,7 @@ export class Player {
    * @throws {Error} An error if required fields are missing.
    */
   private static validateJson(json: unknown): asserts json is {
-    userId: string;
+    userId: number;
     name: string;
     hintQuota: number;
   } {
@@ -114,6 +115,12 @@ export class Player {
     }
     if (missingFields.length > 0) {
       throw new Error(MISSING_FIELDS_ERROR(missingFields));
+    }
+    if (typeof player.name !== 'string' || player.name.trim() === '') {
+      throw new Error(TYPE_ERROR('name', 'string'));
+    }
+    if (typeof player.userId !== 'number' || player.userId < 0) {
+      throw new Error(FIELD_RANGE_ERROR('userId', 0, Infinity));
     }
     if (typeof player.hintQuota !== 'number' || player.hintQuota < 0) {
       throw new Error(FIELD_RANGE_ERROR('hintQuota', 0, Infinity));

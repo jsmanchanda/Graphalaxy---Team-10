@@ -16,4 +16,15 @@ const CLASS_CREATION_ERROR = (className: string, error: unknown) =>
 const FIELD_RANGE_ERROR = (field: string, min: number, max: number) =>
   `Field ${field} must be between ${min} and ${max}`;
 
-export {MISSING_FIELDS_ERROR, CLASS_CREATION_ERROR, FIELD_RANGE_ERROR};
+/**
+ * Error message template for fields with incorrect types.
+ */
+const TYPE_ERROR = (field: string, expectedType: string) =>
+  `Field ${field} must be of type ${expectedType}`;
+
+export {
+  MISSING_FIELDS_ERROR,
+  CLASS_CREATION_ERROR,
+  FIELD_RANGE_ERROR,
+  TYPE_ERROR,
+};
