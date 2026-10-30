@@ -15,6 +15,17 @@ import type {
   Reading as ReadingTaskType,
   Question as QuestionTaskType,
 } from './types';
+
+/**
+ * Checks whether a value is a JSON object (not null and not an array).
+ * @param x The value to check.
+ * @returns True if x is a non-null, non-array object.
+ */
+function isObject(x: unknown): x is Record<string, unknown> {
+  // empty array or set is also `typeof 'object'`, but we don't want that.
+  return typeof x === 'object' && x !== null && !Array.isArray(x);
+}
+
 /**
  * Stores user-specific gameplay settings.
  * @param musicVolume The volume level for music.
@@ -31,10 +42,10 @@ export class Settings {
   private static validateJson(
     json: unknown,
   ): asserts json is {musicVolume: number; sfxVolume: number} {
-    if (typeof json !== 'object' || json === null) {
+    if (!isObject(json)) {
       throw new Error(MISSING_FIELDS_ERROR(['musicVolume', 'sfxVolume']));
     }
-    const settings = json as Record<string, unknown>;
+    const settings = json;
     const missingFields = [];
     if (!('musicVolume' in settings)) {
       missingFields.push('musicVolume');
@@ -99,10 +110,10 @@ export class Player {
     name: string;
     hintQuota: number;
   } {
-    if (typeof json !== 'object' || json === null) {
+    if (!isObject(json)) {
       throw new Error(MISSING_FIELDS_ERROR(['userId', 'name', 'hintQuota']));
     }
-    const player = json as Record<string, unknown>;
+    const player = json;
     const missingFields = [];
     if (!('userId' in player)) {
       missingFields.push('userId');
@@ -137,8 +148,7 @@ export class Player {
     const json = JSON.parse(jsonString);
     let settings;
     try {
-      // json may be undefined if jsonString is undefined
-      if (typeof json !== 'object' || json === null || !('settings' in json)) {
+      if (!isObject(json) || !('settings' in json)) {
         throw new Error(MISSING_FIELDS_ERROR(['settings']));
       }
       settings = Settings.createFromJson(JSON.stringify(json.settings));
@@ -276,6 +286,17 @@ export class QuestionTask extends Task {
     this.options = options;
     this.correct = correct;
   }
+
+  /**
+   * Creates a new QuestionTask instance from a JSON string.
+   * @param json The JSON string representing a QuestionTask.
+   * @returns A QuestionTask instance.
+   */
+  static createFromJson(json: string): QuestionTask {
+    const obj = JSON.parse(json);
+    return new QuestionTask(obj.prompt, obj.options, obj.correct);
+  }
+
   /**
    * Converts the QuestionTask instance to its corresponding type representation.
    * @returns A QuestionTaskType object.
@@ -324,7 +345,13 @@ export class Lesson {
    */
   static createFromJson(json: string): Lesson {
     const obj = JSON.parse(json);
+    if (!Array.isArray(obj.tasks)) {
+      throw new Error(TYPE_ERROR('tasks', 'array'));
+    }
     const tasks = obj.tasks.map((taskJson: unknown) => {
+      if (!isObject(taskJson) || !('type' in taskJson)) {
+        throw new Error(MISSING_FIELDS_ERROR(['type']));
+      }
       switch (taskJson.type) {
         case 'Reading':
           return ReadingTask.createFromJson(JSON.stringify(taskJson));
