@@ -86,7 +86,8 @@ export interface LessonResultScreenModel {
  */
 export type ScreenModel =
   | TitleScreenModel
-  | QuestionScreenModel
+  | LessonIntroScreenModel
   | ReadingScreenModel
+  | QuestionScreenModel
   | QuestionResultScreenModel
   | LessonResultScreenModel;
