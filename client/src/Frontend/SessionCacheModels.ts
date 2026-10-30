@@ -8,6 +8,12 @@ import {
   FIELD_RANGE_ERROR,
 } from './ErrorMessages';
 
+import type {
+  Lesson as LessonType,
+  Task as TaskType,
+  Reading as ReadingTaskType,
+  Question as QuestionTaskType,
+} from './types';
 /**
  * Stores user-specific gameplay settings.
  * @param musicVolume The volume level for music.
@@ -144,5 +150,144 @@ export class Player {
     this.name = name;
     this.hintQuota = hintQuota;
     this.settings = settings;
+  }
+}
+
+/**
+ * Planet
+ */
+export class Planet {
+  planetId: number;
+  name: string;
+  introText: string;
+  graphOrder: number;
+  lessons: Lesson[];
+
+  /**
+   * Creates a new Planet instance.
+   * @param planetId Planet unique identifier.
+   * @param name Planet name.
+   * @param introText Introductory text for the planet.
+   * @param graphOrder Planet order in the game map.
+   * @param lessons The list of associated lessons.
+   */
+  constructor(
+    planetId: number,
+    name: string,
+    introText: string,
+    graphOrder: number,
+    lessons: Lesson[],
+  ) {
+    this.planetId = planetId;
+    this.name = name;
+    this.introText = introText;
+    this.graphOrder = graphOrder;
+    this.lessons = lessons;
+  }
+}
+
+abstract class Task {
+  abstract readonly taskType: 'Reading' | 'Question';
+  abstract toType(): TaskType;
+}
+
+/**
+ * Reading task
+ */
+export class ReadingTask extends Task {
+  readonly taskType = 'Reading' as const;
+  text: string;
+  /**
+   * Creates a new ReadingTask instance with the specified text.
+   * @param text The text content of the reading task.
+   */
+  constructor(text: string) {
+    super();
+    this.text = text;
+  }
+  /**
+   * Converts the ReadingTask instance to its corresponding type representation.
+   * @returns A ReadingTaskType object.
+   */
+  toType(): ReadingTaskType {
+    return {
+      type: this.taskType,
+      text: this.text,
+    };
+  }
+}
+
+/**
+ * Question task
+ */
+export class QuestionTask extends Task {
+  readonly taskType = 'Question' as const;
+  prompt: string;
+  options: string[];
+  correct: number;
+  /**
+   * Creates a new QuestionTask instance.
+   * @param prompt The question prompt.
+   * @param options The list of answer options.
+   * @param correct The index of the correct answer.
+   */
+  constructor(prompt: string, options: string[], correct: number) {
+    super();
+    this.prompt = prompt;
+    this.options = options;
+    this.correct = correct;
+  }
+  /**
+   * Converts the QuestionTask instance to its corresponding type representation.
+   * @returns A QuestionTaskType object.
+   */
+  toType(): QuestionTaskType {
+    return {
+      type: this.taskType,
+      prompt: this.prompt,
+      options: this.options,
+      correct: this.correct,
+    };
+  }
+}
+
+/**
+ * Lessons represent the educational content within a planet.
+ * Each lesson contains an introductory text, a name, and a list of tasks.
+ */
+export class Lesson {
+  lessonNumber: number;
+  introText: string;
+  lessonName: string;
+  tasks: Task[];
+  /**
+   * Creates a new Lesson instance with the specified details.
+   * @param lessonNumber The number of the lesson.
+   * @param introText The introductory text for the lesson.
+   * @param lessonName The name of the lesson.
+   * @param tasks The list of tasks associated with the lesson.
+   */
+  constructor(
+    lessonNumber: number,
+    introText: string,
+    lessonName: string,
+    tasks: Task[],
+  ) {
+    this.lessonNumber = lessonNumber;
+    this.introText = introText;
+    this.lessonName = lessonName;
+    this.tasks = tasks;
+  }
+  /**
+   * Converts the Lesson instance to its corresponding type representation.
+   * @returns A LessonType object.
+   */
+  toType(): LessonType {
+    return {
+      lessonNumber: this.lessonNumber,
+      introText: this.introText,
+      lessonName: this.lessonName,
+      tasks: this.tasks.map(task => task.toType()),
+    };
   }
 }
