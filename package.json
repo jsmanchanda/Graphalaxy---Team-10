@@ -64,8 +64,5 @@
         ]
       ]
     }
-  },
-  "dependencies": {
-    "evaluate": "^1.0.2"
   }
 }
