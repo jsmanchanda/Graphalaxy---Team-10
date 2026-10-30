@@ -26,6 +26,19 @@ function isObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
 
+function assertHasFields(
+  json: unknown,
+  fields: string[],
+): asserts json is Record<string, unknown> {
+  if (!isObject(json)) {
+    throw new Error(MISSING_FIELDS_ERROR(fields));
+  }
+  const missingFields = fields.filter(field => !(field in json));
+  if (missingFields.length > 0) {
+    throw new Error(MISSING_FIELDS_ERROR(missingFields));
+  }
+}
+
 /**
  * Stores user-specific gameplay settings.
  * @param musicVolume The volume level for music.
@@ -42,20 +55,8 @@ export class Settings {
   private static validateJson(
     json: unknown,
   ): asserts json is {musicVolume: number; sfxVolume: number} {
-    if (!isObject(json)) {
-      throw new Error(MISSING_FIELDS_ERROR(['musicVolume', 'sfxVolume']));
-    }
+    assertHasFields(json, ['musicVolume', 'sfxVolume']);
     const settings = json;
-    const missingFields = [];
-    if (!('musicVolume' in settings)) {
-      missingFields.push('musicVolume');
-    }
-    if (!('sfxVolume' in settings)) {
-      missingFields.push('sfxVolume');
-    }
-    if (missingFields.length > 0) {
-      throw new Error(MISSING_FIELDS_ERROR(missingFields));
-    }
 
     if (
       typeof settings.musicVolume !== 'number' ||
@@ -114,19 +115,8 @@ export class Player {
       throw new Error(MISSING_FIELDS_ERROR(['userId', 'name', 'hintQuota']));
     }
     const player = json;
-    const missingFields = [];
-    if (!('userId' in player)) {
-      missingFields.push('userId');
-    }
-    if (!('name' in player)) {
-      missingFields.push('name');
-    }
-    if (!('hintQuota' in player)) {
-      missingFields.push('hintQuota');
-    }
-    if (missingFields.length > 0) {
-      throw new Error(MISSING_FIELDS_ERROR(missingFields));
-    }
+    assertHasFields(player, ['userId', 'name', 'hintQuota']);
+
     if (typeof player.name !== 'string' || player.name.trim() === '') {
       throw new Error(TYPE_ERROR('name', 'string'));
     }
@@ -213,9 +203,43 @@ export class Planet {
    */
   static createFromJson(json: string): Planet {
     const obj = JSON.parse(json);
+    assertHasFields(obj, [
+      'planetId',
+      'name',
+      'introText',
+      'graphOrder',
+      'lessons',
+    ]);
+    if (typeof obj.planetId !== 'number') {
+      throw new Error(TYPE_ERROR('planetId', 'number'));
+    }
+    if (obj.planetId < 1 || !Number.isInteger(obj.planetId)) {
+      throw new Error(
+        FIELD_RANGE_ERROR('planetId', 1, Number.MAX_SAFE_INTEGER),
+      );
+    }
+    if (typeof obj.name !== 'string') {
+      throw new Error(TYPE_ERROR('name', 'string'));
+    }
+    if (typeof obj.introText !== 'string') {
+      throw new Error(TYPE_ERROR('introText', 'string'));
+    }
+    if (typeof obj.graphOrder !== 'number') {
+      throw new Error(TYPE_ERROR('graphOrder', 'number'));
+    }
+    if (obj.graphOrder < 0 || !Number.isInteger(obj.graphOrder)) {
+      throw new Error(
+        FIELD_RANGE_ERROR('graphOrder', 0, Number.MAX_SAFE_INTEGER),
+      );
+    }
+    if (!Array.isArray(obj.lessons)) {
+      throw new Error(TYPE_ERROR('lessons', 'array'));
+    }
+
     const lessons = obj.lessons.map((lessonJson: unknown) =>
       Lesson.createFromJson(JSON.stringify(lessonJson)),
     );
+
     return new Planet(
       obj.planetId,
       obj.name,
@@ -255,6 +279,10 @@ export class ReadingTask extends Task {
    */
   static createFromJson(json: string): ReadingTask {
     const obj = JSON.parse(json);
+    assertHasFields(obj, ['text']);
+    if (typeof obj.text !== 'string') {
+      throw new Error(TYPE_ERROR('text', 'string'));
+    }
     return new ReadingTask(obj.text);
   }
   /**
@@ -296,7 +324,27 @@ export class QuestionTask extends Task {
    * @returns A QuestionTask instance.
    */
   static createFromJson(json: string): QuestionTask {
-    const obj = JSON.parse(json);
+    const obj: unknown = JSON.parse(json);
+    assertHasFields(obj, ['prompt', 'options', 'correct']);
+    if (typeof obj.prompt !== 'string') {
+      throw new Error(TYPE_ERROR('prompt', 'string'));
+    }
+    if (
+      !Array.isArray(obj.options) ||
+      !obj.options.every(option => typeof option === 'string')
+    ) {
+      throw new Error(TYPE_ERROR('options', 'string[]'));
+    }
+
+    if (
+      typeof obj.correct !== 'number' ||
+      !Number.isInteger(obj.correct) ||
+      obj.correct < 0 ||
+      obj.correct >= obj.options.length
+    ) {
+      throw new Error(FIELD_RANGE_ERROR('correct', 0, obj.options.length - 1));
+    }
+
     return new QuestionTask(obj.prompt, obj.options, obj.correct);
   }
 
@@ -347,11 +395,26 @@ export class Lesson {
    * @returns A Lesson instance.
    */
   static createFromJson(json: string): Lesson {
-    const obj = JSON.parse(json);
+    const obj: unknown = JSON.parse(json);
+    assertHasFields(obj, ['lessonNumber', 'introText', 'lessonName', 'tasks']);
+    if (typeof obj.lessonNumber !== 'number') {
+      throw new Error(TYPE_ERROR('lessonNumber', 'number'));
+    }
+    if (!Number.isInteger(obj.lessonNumber) || obj.lessonNumber < 1) {
+      throw new Error(
+        FIELD_RANGE_ERROR('lessonNumber', 1, Number.MAX_SAFE_INTEGER),
+      );
+    }
+    if (typeof obj.introText !== 'string') {
+      throw new Error(TYPE_ERROR('introText', 'string'));
+    }
+    if (typeof obj.lessonName !== 'string') {
+      throw new Error(TYPE_ERROR('lessonName', 'string'));
+    }
     if (!Array.isArray(obj.tasks)) {
       throw new Error(TYPE_ERROR('tasks', 'array'));
     }
-    const tasks = obj.tasks.map((taskJson: unknown) => {
+    const parsedTasks = obj.tasks.map((taskJson: unknown) => {
       if (!isObject(taskJson) || !('type' in taskJson)) {
         throw new Error(MISSING_FIELDS_ERROR(['type']));
       }
@@ -364,7 +427,12 @@ export class Lesson {
           throw new Error(`Unknown task type: ${taskJson.type}`);
       }
     });
-    return new Lesson(obj.lessonNumber, obj.introText, obj.lessonName, tasks);
+    return new Lesson(
+      obj.lessonNumber,
+      obj.introText,
+      obj.lessonName,
+      parsedTasks,
+    );
   }
   /**
    * Converts the Lesson instance to its corresponding type representation.
