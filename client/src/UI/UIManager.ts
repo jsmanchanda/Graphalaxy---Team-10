@@ -5,6 +5,7 @@ import {TitleScreenView} from './screens/TitleScreenView';
 import {ReadingScreenView} from './screens/ReadingScreenView';
 import {QuestionScreenView} from './screens/QuestionScreenView';
 import {QuestionResultScreenView} from './screens/QuestionResultView';
+import {LessonIntroScreenView} from './screens/LessonIntroScreenView';
 import {LessonResultScreenView} from './screens/LessonResultScreenView';
 
 import {DESIGN_HEIGHT, DESIGN_WIDTH} from './constants';
@@ -76,12 +77,16 @@ export class UiManager {
         this.currentView = new TitleScreenView(this.onAction, model);
         this.layer.add(this.currentView.getGroup());
         break;
-      case 'question':
-        this.currentView = new QuestionScreenView(this.onAction, model);
+      case 'intro':
+        this.currentView = new LessonIntroScreenView(this.onAction, model);
         this.layer.add(this.currentView.getGroup());
         break;
       case 'reading':
         this.currentView = new ReadingScreenView(this.onAction, model);
+        break;
+      case 'question':
+        this.currentView = new QuestionScreenView(this.onAction, model);
+        this.layer.add(this.currentView.getGroup());
         break;
       case 'questionResult':
         this.currentView = new QuestionResultScreenView(this.onAction, model);
