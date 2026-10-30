@@ -283,6 +283,9 @@ export class ReadingTask extends Task {
     if (typeof obj.text !== 'string') {
       throw new Error(TYPE_ERROR('text', 'string'));
     }
+    if (obj.text.trim() === '') {
+      throw new Error('text cannot be empty');
+    }
     return new ReadingTask(obj.text);
   }
   /**
@@ -342,7 +345,15 @@ export class QuestionTask extends Task {
       obj.correct < 0 ||
       obj.correct >= obj.options.length
     ) {
-      throw new Error(FIELD_RANGE_ERROR('correct', 0, obj.options.length - 1));
+      if (obj.options.length === 0) {
+        throw new Error(
+          'options cannot be empty when specifying the correct answer index',
+        );
+      } else {
+        throw new Error(
+          FIELD_RANGE_ERROR('correct', 0, obj.options.length - 1),
+        );
+      }
     }
 
     return new QuestionTask(obj.prompt, obj.options, obj.correct);
