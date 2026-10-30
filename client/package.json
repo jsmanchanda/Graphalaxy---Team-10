@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "lint": "eslint . --no-error-on-unmatched-pattern",
-    "dev": "vite"
+    "dev": "vite",
+    "dev:demo": "vite --open /demo.html"
   },
   "dependencies": {
     "konva": "^10.9.0",
