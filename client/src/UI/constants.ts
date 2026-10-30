@@ -18,7 +18,35 @@ export const TEXT_COLOR = '#000000';
 export const TEXT_FONT_FAMILY = FONT_CONTHRAX;
 export const TEXT_FONT_SIZE = 20;
 
-// ============== Multiple Choice Screen ==============
+// Next and Back Button
+export const NEXT_BUTTON_WIDTH = 100;
+export const NEXT_BUTTON_HEIGHT = 50;
+export const NEXT_BUTTON_X = DESIGN_WIDTH - NEXT_BUTTON_WIDTH;
+export const NEXT_BUTTON_Y = 450;
+
+export const BACK_BUTTON_WIDTH = 100;
+export const BACK_BUTTON_HEIGHT = 50;
+export const BACK_BUTTON_X = 0;
+export const BACK_BUTTON_Y = 450;
+
+// ============== Lesson Intro Screen ===========
+export const LESSON_INTRO_TITLE_WIDTH = 150;
+export const LESSON_INTRO_TITLE_HEIGHT = 75;
+export const LESSON_INTRO_TITLE_X =
+  (DESIGN_WIDTH - LESSON_INTRO_TITLE_WIDTH) * 0.5;
+export const LESSON_INTRO_TITLE_Y = 25;
+
+export const LESSON_INTRO_DESCRIPTION_WIDTH = 600;
+export const LESSON_INTRO_DESCRIPTION_HEIGHT = 300;
+export const LESSON_INTRO_DESCRIPTION_X =
+  (DESIGN_WIDTH - LESSON_INTRO_DESCRIPTION_WIDTH) * 0.5;
+export const LESSON_INTRO_DESCRIPTION_Y = 100;
+
+// ============== Reading Screen ==============
+export const READING_TEXT_WIDTH = 600;
+export const READING_TEXT_HEIGHT = 300;
+export const READING_TEXT_X = (DESIGN_WIDTH - READING_TEXT_WIDTH) * 0.5;
+export const READING_TEXT_Y = 100;
 
 // ============== Multiple Choice Screen ==============
 
@@ -51,3 +79,14 @@ export const MULTIPLE_CHOICE_PROMPT_Y =
     2 * MULTIPLE_CHOICE_OPTION_HEIGHT -
     MULTIPLE_CHOICE_PROMPT_HEIGHT) *
   0.5;
+
+// ============== Question Result Screen + Lesson Result Screen ==============
+export const RESULT_TEXT_WIDTH = 600;
+export const RESULT_TEXT_HEIGHT = 300;
+export const RESULT_TEXT_X = (DESIGN_WIDTH - READING_TEXT_WIDTH) * 0.5;
+export const RESULT_TEXT_Y = 50;
+
+export const OK_BUTTON_WIDTH = 100;
+export const OK_BUTTON_HEIGHT = 100;
+export const OK_BUTTON_X = (DESIGN_WIDTH - OK_BUTTON_WIDTH) * 0.5;
+export const OK_BUTTON_Y = RESULT_TEXT_Y + RESULT_TEXT_HEIGHT + 25;
