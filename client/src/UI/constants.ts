@@ -78,7 +78,8 @@ export const MULTIPLE_CHOICE_PROMPT_Y =
   (DESIGN_HEIGHT -
     2 * MULTIPLE_CHOICE_OPTION_HEIGHT -
     MULTIPLE_CHOICE_PROMPT_HEIGHT) *
-  0.5;
+    0.5 -
+  20;
 
 // ============== Question Result Screen + Lesson Result Screen ==============
 export const RESULT_TEXT_WIDTH = 600;

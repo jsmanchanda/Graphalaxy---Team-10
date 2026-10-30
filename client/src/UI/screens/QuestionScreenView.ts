@@ -12,6 +12,7 @@ import {
   MULTIPLE_CHOICE_PROMPT_HEIGHT,
   ALIEN_FRIEND_WIDTH,
   DESIGN_WIDTH,
+  DESIGN_HEIGHT,
 } from '../constants';
 import {QuestionScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
@@ -31,6 +32,9 @@ export class QuestionScreenView implements View {
   ) {
     this.group = new Konva.Group();
 
+    // Track the selected option, null by default (no option selected)
+    let selectedOption: number | null = null;
+
     const prompt = new TextBoxComponent(
       MULTIPLE_CHOICE_PROMPT_X,
       MULTIPLE_CHOICE_PROMPT_Y,
@@ -45,7 +49,7 @@ export class QuestionScreenView implements View {
       MULTIPLE_CHOICE_OPTION_WIDTH,
       MULTIPLE_CHOICE_OPTION_HEIGHT,
       model.question.option1,
-      () => onAction({type: 'answer', option: 1}),
+      () => selectOption(1),
     );
     const option2 = new ButtonComponent(
       MULTIPLE_CHOICE_OPTION_RIGHT_X,
@@ -53,7 +57,7 @@ export class QuestionScreenView implements View {
       MULTIPLE_CHOICE_OPTION_WIDTH,
       MULTIPLE_CHOICE_OPTION_HEIGHT,
       model.question.option2,
-      () => onAction({type: 'answer', option: 2}),
+      () => selectOption(2),
     );
     const option3 = new ButtonComponent(
       MULTIPLE_CHOICE_OPTION_LEFT_X,
@@ -61,7 +65,7 @@ export class QuestionScreenView implements View {
       MULTIPLE_CHOICE_OPTION_WIDTH,
       MULTIPLE_CHOICE_OPTION_HEIGHT,
       model.question.option3,
-      () => onAction({type: 'answer', option: 3}),
+      () => selectOption(3),
     );
     const option4 = new ButtonComponent(
       MULTIPLE_CHOICE_OPTION_RIGHT_X,
@@ -69,7 +73,37 @@ export class QuestionScreenView implements View {
       MULTIPLE_CHOICE_OPTION_WIDTH,
       MULTIPLE_CHOICE_OPTION_HEIGHT,
       model.question.option4,
-      () => onAction({type: 'answer', option: 4}),
+      () => selectOption(4),
+    );
+    const options = [option1, option2, option3, option4];
+
+    function selectOption(option: number): void {
+      selectedOption = option;
+
+      options.forEach((button, index) => {
+        const buttonBackground = button.getGroup().getChildren()[0];
+
+        // Highlight the selected option by changing its background color
+        if (buttonBackground instanceof Konva.Rect) {
+          buttonBackground.fill(index + 1 === option ? '#3b82f6' : '#0c22cbc3');
+        }
+      });
+    }
+
+    const confirmButton = new ButtonComponent(
+      (DESIGN_WIDTH - 200) * 0.5,
+      DESIGN_HEIGHT -
+        MULTIPLE_CHOICE_OPTION_HEIGHT -
+        MULTIPLE_CHOICE_OPTION_HEIGHT -
+        40,
+      200,
+      40,
+      'Confirm',
+      () => {
+        if (selectedOption !== null) {
+          onAction({type: 'answer', option: selectedOption});
+        }
+      },
     );
 
     const alienCat = new ImageComponent(
@@ -92,6 +126,7 @@ export class QuestionScreenView implements View {
     this.group.add(backButton.getGroup());
     this.group.add(alienCat.getGroup());
     this.group.add(prompt.getGroup());
+    this.group.add(confirmButton.getGroup());
     this.group.add(option1.getGroup());
     this.group.add(option2.getGroup());
     this.group.add(option3.getGroup());
