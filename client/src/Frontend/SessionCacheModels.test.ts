@@ -4,7 +4,6 @@ import {
   Player,
   ReadingTask,
   QuestionTask,
-  Lesson,
   Planet,
 } from './SessionCacheModels';
 import {
@@ -274,119 +273,40 @@ describe('parseQuestionTask', () => {
   });
 });
 
-const VALID_LESSON = {
-  lessonNumber: 1,
-  introText: 'A linear function has the form y = mx + b.',
-  lessonName: 'Linear functions',
-  tasks: [VALID_READING, VALID_QUESTION],
-};
 const VALID_PLANET = {
   planetId: 1,
   name: 'Linear Land',
   introText: 'A hostile world of straight lines.',
   graphOrder: 0,
-  lessons: [VALID_LESSON],
+  tasks: [VALID_READING, VALID_QUESTION],
 };
-describe('parseLesson', () => {
-  it('parses a valid lesson with both task types', () => {
-    const lesson = Lesson.createFromJson(JSON.stringify(VALID_LESSON));
-    expect(lesson).toBeInstanceOf(Lesson);
-    expect(lesson.tasks[0]).toBeInstanceOf(ReadingTask);
-    expect(lesson.tasks[1]).toBeInstanceOf(QuestionTask);
-    expect(lesson.toType()).toEqual(VALID_LESSON);
-  });
-  it('keeps the tasks in order', () => {
-    const JSON_STRING = JSON.stringify({
-      ...VALID_LESSON,
-      tasks: [VALID_QUESTION, VALID_READING],
-    });
-    const lesson = Lesson.createFromJson(JSON_STRING);
-    expect(lesson.tasks.map(task => task.taskType)).toEqual([
-      'Question',
-      'Reading',
-    ]);
-  });
-  it('accepts a lesson with no tasks', () => {
-    const JSON_STRING = JSON.stringify({...VALID_LESSON, tasks: []});
-    expect(Lesson.createFromJson(JSON_STRING).tasks).toEqual([]);
-  });
-  it('throws an error listing all missing fields', () => {
-    expect(() => Lesson.createFromJson('{}')).toThrowError(
-      MISSING_FIELDS_ERROR([
-        'lessonNumber',
-        'introText',
-        'lessonName',
-        'tasks',
-      ]),
-    );
-  });
-  it('throws an error when lessonNumber is not a number', () => {
-    const JSON_STRING = JSON.stringify({...VALID_LESSON, lessonNumber: '1'});
-    expect(() => Lesson.createFromJson(JSON_STRING)).toThrowError(
-      TYPE_ERROR('lessonNumber', 'number'),
-    );
-  });
-  it.each([0, 1.5])('throws an error when lessonNumber is %s', lessonNumber => {
-    const JSON_STRING = JSON.stringify({...VALID_LESSON, lessonNumber});
-    expect(() => Lesson.createFromJson(JSON_STRING)).toThrowError(
-      FIELD_RANGE_ERROR('lessonNumber', 1, Number.MAX_SAFE_INTEGER),
-    );
-  });
-  it.each(['introText', 'lessonName'])(
-    'throws an error when %s is not a string',
-    field => {
-      const JSON_STRING = JSON.stringify({...VALID_LESSON, [field]: 123});
-      expect(() => Lesson.createFromJson(JSON_STRING)).toThrowError(
-        TYPE_ERROR(field, 'string'),
-      );
-    },
-  );
-  it('throws an error when tasks is not an array', () => {
-    const JSON_STRING = JSON.stringify({...VALID_LESSON, tasks: 'none'});
-    expect(() => Lesson.createFromJson(JSON_STRING)).toThrowError(
-      TYPE_ERROR('tasks', 'array'),
-    );
-  });
-  it('throws an error when a task has no type', () => {
-    const JSON_STRING = JSON.stringify({...VALID_LESSON, tasks: [{text: 'a'}]});
-    expect(() => Lesson.createFromJson(JSON_STRING)).toThrowError(
-      MISSING_FIELDS_ERROR(['type']),
-    );
-  });
-  it('throws an error when a task has an unknown type', () => {
-    const JSON_STRING = JSON.stringify({
-      ...VALID_LESSON,
-      tasks: [{type: 'Video'}],
-    });
-    expect(() => Lesson.createFromJson(JSON_STRING)).toThrowError(
-      'Unknown task type: Video',
-    );
-  });
-  it('throws an error when a task is invalid', () => {
-    const JSON_STRING = JSON.stringify({
-      ...VALID_LESSON,
-      tasks: [VALID_READING, {type: 'Reading'}],
-    });
-    expect(() => Lesson.createFromJson(JSON_STRING)).toThrowError(
-      MISSING_FIELDS_ERROR(['text']),
-    );
-  });
-});
 
 describe('parsePlanet', () => {
-  it('parses a valid planet with nested lessons', () => {
+  it('parses a valid planet with both task types', () => {
     const planet = Planet.createFromJson(JSON.stringify(VALID_PLANET));
     expect(planet).toBeInstanceOf(Planet);
     expect(planet.planetId).toBe(1);
     expect(planet.name).toBe('Linear Land');
     expect(planet.introText).toBe('A hostile world of straight lines.');
     expect(planet.graphOrder).toBe(0);
-    expect(planet.lessons[0]).toBeInstanceOf(Lesson);
-    expect(planet.lessons[0].toType()).toEqual(VALID_LESSON);
+    expect(planet.tasks[0]).toBeInstanceOf(ReadingTask);
+    expect(planet.tasks[1]).toBeInstanceOf(QuestionTask);
+    expect(planet.toType()).toEqual(VALID_PLANET);
   });
-  it('accepts a planet with no lessons', () => {
-    const JSON_STRING = JSON.stringify({...VALID_PLANET, lessons: []});
-    expect(Planet.createFromJson(JSON_STRING).lessons).toEqual([]);
+  it('keeps the tasks in order', () => {
+    const JSON_STRING = JSON.stringify({
+      ...VALID_PLANET,
+      tasks: [VALID_QUESTION, VALID_READING],
+    });
+    const planet = Planet.createFromJson(JSON_STRING);
+    expect(planet.tasks.map(task => task.taskType)).toEqual([
+      'Question',
+      'Reading',
+    ]);
+  });
+  it('accepts a planet with no tasks', () => {
+    const JSON_STRING = JSON.stringify({...VALID_PLANET, tasks: []});
+    expect(Planet.createFromJson(JSON_STRING).tasks).toEqual([]);
   });
   it('throws an error listing all missing fields', () => {
     expect(() => Planet.createFromJson('{}')).toThrowError(
@@ -395,7 +315,7 @@ describe('parsePlanet', () => {
         'name',
         'introText',
         'graphOrder',
-        'lessons',
+        'tasks',
       ]),
     );
   });
@@ -429,19 +349,34 @@ describe('parsePlanet', () => {
       );
     },
   );
-  it('throws an error when lessons is not an array', () => {
-    const JSON_STRING = JSON.stringify({...VALID_PLANET, lessons: 'none'});
+  it('throws an error when tasks is not an array', () => {
+    const JSON_STRING = JSON.stringify({...VALID_PLANET, tasks: 'none'});
     expect(() => Planet.createFromJson(JSON_STRING)).toThrowError(
-      TYPE_ERROR('lessons', 'array'),
+      TYPE_ERROR('tasks', 'array'),
     );
   });
-  it('throws an error when a nested lesson is invalid', () => {
+  it('throws an error when a task has no type', () => {
+    const JSON_STRING = JSON.stringify({...VALID_PLANET, tasks: [{text: 'a'}]});
+    expect(() => Planet.createFromJson(JSON_STRING)).toThrowError(
+      MISSING_FIELDS_ERROR(['type']),
+    );
+  });
+  it('throws an error when a task has an unknown type', () => {
     const JSON_STRING = JSON.stringify({
       ...VALID_PLANET,
-      lessons: [{...VALID_LESSON, lessonName: 123}],
+      tasks: [{type: 'Video'}],
     });
     expect(() => Planet.createFromJson(JSON_STRING)).toThrowError(
-      TYPE_ERROR('lessonName', 'string'),
+      'Unknown task type: Video',
+    );
+  });
+  it('throws an error when a task is invalid', () => {
+    const JSON_STRING = JSON.stringify({
+      ...VALID_PLANET,
+      tasks: [VALID_READING, {type: 'Reading'}],
+    });
+    expect(() => Planet.createFromJson(JSON_STRING)).toThrowError(
+      MISSING_FIELDS_ERROR(['text']),
     );
   });
 });
@@ -471,16 +406,6 @@ describe.each([
     nonObjectError: MISSING_FIELDS_ERROR(['prompt', 'options', 'correct']),
   },
   {
-    model: 'Lesson',
-    parse: (json: string) => Lesson.createFromJson(json),
-    nonObjectError: MISSING_FIELDS_ERROR([
-      'lessonNumber',
-      'introText',
-      'lessonName',
-      'tasks',
-    ]),
-  },
-  {
     model: 'Planet',
     parse: (json: string) => Planet.createFromJson(json),
     nonObjectError: MISSING_FIELDS_ERROR([
@@ -488,7 +413,7 @@ describe.each([
       'name',
       'introText',
       'graphOrder',
-      'lessons',
+      'tasks',
     ]),
   },
 ])('$model edge cases', ({parse, nonObjectError}) => {

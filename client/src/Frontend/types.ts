@@ -17,16 +17,17 @@ export interface Question {
 }
 
 /**
- * Type of task - think slide in a lesson, what type of task it is
+ * Type of task - think slide on a planet, what type of task it is
  */
 export type Task = Reading | Question;
 
 /**
- * Lesson storing its name and the order of the tasks
+ * Planet storing its details and the order of the tasks
  */
-export interface Lesson {
-  lessonName: string;
-  lessonNumber: number;
+export interface Planet {
+  planetId: number;
+  name: string;
   introText: string;
+  graphOrder: number;
   tasks: Task[];
 }

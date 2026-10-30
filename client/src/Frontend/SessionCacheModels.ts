@@ -10,7 +10,7 @@ import {
 } from './ErrorMessages';
 
 import type {
-  Lesson as LessonType,
+  Planet as PlanetType,
   Task as TaskType,
   Reading as ReadingTaskType,
   Question as QuestionTaskType,
@@ -165,14 +165,15 @@ export class Player {
 }
 
 /**
- * Planet
+ * Planets represent a topic on the game map.
+ * Each planet contains an introductory text and an ordered list of tasks.
  */
 export class Planet {
   planetId: number;
   name: string;
   introText: string;
   graphOrder: number;
-  lessons: Lesson[];
+  tasks: Task[];
 
   /**
    * Creates a new Planet instance.
@@ -180,20 +181,20 @@ export class Planet {
    * @param name Planet name.
    * @param introText Introductory text for the planet.
    * @param graphOrder Planet order in the game map.
-   * @param lessons The list of associated lessons.
+   * @param tasks The ordered list of reading and question tasks.
    */
   private constructor(
     planetId: number,
     name: string,
     introText: string,
     graphOrder: number,
-    lessons: Lesson[],
+    tasks: Task[],
   ) {
     this.planetId = planetId;
     this.name = name;
     this.introText = introText;
     this.graphOrder = graphOrder;
-    this.lessons = lessons;
+    this.tasks = tasks;
   }
 
   /**
@@ -202,13 +203,13 @@ export class Planet {
    * @returns A Planet instance.
    */
   static createFromJson(json: string): Planet {
-    const obj = JSON.parse(json);
+    const obj: unknown = JSON.parse(json);
     assertHasFields(obj, [
       'planetId',
       'name',
       'introText',
       'graphOrder',
-      'lessons',
+      'tasks',
     ]);
     if (typeof obj.planetId !== 'number') {
       throw new Error(TYPE_ERROR('planetId', 'number'));
@@ -232,26 +233,48 @@ export class Planet {
         FIELD_RANGE_ERROR('graphOrder', 0, Number.MAX_SAFE_INTEGER),
       );
     }
-    if (!Array.isArray(obj.lessons)) {
-      throw new Error(TYPE_ERROR('lessons', 'array'));
+    if (!Array.isArray(obj.tasks)) {
+      throw new Error(TYPE_ERROR('tasks', 'array'));
     }
-
-    const lessons = obj.lessons.map((lessonJson: unknown) =>
-      Lesson.createFromJson(JSON.stringify(lessonJson)),
-    );
+    const parsedTasks = obj.tasks.map((taskJson: unknown) => {
+      if (!isObject(taskJson) || !('type' in taskJson)) {
+        throw new Error(MISSING_FIELDS_ERROR(['type']));
+      }
+      switch (taskJson.type) {
+        case 'Reading':
+          return ReadingTask.createFromJson(JSON.stringify(taskJson));
+        case 'Question':
+          return QuestionTask.createFromJson(JSON.stringify(taskJson));
+        default:
+          throw new Error(`Unknown task type: ${taskJson.type}`);
+      }
+    });
 
     return new Planet(
       obj.planetId,
       obj.name,
       obj.introText,
       obj.graphOrder,
-      lessons,
+      parsedTasks,
     );
+  }
+  /**
+   * Converts the Planet instance to its corresponding type representation.
+   * @returns A PlanetType object.
+   */
+  toType(): PlanetType {
+    return {
+      planetId: this.planetId,
+      name: this.name,
+      introText: this.introText,
+      graphOrder: this.graphOrder,
+      tasks: this.tasks.map(task => task.toType()),
+    };
   }
 }
 
 /**
- * Generic task in a lesson.
+ * Generic task on a planet.
  */
 export abstract class Task {
   abstract readonly taskType: 'Reading' | 'Question';
@@ -369,92 +392,6 @@ export class QuestionTask extends Task {
       prompt: this.prompt,
       options: this.options,
       correct: this.correct,
-    };
-  }
-}
-
-/**
- * Lessons represent the educational content within a planet.
- * Each lesson contains an introductory text, a name, and a list of tasks.
- */
-export class Lesson {
-  lessonNumber: number;
-  introText: string;
-  lessonName: string;
-  tasks: Task[];
-  /**
-   * Creates a new Lesson instance with the specified details.
-   * @param lessonNumber The number of the lesson.
-   * @param introText The introductory text for the lesson.
-   * @param lessonName The name of the lesson.
-   * @param tasks The list of tasks associated with the lesson.
-   */
-  private constructor(
-    lessonNumber: number,
-    introText: string,
-    lessonName: string,
-    tasks: Task[],
-  ) {
-    this.lessonNumber = lessonNumber;
-    this.introText = introText;
-    this.lessonName = lessonName;
-    this.tasks = tasks;
-  }
-  /**
-   * Creates a new Lesson instance from a JSON string.
-   * @param json The JSON string representing a Lesson.
-   * @returns A Lesson instance.
-   */
-  static createFromJson(json: string): Lesson {
-    const obj: unknown = JSON.parse(json);
-    assertHasFields(obj, ['lessonNumber', 'introText', 'lessonName', 'tasks']);
-    if (typeof obj.lessonNumber !== 'number') {
-      throw new Error(TYPE_ERROR('lessonNumber', 'number'));
-    }
-    if (!Number.isInteger(obj.lessonNumber) || obj.lessonNumber < 1) {
-      throw new Error(
-        FIELD_RANGE_ERROR('lessonNumber', 1, Number.MAX_SAFE_INTEGER),
-      );
-    }
-    if (typeof obj.introText !== 'string') {
-      throw new Error(TYPE_ERROR('introText', 'string'));
-    }
-    if (typeof obj.lessonName !== 'string') {
-      throw new Error(TYPE_ERROR('lessonName', 'string'));
-    }
-    if (!Array.isArray(obj.tasks)) {
-      throw new Error(TYPE_ERROR('tasks', 'array'));
-    }
-    const parsedTasks = obj.tasks.map((taskJson: unknown) => {
-      if (!isObject(taskJson) || !('type' in taskJson)) {
-        throw new Error(MISSING_FIELDS_ERROR(['type']));
-      }
-      switch (taskJson.type) {
-        case 'Reading':
-          return ReadingTask.createFromJson(JSON.stringify(taskJson));
-        case 'Question':
-          return QuestionTask.createFromJson(JSON.stringify(taskJson));
-        default:
-          throw new Error(`Unknown task type: ${taskJson.type}`);
-      }
-    });
-    return new Lesson(
-      obj.lessonNumber,
-      obj.introText,
-      obj.lessonName,
-      parsedTasks,
-    );
-  }
-  /**
-   * Converts the Lesson instance to its corresponding type representation.
-   * @returns A LessonType object.
-   */
-  toType(): LessonType {
-    return {
-      lessonNumber: this.lessonNumber,
-      introText: this.introText,
-      lessonName: this.lessonName,
-      tasks: this.tasks.map(task => task.toType()),
     };
   }
 }
