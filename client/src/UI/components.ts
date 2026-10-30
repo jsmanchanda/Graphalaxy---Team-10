@@ -39,6 +39,8 @@ export abstract class Component {
  * A box with text in the middle.
  */
 export class TextBoxComponent extends Component {
+  protected label: Konva.Text;
+
   /**
    * Builds the text box.
    */
@@ -59,7 +61,7 @@ export class TextBoxComponent extends Component {
       stroke: TEXT_BOX_BORDER_COLOR,
     });
 
-    const label = new Konva.Text({
+    this.label = new Konva.Text({
       width,
       height,
       text,
@@ -70,7 +72,27 @@ export class TextBoxComponent extends Component {
       fill: TEXT_COLOR,
     });
 
-    this.group.add(box, label);
+    this.group.add(box, this.label);
+  }
+
+  /**
+   * Changes the font of the text.
+   * @param fontFamily A loaded font's name, e.g. TITLE_FONT_FAMILY.
+   * @returns This text box, so setters can be chained.
+   */
+  setFontFamily(fontFamily: string): this {
+    this.label.fontFamily(fontFamily);
+    return this;
+  }
+
+  /**
+   * Changes the size of the text.
+   * @param fontSize The size in pixels.
+   * @returns This text box, so setters can be chained.
+   */
+  setFontSize(fontSize: number): this {
+    this.label.fontSize(fontSize);
+    return this;
   }
 }
 

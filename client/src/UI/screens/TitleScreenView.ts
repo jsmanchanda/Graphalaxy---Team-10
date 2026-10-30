@@ -1,6 +1,7 @@
 /// <reference lib="dom" />
 
 import {ButtonComponent, TextBoxComponent} from '../components';
+import {FONT_PLANET_KOSMOS} from '../constants';
 import {TitleScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
 
@@ -15,9 +16,9 @@ export class TitleScreenView implements View {
   constructor(onAction: (action: UiAction) => void, model: TitleScreenModel) {
     this.group = new Konva.Group();
 
-    // const logo = new ImageComponent(200, 80, 400, 180, '/assets/logo.png');
-
-    const titleText = new TextBoxComponent(200, 80, 40, 180, model.title);
+    const titleText = new TextBoxComponent(200, 80, 400, 180, model.title);
+    titleText.setFontSize(45);
+    titleText.setFontFamily(FONT_PLANET_KOSMOS);
 
     const startButton = new ButtonComponent(300, 320, 200, 60, 'Start', () =>
       onAction({type: 'start'}),
