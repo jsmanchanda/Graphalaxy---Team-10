@@ -1,5 +1,10 @@
 import {describe, expect, it} from 'vitest';
-import {Settings, Player} from './SessionCacheModels';
+import {
+  Settings,
+  Player,
+  ReadingTask,
+  QuestionTask,
+} from './SessionCacheModels';
 import {
   MISSING_FIELDS_ERROR,
   CLASS_CREATION_ERROR,
@@ -100,6 +105,86 @@ describe('parsePlayer', () => {
     });
     expect(() => Player.createFromJson(JSON_STRING)).toThrowError(
       TYPE_ERROR('name', 'string'),
+    );
+  });
+});
+
+const VALID_READING = {type: 'Reading', text: 'The slope is m.'};
+const VALID_QUESTION = {
+  type: 'Question',
+  prompt: 'What is the slope of y = 2x + 3?',
+  options: ['2', '3'],
+  correct: 0,
+};
+
+describe('parseReadingTask', () => {
+  it('parses a valid reading task', () => {
+    const task = ReadingTask.createFromJson(JSON.stringify(VALID_READING));
+    expect(task).toBeInstanceOf(ReadingTask);
+    expect(task.toType()).toEqual(VALID_READING);
+  });
+  it('throws an error when text is missing', () => {
+    expect(() => ReadingTask.createFromJson('{}')).toThrowError(
+      MISSING_FIELDS_ERROR(['text']),
+    );
+  });
+  it('throws an error when text is not a string', () => {
+    const JSON_STRING = JSON.stringify({text: 123});
+    expect(() => ReadingTask.createFromJson(JSON_STRING)).toThrowError(
+      TYPE_ERROR('text', 'string'),
+    );
+  });
+  it('throws an error when text is blank', () => {
+    const JSON_STRING = JSON.stringify({text: '   '});
+    expect(() => ReadingTask.createFromJson(JSON_STRING)).toThrowError(
+      'text cannot be empty',
+    );
+  });
+});
+
+describe('parseQuestionTask', () => {
+  it('parses a valid question task', () => {
+    const task = QuestionTask.createFromJson(JSON.stringify(VALID_QUESTION));
+    expect(task).toBeInstanceOf(QuestionTask);
+    expect(task.toType()).toEqual(VALID_QUESTION);
+  });
+  it('throws an error listing all missing fields', () => {
+    expect(() => QuestionTask.createFromJson('{}')).toThrowError(
+      MISSING_FIELDS_ERROR(['prompt', 'options', 'correct']),
+    );
+  });
+  it('throws an error when prompt is not a string', () => {
+    const JSON_STRING = JSON.stringify({...VALID_QUESTION, prompt: 123});
+    expect(() => QuestionTask.createFromJson(JSON_STRING)).toThrowError(
+      TYPE_ERROR('prompt', 'string'),
+    );
+  });
+  it('throws an error when options is not an array', () => {
+    const JSON_STRING = JSON.stringify({...VALID_QUESTION, options: 'a'});
+    expect(() => QuestionTask.createFromJson(JSON_STRING)).toThrowError(
+      TYPE_ERROR('options', 'string[]'),
+    );
+  });
+  it('throws an error when an option is not a string', () => {
+    const JSON_STRING = JSON.stringify({...VALID_QUESTION, options: ['a', 1]});
+    expect(() => QuestionTask.createFromJson(JSON_STRING)).toThrowError(
+      TYPE_ERROR('options', 'string[]'),
+    );
+  });
+  it('throws an error when options is empty', () => {
+    const JSON_STRING = JSON.stringify({...VALID_QUESTION, options: []});
+    expect(() => QuestionTask.createFromJson(JSON_STRING)).toThrowError(
+      'options cannot be empty',
+    );
+  });
+  it('accepts the last option as correct', () => {
+    const JSON_STRING = JSON.stringify({...VALID_QUESTION, correct: 1});
+    expect(QuestionTask.createFromJson(JSON_STRING).correct).toBe(1);
+  });
+  it.each([2, -1, 0.5, '0'])('throws an error when correct is %s', correct => {
+    const JSON_STRING = JSON.stringify({...VALID_QUESTION, correct});
+    expect(() => QuestionTask.createFromJson(JSON_STRING)).toThrowError(
+      FIELD_RANGE_ERROR('correct', 0, 1),
     );
   });
 });
