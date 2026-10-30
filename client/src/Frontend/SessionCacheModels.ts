@@ -78,13 +78,13 @@ export class Settings {
 
 /**
  * Stores a player's information.
- * @param userId The unique identifier for the player.
+ * @param userId The unique numeric identifier for the player.
  * @param hintQuota The number of hints available to the player.
  * @param settings The player's gameplay settings.
  * @param name The player's display name.
  */
 export class Player {
-  userId: string;
+  userId: number;
   hintQuota: number;
   settings: Settings;
   name: string;
@@ -152,7 +152,7 @@ export class Player {
     return player;
   }
   private constructor(
-    userId: string,
+    userId: number,
     name: string,
     hintQuota: number,
     settings: Settings,
@@ -195,6 +195,25 @@ export class Planet {
     this.graphOrder = graphOrder;
     this.lessons = lessons;
   }
+
+  /**
+   * Creates a new Planet instance from a JSON string.
+   * @param json The JSON string representing a Planet.
+   * @returns A Planet instance.
+   */
+  static createFromJson(json: string): Planet {
+    const obj = JSON.parse(json);
+    const lessons = obj.lessons.map((lessonJson: unknown) =>
+      Lesson.createFromJson(JSON.stringify(lessonJson)),
+    );
+    return new Planet(
+      obj.planetId,
+      obj.name,
+      obj.introText,
+      obj.graphOrder,
+      lessons,
+    );
+  }
 }
 
 abstract class Task {
@@ -215,6 +234,15 @@ export class ReadingTask extends Task {
   constructor(text: string) {
     super();
     this.text = text;
+  }
+  /**
+   * Creates a new ReadingTask instance from a JSON string.
+   * @param json The JSON string representing a ReadingTask.
+   * @returns A ReadingTask instance.
+   */
+  static createFromJson(json: string): ReadingTask {
+    const obj = JSON.parse(json);
+    return new ReadingTask(obj.text);
   }
   /**
    * Converts the ReadingTask instance to its corresponding type representation.
@@ -288,6 +316,25 @@ export class Lesson {
     this.introText = introText;
     this.lessonName = lessonName;
     this.tasks = tasks;
+  }
+  /**
+   * Creates a new Lesson instance from a JSON string.
+   * @param json The JSON string representing a Lesson.
+   * @returns A Lesson instance.
+   */
+  static createFromJson(json: string): Lesson {
+    const obj = JSON.parse(json);
+    const tasks = obj.tasks.map((taskJson: unknown) => {
+      switch (taskJson.type) {
+        case 'Reading':
+          return ReadingTask.createFromJson(JSON.stringify(taskJson));
+        case 'Question':
+          return QuestionTask.createFromJson(JSON.stringify(taskJson));
+        default:
+          throw new Error(`Unknown task type: ${taskJson.type}`);
+      }
+    });
+    return new Lesson(obj.lessonNumber, obj.introText, obj.lessonName, tasks);
   }
   /**
    * Converts the Lesson instance to its corresponding type representation.
