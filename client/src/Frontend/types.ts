@@ -2,6 +2,7 @@
  * Reading task
  */
 export interface Reading {
+  type: 'Reading';
   text: string;
 }
 
@@ -9,6 +10,7 @@ export interface Reading {
  * MCQ task
  */
 export interface Question {
+  type: 'Question';
   prompt: string;
   options: string[];
   correct: number;
@@ -17,12 +19,14 @@ export interface Question {
 /**
  * Type of task - think slide in a lesson, what type of task it is
  */
-export type Task = {type: 'Reading'} | {type: 'Question'};
+export type Task = Reading | Question;
 
 /**
  * Lesson storing its name and the order of the tasks
  */
 export interface Lesson {
   lessonName: string;
+  lessonNumber: number;
+  introText: string;
   tasks: Task[];
 }
