@@ -268,7 +268,7 @@ export class ReadingTask extends Task {
    * Creates a new ReadingTask instance with the specified text.
    * @param text The text content of the reading task.
    */
-  constructor(text: string) {
+  private constructor(text: string) {
     super();
     this.text = text;
   }
