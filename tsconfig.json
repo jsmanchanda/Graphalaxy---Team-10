@@ -3,6 +3,8 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "build",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
     "module": "ESNext",
     "moduleResolution": "Bundler"
   },
