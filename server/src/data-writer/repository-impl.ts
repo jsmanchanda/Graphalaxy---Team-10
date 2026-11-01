@@ -12,8 +12,6 @@ import type {
   UserRep,
 } from './repository';
 
-// only call AFTER you migrate()!!
-
 const USER_COLS = `user_id AS userId, username, hint_quota AS hintQuota,
   music_volume AS musicVolume, sfx_volume AS sfxVolume,
   date_of_creation AS createdAt`;
@@ -78,7 +76,7 @@ export function sqliteContent(db: Database): ContentRep {
     'SELECT planet_id AS planetId, prereq_planet_id AS prereqPlanetId FROM planet_prereqs',
   );
   const lessons = db.prepare(
-    'SELECT lesson_number AS lessonNumber, text FROM lessons WHERE planet_id = ? ORDER BY lesson_number',
+    'SELECT lesson_id as lessonId, planet_id AS planetId, lesson_number AS lessonNumber, text FROM lessons WHERE planet_id = ? ORDER BY lesson_number',
   );
   const countQ = db.prepare(
     'SELECT COUNT(*) FROM questions WHERE planet_id = ?',
@@ -98,14 +96,14 @@ export function sqliteContent(db: Database): ContentRep {
      LIMIT 1`,
   );
   const publicOpts = db.prepare(
-    'SELECT option_id AS optionId, label, text FROM answer_options WHERE question_id = ? ORDER BY label',
+    'SELECT option_id AS optionId, question_id as questionId, label, text FROM answer_options WHERE question_id = ? ORDER BY label',
   );
   const option = db.prepare(
-    `SELECT option_id AS optionId, label, text, is_correct AS isCorrect
+    `SELECT option_id AS optionId, question_id as questionId, label, text, is_correct AS isCorrect
      FROM answer_options WHERE question_id = ? AND option_id = ?`,
   );
   const correctOpt = db.prepare(
-    `SELECT option_id AS optionId, label, text, is_correct AS isCorrect
+    `SELECT option_id AS optionId, question_id as questionId, label, text, is_correct AS isCorrect
      FROM answer_options WHERE question_id = ? AND is_correct = 1`,
   );
 

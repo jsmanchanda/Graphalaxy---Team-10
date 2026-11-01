@@ -14,7 +14,7 @@ import {
   sqliteHints,
   sqliteProgress,
   sqliteUsers,
-} from './repository_impl';
+} from './repository-impl';
 
 export * from './repository';
 

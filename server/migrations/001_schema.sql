@@ -48,6 +48,7 @@ CREATE TABLE hints (
     UNIQUE (user_id, question_id)
 );
 
+--RENAME TO readings
 CREATE TABLE lessons (
     lesson_id INTEGER PRIMARY KEY AUTOINCREMENT,
     planet_id INTEGER NOT NULL REFERENCES planets(planet_id) ON DELETE CASCADE,
