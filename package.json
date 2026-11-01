@@ -4,7 +4,7 @@
   "description": "CSE-110 Team 10 Group Project",
   "scripts": {
     "lint": "gts lint",
-    "test": "npm run lint",
+    "test": "npm run lint && npm test --workspaces",
     "clean": "gts clean",
     "compile": "tsc",
     "fix": "gts fix",
@@ -29,7 +29,8 @@
     "gts": "^7.0.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vite": "^8.3.5"
   },
   "overrides": {
     "tmp": "^0.2.6"

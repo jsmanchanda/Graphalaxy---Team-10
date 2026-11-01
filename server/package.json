@@ -11,9 +11,9 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
+    "@graphalaxy/shared": "*",
     "better-sqlite3": "^13.0.3",
-    "express": "^5.3.0",
-    "@graphalaxy/shared": "*"
+    "express": "^5.3.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",

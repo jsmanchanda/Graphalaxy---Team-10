@@ -158,6 +158,14 @@ npm run dev -w client    # Vite, default port 5173
 
 Configure Vite to proxy `/api` to `http://localhost:3001`. The browser then talks only to Vite, so you never deal with CORS. A single `npm run dev` that starts both (using the `concurrently` package) can be added later.
 
+**UI demo.** To run the client against the mock lesson data in `client/src/UI/test/UIDemo.ts` instead of `main.ts`:
+
+```bash
+npm run dev:demo -w client    # starts Vite and opens http://localhost:5173/demo.html
+```
+
+`client/demo.html` is a copy of `index.html` that loads `UIDemo.ts`. If the regular dev server is already running, you can also just open `/demo.html` in the browser.
+
 ### 4.4 Local database and secrets
 
 The SQLite file must never be committed. These lines in `.gitignore` help protect data privacy:
@@ -525,6 +533,7 @@ If a hook fails, the commit did not happen. Read the output, fix the problem, an
 | Auto-fix lint and format | `npm run fix` |
 | Type-check and compile | `npm run compile` |
 | Run all checks | `npm test` |
+| Run the UI demo | `npm run dev:demo -w client` |
 | Remove build output | `npm run clean` |
 | Add a dependency | `npm install <pkg> -w <workspace>` |
 | Add a dev dependency | `npm install -D <pkg> -w <workspace>` |
