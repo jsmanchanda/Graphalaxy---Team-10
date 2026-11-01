@@ -81,7 +81,7 @@ question to a lesson and position before migrating. Planet ownership must resolv
 through lessons, with no junction table or redundant question planet column.
 
 Lesson numbers are unique per planet; question positions are unique per lesson.
-MCQs must have at least two options and exactly one correct option, checked by the
+MCQs must have at least two (upto four) options and exactly one correct option, checked by the
 manager before returning content or recording an answer. The schema constrains
 boolean flags and foreign keys. Intro lessons may contain only a reading.
 
@@ -149,6 +149,10 @@ is still an empty placeholder; there is no server startup command yet.
 
 ## Verification and commands
 
+Verified locally: `npm test` passed TypeScript compilation, all 35 tests
+(27 fake-repository unit cases and 8 in-memory SQLite cases), and repository
+linting. `git diff --check` also passed.
+
 From the repository root:
 
 ```bash
@@ -173,3 +177,21 @@ duplicate submissions across manager instances/users, malformed content, storage
 failures, and rollback/retry after progress failure. The SQLite suite verifies
 actual joins, ordering, integer conversion, attempt history, schema constraints,
 duplicate completion, unknown-user rejection, and answer/progress rollback.
+
+## Files created or modified
+
+- `server/src/QuestionManager.ts`: manager and typed errors (filled empty local placeholder).
+- `server/src/QuestionRepo.ts`: injected repository and progress contracts (filled empty local placeholder).
+- `server/src/question-schema.sql`: initial question-owned schema (new).
+- `DOCUMENTATION/PROJECT_ARCHITECTURE.md`: note identifying the schema conflict.
+- `DOCUMENTATION/QUESTION_MANAGER.md`: contracts, queries, integration, and validation notes (new).
+
+ ## Changes/Additions to be made:
+- `shared/src/api.ts`: shared response contracts (filled empty tracked file).
+- `shared/src/index.ts`: shared package entry point (new).
+- `server/package.json`: unit-test and watch scripts.
+- `package.json`: root workspace-test invocation.
+- `tsconfig.json`: module resolution compatible with installed Vitest types.
+- `server/src/SQLiteQuestionRepo.ts`: existing-connection SQLite adapter (filled empty local placeholder).
+- `server/src/QuestionManager.test.ts`: fake-repository unit tests (filled empty local placeholder).
+- `server/src/SQLiteQuestionRepo.test.ts`: SQLite integration tests (new).
