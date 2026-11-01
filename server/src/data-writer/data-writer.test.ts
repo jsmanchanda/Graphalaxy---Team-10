@@ -4,6 +4,13 @@ import {openDb} from '../db/connection';
 import {migrate} from '../db/migrate';
 import {seed} from '../db/seed';
 import {createDataWriter, type DataWriter, type User} from '.';
+import {
+  SqliteAnswerRep,
+  SqliteContentRep,
+  SqliteHintRep,
+  SqliteProgressRep,
+  SqliteUserRep,
+} from './repository-impl';
 
 /**
  * unwraps a value that the test expects to exist, with a readable failure.
@@ -23,10 +30,38 @@ let user: User;
 beforeEach(() => {
   db = openDb(':memory:');
   migrate(db);
-  seed(db); // one planet ("Linear Land"), 2 lessons, 5 mcq questions (ids 1-5)
+  seed(db); // one planet ("Linear Land"), 2 readings, 3 hints, 5 mcq questions (ids 1-5)
   dw = createDataWriter(db);
   user = dw.users.create('test');
 });
+
+/**
+ * Adds a second planet with no questions, and returns its id.
+ */
+function addPlanet(): number {
+  return Number(
+    db
+      .prepare(
+        "INSERT INTO planets (name, intro_text, graph_order) VALUES ('Quadratic Quay', 'x', 1)",
+      )
+      .run().lastInsertRowid,
+  );
+}
+
+/**
+ * Adds a free response question to the given planet, and returns its id.
+ * @param planetId the ID of the planet to add the question to
+ */
+function addFreeResponse(planetId: number): number {
+  return Number(
+    db
+      .prepare(
+        "INSERT INTO questions (planet_id, prompt, qtype) VALUES (?, 'Why?', 'free_response')",
+      )
+      .run(planetId).lastInsertRowid,
+  );
+}
+
 /**
  * Records a wrong answer for the user on the given question.
  * @param questionId the ID of the question to answer
@@ -58,6 +93,16 @@ function answerRight(questionId: number, userId = user.userId) {
   );
   dw.answers.record(userId, questionId, correct.optionId, true);
 }
+
+describe('createDataWriter', () => {
+  it('builds the sqlite class implementations of each repository', () => {
+    expect(dw.users).toBeInstanceOf(SqliteUserRep);
+    expect(dw.content).toBeInstanceOf(SqliteContentRep);
+    expect(dw.answers).toBeInstanceOf(SqliteAnswerRep);
+    expect(dw.progress).toBeInstanceOf(SqliteProgressRep);
+    expect(dw.hints).toBeInstanceOf(SqliteHintRep);
+  });
+});
 
 describe('users', () => {
   it('creates a user with schema defaults', () => {
@@ -122,18 +167,18 @@ describe('content', () => {
     expect(dw.content.getPlanet(9999)).toBeUndefined();
   });
 
-  it('returns full lesson rows in order', () => {
-    const lessons = dw.content.getLessons(1);
-    expect(lessons.map(l => l.lessonNumber)).toEqual([1, 2]);
-    for (const l of lessons) {
-      expect(l.lessonId).toBeGreaterThan(0);
-      expect(l.planetId).toBe(1);
-      expect(l.text).toBeTruthy();
+  it('returns full reading rows in order', () => {
+    const readings = dw.content.getReadings(1);
+    expect(readings.map(r => r.readingNumber)).toEqual([1, 2]);
+    for (const r of readings) {
+      expect(r.readingId).toBeGreaterThan(0);
+      expect(r.planetId).toBe(1);
+      expect(r.text).toBeTruthy();
     }
   });
 
-  it('returns no lessons for an unknown planet', () => {
-    expect(dw.content.getLessons(9999)).toEqual([]);
+  it('returns no readings for an unknown planet', () => {
+    expect(dw.content.getReadings(9999)).toEqual([]);
   });
 
   it('counts questions on a planet', () => {
@@ -158,6 +203,35 @@ describe('content', () => {
     expect(q).toMatchObject({questionId: 1, planetId: 1, qtype: 'mcq'});
     expect(JSON.parse(q.graph ?? 'null')).toEqual({fn: '2*x+3'});
     expect(dw.content.getQuestion(9999)).toBeUndefined();
+  });
+
+  it('gets all questions on a planet, in question_id order', () => {
+    const questions = dw.content.getQuestions(1);
+    expect(questions.map(q => q.questionId)).toEqual([1, 2, 3, 4, 5]);
+    for (const q of questions) {
+      expect(q).toEqual(dw.content.getQuestion(q.questionId));
+    }
+  });
+
+  it('gets only the questions of the requested planet', () => {
+    const planetId = addPlanet();
+    const questionId = addFreeResponse(planetId);
+    expect(dw.content.getQuestions(1)).toHaveLength(5);
+    expect(dw.content.getQuestions(planetId)).toEqual([
+      {
+        questionId,
+        planetId,
+        prompt: 'Why?',
+        qtype: 'free_response',
+        graph: null,
+      },
+    ]);
+    expect(dw.content.getPublicOptions(questionId)).toEqual([]);
+  });
+
+  it('gets no questions for a planet without any, or an unknown planet', () => {
+    expect(dw.content.getQuestions(addPlanet())).toEqual([]);
+    expect(dw.content.getQuestions(9999)).toEqual([]);
   });
 
   it('public options carry questionId but never is_correct', () => {
@@ -276,10 +350,36 @@ describe('progress', () => {
     expect(dw.progress.incrementCorrect(user.userId, 1).correctCount).toBe(2);
   });
 
-  it('sets status', () => {
-    dw.progress.ensure(user.userId, 1);
+  it('keeps the status when no progress row exists yet', () => {
     dw.progress.setStatus(user.userId, 1, 'peaceful');
+
     expect(dw.progress.ensure(user.userId, 1).status).toBe('peaceful');
+  });
+
+  it('sets status on an existing row without touching correctCount', () => {
+    dw.progress.incrementCorrect(user.userId, 1);
+    dw.progress.setStatus(user.userId, 1, 'peaceful');
+    expect(dw.progress.listForUser(user.userId)).toEqual([
+      {
+        userId: user.userId,
+        planetId: 1,
+        status: 'peaceful',
+        correctCount: 1,
+      },
+    ]);
+  });
+
+  it('sets status only for the targeted user', () => {
+    const other = dw.users.create('other');
+    dw.progress.ensure(other.userId, 1);
+    dw.progress.setStatus(user.userId, 1, 'peaceful');
+    expect(dw.progress.ensure(other.userId, 1).status).toBe('hostile');
+  });
+
+  it('rejects a status for an unknown planet', () => {
+    expect(() => dw.progress.setStatus(user.userId, 9999, 'peaceful')).toThrow(
+      /FOREIGN KEY/,
+    );
   });
 
   it('lists only the requested user’s rows', () => {
@@ -293,34 +393,63 @@ describe('progress', () => {
 });
 
 describe('hints', () => {
-  it('returns undefined when no hint exists', () => {
-    expect(dw.hints.find(user.userId, 1)).toBeUndefined();
+  it('returns no hints for an unknown planet', () => {
+    expect(dw.hints.list(user.userId, 9999)).toEqual([]);
   });
 
-  it('creates a hint (unused by default) and finds it again', () => {
-    const created = dw.hints.create(
-      user.userId,
-      1,
-      'Look at the number next to x.',
-    );
-    expect(created).toMatchObject({
-      userId: user.userId,
-      questionId: 1,
-      text: 'Look at the number next to x.',
-      used: false,
-    });
-    expect(dw.hints.find(user.userId, 1)).toEqual(created);
+  it('lists a planet’s hints in order, unused by default', () => {
+    const hints = dw.hints.list(user.userId, 1);
+    expect(hints.map(h => h.hintNumber)).toEqual([1, 2, 3]);
+    for (const h of hints) {
+      expect(h.hintId).toBeGreaterThan(0);
+      expect(h.planetId).toBe(1);
+      expect(h.text).toBeTruthy();
+      expect(h.used).toBe(false);
+    }
   });
 
-  it('marks a hint used', () => {
-    const h = dw.hints.create(user.userId, 1, 'hint');
-    dw.hints.markUsed(h.hintId);
-    expect(dw.hints.find(user.userId, 1)?.used).toBe(true);
+  it('marks only the given hint used', () => {
+    const [first] = dw.hints.list(user.userId, 1);
+    dw.hints.markUsed(user.userId, first.hintId);
+    expect(dw.hints.list(user.userId, 1).map(h => h.used)).toEqual([
+      true,
+      false,
+      false,
+    ]);
   });
 
-  it('allows only one hint row per user and question', () => {
-    dw.hints.create(user.userId, 1, 'a');
-    expect(() => dw.hints.create(user.userId, 1, 'b')).toThrow(/UNIQUE/);
+  it("is per-user: one user's hints don't affect another's", () => {
+    const other = dw.users.create('other');
+    const [first] = dw.hints.list(user.userId, 1);
+    dw.hints.markUsed(user.userId, first.hintId);
+    expect(dw.hints.list(user.userId, 1)[0].used).toBe(true);
+    expect(dw.hints.list(other.userId, 1)[0].used).toBe(false);
+  });
+
+  it('lists each hint once when several users have used it', () => {
+    const other = dw.users.create('other');
+    const [first] = dw.hints.list(user.userId, 1);
+    dw.hints.markUsed(user.userId, first.hintId);
+    dw.hints.markUsed(other.userId, first.hintId);
+    expect(dw.hints.list(user.userId, 1)).toHaveLength(3);
+  });
+
+  it('does nothing if the hint is already used', () => {
+    const [first] = dw.hints.list(user.userId, 1);
+    dw.hints.markUsed(user.userId, first.hintId);
+    dw.hints.markUsed(user.userId, first.hintId);
+    expect(dw.hints.list(user.userId, 1)[0].used).toBe(true);
+    const n = db
+      .prepare('SELECT COUNT(*) FROM user_hints WHERE user_id = ?')
+      .pluck()
+      .get(user.userId);
+    expect(n).toBe(1);
+  });
+
+  it('rejects an unknown hint or user', () => {
+    const [first] = dw.hints.list(user.userId, 1);
+    expect(() => dw.hints.markUsed(user.userId, 9999)).toThrow(/FOREIGN KEY/);
+    expect(() => dw.hints.markUsed(9999, first.hintId)).toThrow(/FOREIGN KEY/);
   });
 });
 
@@ -351,6 +480,20 @@ describe('transaction', () => {
     expect(dw.users.findById(user.userId)?.hintQuota).toBe(3);
     expect(dw.answers.hasSolved(user.userId, 1)).toBe(false);
     expect(dw.progress.listForUser(user.userId)).toEqual([]);
+  });
+
+  it('rolls back a spent hint and its used mark together', () => {
+    const [first] = dw.hints.list(user.userId, 1);
+    expect(() =>
+      dw.transaction(() => {
+        dw.users.spendHint(user.userId);
+        dw.hints.markUsed(user.userId, first.hintId);
+        throw new Error('boom');
+      }),
+    ).toThrow('boom');
+
+    expect(dw.users.findById(user.userId)?.hintQuota).toBe(3);
+    expect(dw.hints.list(user.userId, 1)[0].used).toBe(false);
   });
 
   it('rolls back when a constraint fails midway', () => {

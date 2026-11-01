@@ -9,11 +9,11 @@ import type {
 } from './repository';
 
 import {
-  sqliteAnswers,
-  sqliteContent,
-  sqliteHints,
-  sqliteProgress,
-  sqliteUsers,
+  SqliteAnswerRep,
+  SqliteContentRep,
+  SqliteHintRep,
+  SqliteProgressRep,
+  SqliteUserRep,
 } from './repository-impl';
 
 export * from './repository';
@@ -41,11 +41,11 @@ export interface DataWriter {
  */
 export function createDataWriter(db: Database): DataWriter {
   return {
-    users: sqliteUsers(db),
-    content: sqliteContent(db),
-    answers: sqliteAnswers(db),
-    progress: sqliteProgress(db),
-    hints: sqliteHints(db),
+    users: new SqliteUserRep(db),
+    content: new SqliteContentRep(db),
+    answers: new SqliteAnswerRep(db),
+    progress: new SqliteProgressRep(db),
+    hints: new SqliteHintRep(db),
     transaction: fn => db.transaction(fn)(),
   };
 }

@@ -49,15 +49,18 @@ describe('schema + seed', () => {
       'users',
       'planets',
       'planet_prereqs',
-      'lessons',
+      'readings',
       'questions',
       'answer_options',
       'user_answer',
       'planet_progress',
-      'hints',
+      'planet_hints',
+      'user_hints',
     ]) {
       expect(names).toContain(t);
     }
+    expect(names).not.toContain('lessons');
+    expect(names).not.toContain('hints');
   });
 
   it('seeds one planet with 5 questions, 4 options each, exactly 1 correct', () => {
@@ -73,9 +76,118 @@ describe('schema + seed', () => {
     for (const r of rows) expect(r).toEqual({n: 4, c: 1});
   });
 
+  it('seeds the labels a, b, c, d on every question', () => {
+    const labels = db
+      .prepare(
+        `SELECT (SELECT GROUP_CONCAT(label) FROM
+                  (SELECT label FROM answer_options o
+                   WHERE o.question_id = q.question_id ORDER BY label))
+         FROM questions q`,
+      )
+      .pluck()
+      .all();
+    expect(labels).toEqual(Array(5).fill('a,b,c,d'));
+  });
+
+  it('seeds every question with a graph', () => {
+    const graphs = db
+      .prepare('SELECT graph FROM questions')
+      .pluck()
+      .all() as string[];
+    expect(graphs).toHaveLength(5);
+    for (const g of graphs) expect(JSON.parse(g).fn).toBeTruthy();
+  });
+
+  it('seeds 2 readings and 3 hints on the planet', () => {
+    expect(db.prepare('SELECT COUNT(*) FROM readings').pluck().get()).toBe(2);
+    expect(db.prepare('SELECT COUNT(*) FROM planet_hints').pluck().get()).toBe(
+      3,
+    );
+  });
+
   it('seed is idempotent', () => {
     seed(db);
     expect(db.prepare('SELECT COUNT(*) FROM planets').pluck().get()).toBe(1);
+    expect(db.prepare('SELECT COUNT(*) FROM planet_hints').pluck().get()).toBe(
+      3,
+    );
+  });
+
+  it('allows the four labels on a question, but no fifth option', () => {
+    const qid = db
+      .prepare("INSERT INTO questions (planet_id, prompt) VALUES (1, 'q')")
+      .run().lastInsertRowid;
+    const ins = db.prepare(
+      "INSERT INTO answer_options (question_id, label, text) VALUES (?, ?, 'x')",
+    );
+    for (const label of ['a', 'b', 'c', 'd']) ins.run(qid, label);
+    expect(() => ins.run(qid, 'e')).toThrow(/CHECK/);
+    expect(() => ins.run(qid, 'a')).toThrow(/UNIQUE/);
+  });
+
+  it('rejects any label outside a-d', () => {
+    const ins = db.prepare(
+      "INSERT INTO answer_options (question_id, label, text) VALUES (1, ?, 'x')",
+    );
+    for (const label of ['A', '0', '', 'ab']) {
+      expect(() => ins.run(label)).toThrow(/CHECK/);
+    }
+  });
+
+  it('rejects relabelling an option outside a-d', () => {
+    expect(() =>
+      db
+        .prepare(
+          "UPDATE answer_options SET label = 'e' WHERE question_id = 1 AND label = 'd'",
+        )
+        .run(),
+    ).toThrow(/CHECK/);
+  });
+
+  it('allows only one reading_number per planet', () => {
+    expect(() =>
+      db
+        .prepare(
+          "INSERT INTO readings (planet_id, reading_number, text) VALUES (1, 1, 'x')",
+        )
+        .run(),
+    ).toThrow(/UNIQUE/);
+  });
+
+  it('allows only one hint_number per planet', () => {
+    expect(() =>
+      db
+        .prepare(
+          "INSERT INTO planet_hints (planet_id, hint_number, text) VALUES (1, 1, 'x')",
+        )
+        .run(),
+    ).toThrow(/UNIQUE/);
+  });
+
+  it('allows a user to use each hint only once', () => {
+    const ins = db.prepare(
+      'INSERT INTO user_hints (user_id, hint_id) VALUES (1, 1)',
+    );
+    ins.run();
+    expect(() => ins.run()).toThrow(/UNIQUE/);
+  });
+
+  it('removes a user’s used hints, but not the hints, with the user', () => {
+    db.prepare('INSERT INTO user_hints (user_id, hint_id) VALUES (1, 1)').run();
+    db.prepare('DELETE FROM users WHERE user_id = 1').run();
+    expect(db.prepare('SELECT COUNT(*) FROM user_hints').pluck().get()).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) FROM planet_hints').pluck().get()).toBe(
+      3,
+    );
+  });
+
+  it('removes hints and used hints with the planet', () => {
+    db.prepare('INSERT INTO user_hints (user_id, hint_id) VALUES (1, 1)').run();
+    db.prepare('DELETE FROM planets WHERE planet_id = 1').run();
+    expect(db.prepare('SELECT COUNT(*) FROM planet_hints').pluck().get()).toBe(
+      0,
+    );
+    expect(db.prepare('SELECT COUNT(*) FROM user_hints').pluck().get()).toBe(0);
   });
 
   it('rejects an answer whose option belongs to a different question', () => {

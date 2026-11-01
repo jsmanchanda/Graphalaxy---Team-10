@@ -32,29 +32,33 @@ CREATE TABLE questions (
 CREATE TABLE answer_options (
     option_id INTEGER PRIMARY KEY AUTOINCREMENT,
     question_id INTEGER NOT NULL REFERENCES questions(question_id) ON DELETE CASCADE,
-    label TEXT NOT NULL,-- should be 'a', 'b', 'c', 'd'
+    label TEXT NOT NULL CHECK (label IN ('a', 'b', 'c', 'd')),
     text TEXT NOT NULL,
     is_correct INTEGER NOT NULL DEFAULT 0 CHECK (is_correct IN (0, 1)),
     UNIQUE (question_id, label),
     UNIQUE (question_id, option_id) --for fk in user_answer
 );
 
-CREATE TABLE hints (
+CREATE TABLE planet_hints (
     hint_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
-    question_id INTEGER NOT NULL REFERENCES questions(question_id) ON DELETE CASCADE,
+    planet_id INTEGER NOT NULL REFERENCES planets(planet_id) ON DELETE CASCADE,
+    hint_number INTEGER NOT NULL,
     text TEXT NOT NULL,
-    used INTEGER NOT NULL DEFAULT 0 CHECK (used IN (0, 1)),
-    UNIQUE (user_id, question_id)
+    UNIQUE (planet_id, hint_number)
 );
 
---RENAME TO readings
-CREATE TABLE lessons (
-    lesson_id INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE user_hints (
+    user_id INTEGER NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    hint_id INTEGER NOT NULL REFERENCES planet_hints(hint_id) ON DELETE CASCADE,
+    PRIMARY KEY (user_id, hint_id)
+);
+
+CREATE TABLE readings (
+    reading_id INTEGER PRIMARY KEY AUTOINCREMENT,
     planet_id INTEGER NOT NULL REFERENCES planets(planet_id) ON DELETE CASCADE,
-    lesson_number INTEGER NOT NULL,
+    reading_number INTEGER NOT NULL,
     text TEXT NOT NULL,
-    UNIQUE (planet_id, lesson_number)
+    UNIQUE (planet_id, reading_number)
 );
 
 CREATE TABLE user_answer (

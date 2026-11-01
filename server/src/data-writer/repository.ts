@@ -79,12 +79,12 @@ export interface Prereq {
 }
 
 /**
- * One page of reading for a lesson, ordered by lesson_number. Each planet has 1 or more lessons.
+ * One page of reading, ordered by reading_number. Each planet has 1 or more readings.
  */
-export interface Lesson {
-  lessonId: number;
+export interface Reading {
+  readingId: number;
   planetId: number;
-  lessonNumber: number;
+  readingNumber: number;
   text: string;
 }
 
@@ -117,7 +117,7 @@ export interface PrivateOption extends PublicOption {
 }
 
 /**
- * Read-only access to content: planets, lessons, questions, and answer options.
+ * Read-only access to content: planets, readings, questions, and answer options.
  */
 export interface ContentRep {
   /**
@@ -136,10 +136,10 @@ export interface ContentRep {
    */
   listPrereqs(): Prereq[];
   /**
-   * Gets all lessons for a planet, ordered by lesson_number.
+   * Gets all readings for a planet, ordered by reading_number.
    * @param planetId the id of the planet
    */
-  getLessons(planetId: number): Lesson[];
+  getReadings(planetId: number): Reading[];
   /**
    * Counts the number of questions for a planet.
    * @param planetId the id of the planet
@@ -150,6 +150,11 @@ export interface ContentRep {
    * @param questionId the id of the question
    */
   getQuestion(questionId: number): Question | undefined;
+  /**
+   * Gets all questions for a planet, ordered by question_id.
+   * @param planetId the id of the planet
+   */
+  getQuestions(planetId: number): Question[];
   /**
    * The next unsolved question for a user on a planet, or undefined if all are solved.
    * @param userId the id of the user
@@ -237,7 +242,7 @@ export interface ProgressRep {
    */
   incrementCorrect(userId: number, planetId: number): PlanetProgress;
   /**
-   * Sets the status for a user and planet.
+   * Sets the status for a user and planet, creating the progress row if needed.
    * @param userId the id of the user
    * @param planetId the id of the planet
    * @param status the new status of the planet
@@ -246,36 +251,30 @@ export interface ProgressRep {
 }
 
 /**
- * A hint's text for one user and one question.
+ * A hint for one planet, ordered by hint_number, and whether one user has used it.
  */
 export interface Hint {
   hintId: number;
-  userId: number;
-  questionId: number;
+  planetId: number;
+  hintNumber: number;
   text: string;
   used: boolean;
 }
 
 /**
- * Reads and writes hints for users and questions. Implementations should ensure that each user has at most one hint per question.
+ * Reads hints for planets and writes which ones users have used. Implementations should ensure that each user can use each hint at most once.
  */
 export interface HintRep {
   /**
-   * Finds a hint for a user and question, or undefined if none exists.
+   * Gets all hints for a planet, ordered by hint_number, with whether the user has used each one.
    * @param userId the id of the user
-   * @param questionId the id of the question
+   * @param planetId the id of the planet
    */
-  find(userId: number, questionId: number): Hint | undefined;
+  list(userId: number, planetId: number): Hint[];
   /**
-   * Creates a new hint for a user and question, returning the new hint.
+   * Marks a hint as used by a user. Does nothing if the user already used the hint.
    * @param userId the id of the user
-   * @param questionId the id of the question
-   * @param text the text of the hint
-   */
-  create(userId: number, questionId: number, text: string): Hint;
-  /**
-   * Marks a hint as used. Does nothing if the hint is already used.
    * @param hintId the id of the hint
    */
-  markUsed(hintId: number): void;
+  markUsed(userId: number, hintId: number): void;
 }

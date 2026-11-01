@@ -3,9 +3,9 @@ import {openDb} from './connection';
 
 interface Q {
   prompt: string;
-  fn: string;
-  options: string[];
-  correct: number;
+  fn: string; //graph for the question, stored in questions.graph
+  options: [string, string, string, string]; //labels 'a', 'b', 'c', 'd'
+  correct: 0 | 1 | 2 | 3; //index into options
 }
 
 const QUESTIONS: Q[] = [
@@ -42,7 +42,7 @@ const QUESTIONS: Q[] = [
 ];
 
 /**
- * Seeds the database with the initial planet, lessons, and questions if empty.
+ * Seeds the database with the initial planet, readings, hints, and questions if empty.
  */
 export function seed(db: Database) {
   if (db.prepare('SELECT COUNT(*) FROM planets').pluck().get() !== 0) return;
@@ -50,8 +50,11 @@ export function seed(db: Database) {
   const insPlanet = db.prepare(
     'INSERT INTO planets (name, intro_text, graph_order) VALUES (?, ?, 0)',
   );
-  const insLesson = db.prepare(
-    'INSERT INTO lessons (planet_id, lesson_number, text) VALUES (?, ?, ?)',
+  const insReading = db.prepare(
+    'INSERT INTO readings (planet_id, reading_number, text) VALUES (?, ?, ?)',
+  );
+  const insHint = db.prepare(
+    'INSERT INTO planet_hints (planet_id, hint_number, text) VALUES (?, ?, ?)',
   );
   const insQ = db.prepare(
     "INSERT INTO questions (planet_id, prompt, graph, qtype) VALUES (?, ?, ?, 'mcq')",
@@ -65,8 +68,15 @@ export function seed(db: Database) {
       insPlanet.run('Linear Land', 'A hostile world of straight lines.')
         .lastInsertRowid,
     );
-    insLesson.run(planetId, 1, 'A linear function has the form y = mx + b.');
-    insLesson.run(planetId, 2, 'm is the slope and b is the y-intercept.');
+    insReading.run(planetId, 1, 'A linear function has the form y = mx + b.');
+    insReading.run(planetId, 2, 'm is the slope and b is the y-intercept.');
+    insHint.run(planetId, 1, 'The slope is the number multiplied by x.');
+    insHint.run(planetId, 2, 'The y-intercept is the value of y when x = 0.');
+    insHint.run(
+      planetId,
+      3,
+      'The steeper line has the slope with the larger absolute value.',
+    );
 
     for (const q of QUESTIONS) {
       const qid = Number(
