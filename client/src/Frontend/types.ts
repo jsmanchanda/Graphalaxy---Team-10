@@ -2,21 +2,32 @@
  * Reading task
  */
 export interface Reading {
+  type: 'Reading';
   text: string;
 }
 
 /**
  * MCQ task
  */
-export type Question =
-  {prompt: string} | {options: string[]} | {correct: number};
+export interface Question {
+  type: 'Question';
+  prompt: string;
+  options: string[];
+  correct: number;
+}
 
 /**
- * Type of task - think slide in a lesson, what type of task it is
+ * Type of task - think slide on a planet, what type of task it is
  */
-export type Task = {type: 'Reading'} | {type: 'Question'};
+export type Task = Reading | Question;
 
 /**
- * Lesson storing its name and the order of the tasks
+ * Planet storing its details and the order of the tasks
  */
-export type Lesson = {lessonName: string} | {tasks: Task[]};
+export interface Planet {
+  planetId: number;
+  name: string;
+  introText: string;
+  graphOrder: number;
+  tasks: Task[];
+}
