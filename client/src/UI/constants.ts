@@ -6,6 +6,7 @@ export const DESIGN_HEIGHT = 500;
 
 // Alien picture
 export const ALIEN_FRIEND_WIDTH = 150;
+export const ALIEN_FRIEND_Y = 0;
 
 // Font
 export const FONT_PLANET_KOSMOS = 'PlanetKosmos';
@@ -28,6 +29,17 @@ export const BACK_BUTTON_WIDTH = 100;
 export const BACK_BUTTON_HEIGHT = 50;
 export const BACK_BUTTON_X = 0;
 export const BACK_BUTTON_Y = 450;
+
+// ============== Title Screen ==============
+export const TITLE_TEXT_WIDTH = 400;
+export const TITLE_TEXT_HEIGHT = 180;
+export const TITLE_TEXT_X = 200;
+export const TITLE_TEXT_Y = 80;
+
+export const START_BUTTON_WIDTH = 200;
+export const START_BUTTON_HEIGHT = 60;
+export const START_BUTTON_X = (DESIGN_WIDTH - START_BUTTON_WIDTH) * 0.5;
+export const START_BUTTON_Y = 320;
 
 // ============== Lesson Intro Screen ===========
 export const LESSON_INTRO_TITLE_WIDTH = 150;
@@ -80,6 +92,17 @@ export const MULTIPLE_CHOICE_PROMPT_Y =
     MULTIPLE_CHOICE_PROMPT_HEIGHT) *
     0.5 -
   20;
+
+export const CONFIRM_BUTTON_WIDTH = 200;
+export const CONFIRM_BUTTON_HEIGHT = 40;
+export const CONFIRM_BUTTON_X = (DESIGN_WIDTH - CONFIRM_BUTTON_WIDTH) * 0.5;
+export const CONFIRM_BUTTON_Y =
+  MULTIPLE_CHOICE_OPTION_TOP_Y - CONFIRM_BUTTON_HEIGHT;
+
+export const QUESTION_BACK_BUTTON_WIDTH = 130;
+export const QUESTION_BACK_BUTTON_HEIGHT = 80;
+export const QUESTION_BACK_BUTTON_X = 0;
+export const QUESTION_BACK_BUTTON_Y = 0;
 
 // ============== Question Result Screen + Lesson Result Screen ==============
 export const RESULT_TEXT_WIDTH = 600;

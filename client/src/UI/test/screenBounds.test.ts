@@ -1,10 +1,15 @@
 import {describe, expect, it} from 'vitest';
 import {
   ALIEN_FRIEND_WIDTH,
+  ALIEN_FRIEND_Y,
   BACK_BUTTON_HEIGHT,
   BACK_BUTTON_WIDTH,
   BACK_BUTTON_X,
   BACK_BUTTON_Y,
+  CONFIRM_BUTTON_HEIGHT,
+  CONFIRM_BUTTON_WIDTH,
+  CONFIRM_BUTTON_X,
+  CONFIRM_BUTTON_Y,
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
   LESSON_INTRO_DESCRIPTION_HEIGHT,
@@ -41,6 +46,18 @@ import {
   RESULT_TEXT_WIDTH,
   RESULT_TEXT_X,
   RESULT_TEXT_Y,
+  QUESTION_BACK_BUTTON_HEIGHT,
+  QUESTION_BACK_BUTTON_WIDTH,
+  QUESTION_BACK_BUTTON_X,
+  QUESTION_BACK_BUTTON_Y,
+  START_BUTTON_HEIGHT,
+  START_BUTTON_WIDTH,
+  START_BUTTON_X,
+  START_BUTTON_Y,
+  TITLE_TEXT_HEIGHT,
+  TITLE_TEXT_WIDTH,
+  TITLE_TEXT_X,
+  TITLE_TEXT_Y,
 } from '../constants';
 
 // Helper function to check bounds of UI components within the screen
@@ -54,8 +71,18 @@ function checkBounds(x: number, y: number, width: number, height: number) {
 
 describe('UI screen bounds', () => {
   it('keeps the title screen components inside the screen', () => {
-    checkBounds(200, 80, 400, 180);
-    checkBounds(300, 320, 200, 60);
+    checkBounds(
+      TITLE_TEXT_X,
+      TITLE_TEXT_Y,
+      TITLE_TEXT_WIDTH,
+      TITLE_TEXT_HEIGHT,
+    );
+    checkBounds(
+      START_BUTTON_X,
+      START_BUTTON_Y,
+      START_BUTTON_WIDTH,
+      START_BUTTON_HEIGHT,
+    );
   });
 
   it('keeps the lesson intro components inside the screen', () => {
@@ -138,15 +165,20 @@ describe('UI screen bounds', () => {
       MULTIPLE_CHOICE_OPTION_HEIGHT,
     );
     checkBounds(
-      (DESIGN_WIDTH - 200) / 2,
-      DESIGN_HEIGHT - MULTIPLE_CHOICE_OPTION_HEIGHT * 2 - 40,
-      200,
-      40,
+      CONFIRM_BUTTON_X,
+      CONFIRM_BUTTON_Y,
+      CONFIRM_BUTTON_WIDTH,
+      CONFIRM_BUTTON_HEIGHT,
     );
-    checkBounds(0, 0, 130, 80);
+    checkBounds(
+      QUESTION_BACK_BUTTON_X,
+      QUESTION_BACK_BUTTON_Y,
+      QUESTION_BACK_BUTTON_WIDTH,
+      QUESTION_BACK_BUTTON_HEIGHT,
+    );
     checkBounds(
       DESIGN_WIDTH - ALIEN_FRIEND_WIDTH,
-      0,
+      ALIEN_FRIEND_Y,
       ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_WIDTH,
     );

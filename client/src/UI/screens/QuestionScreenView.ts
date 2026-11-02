@@ -12,7 +12,15 @@ import {
   MULTIPLE_CHOICE_PROMPT_HEIGHT,
   ALIEN_FRIEND_WIDTH,
   DESIGN_WIDTH,
-  DESIGN_HEIGHT,
+  ALIEN_FRIEND_Y,
+  CONFIRM_BUTTON_HEIGHT,
+  CONFIRM_BUTTON_WIDTH,
+  CONFIRM_BUTTON_X,
+  CONFIRM_BUTTON_Y,
+  QUESTION_BACK_BUTTON_HEIGHT,
+  QUESTION_BACK_BUTTON_WIDTH,
+  QUESTION_BACK_BUTTON_X,
+  QUESTION_BACK_BUTTON_Y,
 } from '../constants';
 import {QuestionScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
@@ -91,13 +99,10 @@ export class QuestionScreenView implements View {
     }
 
     const confirmButton = new ButtonComponent(
-      (DESIGN_WIDTH - 200) * 0.5,
-      DESIGN_HEIGHT -
-        MULTIPLE_CHOICE_OPTION_HEIGHT -
-        MULTIPLE_CHOICE_OPTION_HEIGHT -
-        40,
-      200,
-      40,
+      CONFIRM_BUTTON_X,
+      CONFIRM_BUTTON_Y,
+      CONFIRM_BUTTON_WIDTH,
+      CONFIRM_BUTTON_HEIGHT,
       'Confirm',
       () => {
         if (selectedOption !== null) {
@@ -108,17 +113,17 @@ export class QuestionScreenView implements View {
 
     const alienCat = new ImageComponent(
       DESIGN_WIDTH - ALIEN_FRIEND_WIDTH,
-      0,
+      ALIEN_FRIEND_Y,
       ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_WIDTH,
       'public/assets/alien-cat.png',
     );
 
     const backButton = new ButtonComponent(
-      0,
-      0,
-      130,
-      80,
+      QUESTION_BACK_BUTTON_X,
+      QUESTION_BACK_BUTTON_Y,
+      QUESTION_BACK_BUTTON_WIDTH,
+      QUESTION_BACK_BUTTON_HEIGHT,
       'Back To Lesson',
       () => onAction({type: 'back'}),
     );
