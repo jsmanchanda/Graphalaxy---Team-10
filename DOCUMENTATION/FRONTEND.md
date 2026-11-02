@@ -2,7 +2,21 @@
 
 How Session Cache and API Client work, and the HTTP API they need from the backend.
 
-**Status: proposed.** The HTTP API has not been agreed with Team 1 yet, and no routes exist. See [Open questions](#open-questions) and [Differences from other docs](#differences-from-other-docs).
+## MVP scope
+
+The first version only needs to load one planet and hand it to Game Manager, which steps through its tasks in order from the first one.
+
+```ts
+await client.login('alice');
+const planet = await client.getPlanet(1);
+```
+
+| Part            | MVP status                                                                            |
+| --------------- | ------------------------------------------------------------------------------------- |
+| API Client      | Built: `login`, `getPlanet`, `saveSettings`                                           |
+| Session Cache   | Not built yet                                                                         |
+| Models          | `Settings`, `Player`, `Planet`, `ReadingTask`, `QuestionTask` (see [Models](#models)) |
+| Everything else | Planned. The rest of this doc describes the full design.                              |
 
 ## When loading a question
 
@@ -39,7 +53,6 @@ UI --intents--> Game Manager --actions--> Session Cache --requests--> API Client
 | `requestHint()`                | `requestHint`          | Adds the hint and updates the quota                                   |
 | `reportMiniGameResult(result)` | `reportMiniGameResult` | Updates the quota                                                     |
 | `saveSettings(settings)`       | `saveSettings`         | Updates `player`                                                      |
-| `subscribe(listener)`          | none                   | Registers a listener for change events                                |
 
 Every action that changes state publishes a change event.
 
@@ -58,23 +71,26 @@ Every action that changes state publishes a change event.
 
 ```ts
 interface ServerGateway {
+  // Built
   login(username: string): Promise<Player>;
-  getPlanets(): Promise<PlanetSummary[]>;
   getPlanet(planetId: number): Promise<Planet>;
+  saveSettings(settings: Settings): Promise<Player>;
+
+  // Planned
+  getPlanets(): Promise<PlanetSummary[]>;
   submitAnswer(questionId: number, optionId: number): Promise<AnswerResult>;
   requestHint(questionId: number): Promise<HintResult>;
   reportMiniGameResult(result: MiniGameResult): Promise<number>; // new hintQuota
-  saveSettings(settings: Settings): Promise<Player>;
 }
 ```
 
 Session Cache depends on this interface, so its tests can use a fake gateway.
 
-- **User identity:** stores `userId` after `login` and adds it to each request path.
+- **User identity:** stores `userId` after `login` and adds it to each request path. Calling any other method before `login` throws without sending a request.
 - **Parsing:** passes the response text to each model's `createFromJson`.
-- **Errors:** throws a typed `ApiError` with a `kind` of `network`, `timeout`, `http`, or `parse`, plus `status` and `code` where they apply.
-- **Timeouts:** every request has a timeout. The starting values are 5 seconds and 2 retries.
-- **Retries:** only `GET` and `PATCH` requests are retried. The answer and hint `POST` requests are never retried, because a repeat could record a second attempt or charge a second hint.
+- **Errors:** throws a typed `ApiError` with a `kind` of `network`, `timeout`, `http`, or `parse`, plus `status` and `code` where they apply. For an `http` error, `code` and `message` come from the [error body](#errors) when it is JSON.
+- **Timeouts:** every attempt has its own timeout, which covers both the response and reading its body. The starting values are 5 seconds and 2 retries.
+- **Retries:** only `GET` and `PATCH` requests are retried, and only after a network error, a timeout, or a 5xx response. A 4xx response fails right away. Retries are sent immediately, with no delay. `POST` requests are never retried, because a repeated answer or hint could record a second attempt or charge a second hint. When every attempt fails, the last error is thrown.
 
 ## HTTP API
 
@@ -129,7 +145,7 @@ Every error response uses the same format:
 
 **Planet**
 
-`tasks` is one ordered list of readings and questions, in the order the player sees them. A reading's `text` comes from `lessons.text`. `correct` is the index of the right answer in `options`, so options must be sorted by `label` before it is worked out.
+`tasks` is one ordered list of readings and questions, in the order the player sees them. A reading's `text` comes from `readings.text`. A question's `options` is a list of answer texts, and `correct` is the index of the right answer in that list, so the backend must send options in display order (sorted by `label`).
 
 ```json
 {
@@ -141,19 +157,21 @@ Every error response uses the same format:
     { "type": "Reading", "text": "A linear function has the form y = mx + b." },
     {
       "type": "Question",
-      "questionId": 1,
       "prompt": "What is the slope of y = 2x + 3?",
-      "graph": { "fn": "2*x+3" },
-      "options": [
-        { "optionId": 1, "label": "a", "text": "2" },
-        { "optionId": 2, "label": "b", "text": "3" }
-      ],
-      "correct": 0,
-      "solved": false
+      "options": ["2", "3", "4", "undefined"],
+      "correct": 0
     }
   ]
 }
 ```
+
+We need these after implementing MVP:
+
+| Field        | Example             | Needed for                                        |
+| ------------ | ------------------- | ------------------------------------------------- |
+| `questionId` | `1`                 | Submitting answers and requesting hints           |
+| `graph`      | `{ "fn": "2*x+3" }` | Graph Renderer                                    |
+| `solved`     | `false`             | `enterPlanet` skipping to the first unsolved task |
 
 **AnswerResult**
 
@@ -181,8 +199,7 @@ The frontend grades answers for now, using `correct`, to give instant feedback. 
 
 ## Models
 
-| Model                                                           | Status                                                                                           |
-| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `Settings`, `Player`, `ReadingTask`, `Planet`                   | In PR #49                                                                                        |
-| `QuestionTask`                                                  | In PR #49, but needs `questionId`, `graph`, `solved`, and `options` as objects to match this API |
-| `PlanetSummary`, `AnswerResult`, `HintResult`, `MiniGameResult` | Not built yet                                                                                    |
+| Model                                                           | Status                                                                      |
+| --------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `Settings`, `Player`, `ReadingTask`, `Planet`, `QuestionTask`   | Built (PR #49). `QuestionTask` has `prompt`, `options: string[]`, `correct` |
+| `PlanetSummary`, `AnswerResult`, `HintResult`, `MiniGameResult` | Not built yet, not needed for the MVP                                       |
