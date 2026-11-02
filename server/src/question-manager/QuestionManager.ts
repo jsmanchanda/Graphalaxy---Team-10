@@ -4,12 +4,13 @@ import type {
   Lesson,
   Question,
 } from '@graphalaxy/shared';
+import type {AnswerProgress} from './AnswerProgress';
 import type {
-  AnswerOptionRecord,
-  AnswerProgress,
-  QuestionRecord,
-  QuestionRepo,
-} from './QuestionRepo';
+  DataWriter,
+  PrivateOption,
+  PublicOption,
+  Question as StoredQuestion,
+} from '../data-writer';
 
 /** Stable error codes for the API Manager's HTTP error mapping. */
 export type QuestionErrorCode =
@@ -36,37 +37,32 @@ export class QuestionManagerError extends Error {
 export class QuestionManager {
   /** Injects the Data Writer and a synchronous Progress Manager handler. */
   constructor(
-    private readonly repo: QuestionRepo,
+    private readonly dataWriter: Pick<
+      DataWriter,
+      'content' | 'answers' | 'transaction'
+    >,
     private readonly progress: AnswerProgress,
   ) {}
 
-  /** Returns ordered readings followed by ordered, client-safe MCQs. */
+  /**
+   * Maps readings to legacy lesson pages, ordered by reading number then ID.
+   * Questions belong to planets, so these pages contain reading tasks only.
+   */
   getLessons(planetId: number): Lesson[] {
     this.validateId(planetId, 'planetId');
     return this.withStorageError('Unable to load lessons.', () => {
       this.requirePlanet(planetId);
-      const lessons = this.repo.getLessons(planetId);
-      const questions = this.orderedQuestions(planetId, lessons);
-      return lessons
+      return this.dataWriter.content
+        .getReadings(planetId)
         .sort(
-          (a, b) => a.lessonNumber - b.lessonNumber || a.lessonId - b.lessonId,
+          (a, b) =>
+            a.readingNumber - b.readingNumber || a.readingId - b.readingId,
         )
-        .map(lesson => ({
-          lessonId: lesson.lessonId,
-          lessonNumber: lesson.lessonNumber,
-          lessonName:
-            lesson.lessonNumber === 0
-              ? 'Introduction'
-              : `Lesson ${lesson.lessonNumber}`,
-          tasks: [
-            {type: 'Reading', text: lesson.text},
-            ...questions
-              .filter(question => question.lessonId === lesson.lessonId)
-              .map(question => ({
-                type: 'Question' as const,
-                question: this.toQuestion(question),
-              })),
-          ],
+        .map(reading => ({
+          lessonId: reading.readingId,
+          lessonNumber: reading.readingNumber,
+          lessonName: `Reading ${reading.readingNumber}`,
+          tasks: [{type: 'Reading', text: reading.text}],
         }));
     });
   }
@@ -77,11 +73,9 @@ export class QuestionManager {
     this.validateId(planetId, 'planetId');
     return this.withStorageError('Unable to load the next question.', () => {
       this.requirePlanet(planetId);
-      const completed = new Set(
-        this.repo.getCompletedQuestionIds(userId, planetId),
-      );
-      const question = this.orderedQuestions(planetId).find(
-        question => !completed.has(question.questionId),
+      const question = this.dataWriter.content.nextUnsolvedQuestion(
+        userId,
+        planetId,
       );
       return question ? this.toQuestion(question) : null;
     });
@@ -93,35 +87,51 @@ export class QuestionManager {
     this.validateId(questionId, 'questionId');
     this.validateId(optionId, 'optionId');
     return this.withStorageError('Unable to submit the answer.', () =>
-      this.repo.transaction(() => {
-        const question = this.repo.getQuestion(questionId);
+      this.dataWriter.transaction(() => {
+        const question = this.dataWriter.content.getQuestion(questionId);
         if (!question) {
           throw new QuestionManagerError(
             'NOT_FOUND',
             `Question ${questionId} does not exist.`,
           );
         }
-        const options = this.validOptions(question);
-        const selected = options.find(option => option.optionId === optionId);
-        if (!selected) {
+        const {options, correctOption} = this.validOptions(question);
+        const selected = this.dataWriter.content.findOption(
+          questionId,
+          optionId,
+        );
+        if (
+          !selected ||
+          selected.questionId !== questionId ||
+          selected.optionId !== optionId ||
+          !options.some(option => option.optionId === optionId)
+        ) {
           throw new QuestionManagerError(
             'INVALID_INPUT',
             'The selected option does not belong to this question.',
           );
         }
-        const correctOption = options.find(option => option.isCorrect);
-        // validOptions guarantees exactly one correct option.
-        if (!correctOption) {
+        if (
+          selected.isCorrect !==
+          (selected.optionId === correctOption.optionId)
+        ) {
           throw new QuestionManagerError(
             'INVALID_CONTENT',
-            'Question has no correct option.',
+            'Question answer options have inconsistent correctness.',
           );
         }
-        const firstCorrect = this.repo.recordAnswer(
-          userId,
-          questionId,
-          selected.isCorrect,
-        );
+        const completed = this.dataWriter.answers.hasSolved(userId, questionId);
+        const firstCorrect = selected.isCorrect && !completed;
+        // The official schema allows only one correct row per user/question.
+        // Keep recording wrong attempts, including those after completion.
+        if (!selected.isCorrect || !completed) {
+          this.dataWriter.answers.record(
+            userId,
+            questionId,
+            optionId,
+            selected.isCorrect,
+          );
+        }
         if (firstCorrect) {
           try {
             this.progress.onAnswer({
@@ -146,71 +156,59 @@ export class QuestionManager {
     );
   }
 
-  private orderedQuestions(
-    planetId: number,
-    lessonRecords = this.repo.getLessons(planetId),
-  ): QuestionRecord[] {
-    const lessons = new Map(
-      lessonRecords.map(lesson => [lesson.lessonId, lesson]),
-    );
-    const questions = this.repo.getQuestions(planetId);
-    for (const question of questions) {
-      if (!lessons.has(question.lessonId)) {
-        throw new QuestionManagerError(
-          'INVALID_CONTENT',
-          'Question references a missing lesson.',
-        );
-      }
-    }
-    return questions.sort((a, b) => {
-      const leftNumber = lessons.get(a.lessonId)?.lessonNumber ?? 0;
-      const rightNumber = lessons.get(b.lessonId)?.lessonNumber ?? 0;
-      return (
-        leftNumber - rightNumber ||
-        a.lessonId - b.lessonId ||
-        a.questionOrder - b.questionOrder ||
-        a.questionId - b.questionId
-      );
-    });
-  }
-
-  private validOptions(question: QuestionRecord): AnswerOptionRecord[] {
-    if (question.type !== 'mcq') {
+  private validOptions(question: StoredQuestion): {
+    options: PublicOption[];
+    correctOption: PrivateOption;
+  } {
+    if (question.qtype !== 'mcq') {
       throw new QuestionManagerError(
         'INVALID_CONTENT',
         'Only multiple-choice questions are supported.',
       );
     }
-    const options = this.repo.getAnswerOptions(question.questionId);
+    const options = this.dataWriter.content.getPublicOptions(
+      question.questionId,
+    );
+    const correctOption = this.dataWriter.content.getCorrectOption(
+      question.questionId,
+    );
     if (
       options.length < 2 ||
+      options.length > 4 ||
       options.some(option => option.questionId !== question.questionId) ||
-      options.filter(option => option.isCorrect).length !== 1
+      new Set(options.map(option => option.optionId)).size !== options.length ||
+      !correctOption ||
+      !correctOption.isCorrect ||
+      correctOption.questionId !== question.questionId ||
+      !options.some(option => option.optionId === correctOption.optionId)
     ) {
       throw new QuestionManagerError(
         'INVALID_CONTENT',
-        `Question ${question.questionId} must have at least two options and exactly one correct option.`,
+        `Question ${question.questionId} must have two to four options and one correct option.`,
       );
     }
-    return options;
+    // The official schema enforces at most one correct option per question.
+    return {options, correctOption};
   }
 
-  private toQuestion(question: QuestionRecord): Question {
+  private toQuestion(question: StoredQuestion): Question {
     return {
       questionId: question.questionId,
       prompt: question.prompt,
       ...(question.graph === null ? {} : {graph: question.graph}),
       type: 'mcq',
-      options: this.validOptions(question).map(option => this.toOption(option)),
+      options: this.validOptions(question).options.map(option =>
+        this.toOption(option),
+      ),
     };
   }
 
-  private toOption(option: AnswerOptionRecord): AnswerOption {
+  private toOption(option: PublicOption): AnswerOption {
     return {optionId: option.optionId, label: option.label, text: option.text};
   }
 
   private requirePlanet(planetId: number): void {
-    if (!this.repo.planetExists(planetId)) {
+    if (!this.dataWriter.content.getPlanet(planetId)) {
       throw new QuestionManagerError(
         'NOT_FOUND',
         `Planet ${planetId} does not exist.`,
