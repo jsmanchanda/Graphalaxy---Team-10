@@ -1,3 +1,11 @@
+// run with:
+// npm run dev:demo -w client
+/**
+ * UI DEMO
+ * run with :
+ *        npm run dev:demo -w client # starts Vite and opens http://localhost:5173/demo.html
+ */
+
 import {FONT_CONTHRAX, FONT_PLANET_KOSMOS} from '../constants';
 import {
   LessonIntroScreenModel,
