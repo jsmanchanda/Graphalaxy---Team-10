@@ -4,6 +4,7 @@ import Konva from 'konva';
 import {ButtonComponent, TextBoxComponent} from '../components';
 import {
   LESSON_INTRO_TITLE_WIDTH,
+  LESSON_INTRO_TITLE_HEIGHT,
   LESSON_INTRO_TITLE_X,
   LESSON_INTRO_TITLE_Y,
   NEXT_BUTTON_HEIGHT,
@@ -40,7 +41,7 @@ export class LessonIntroScreenView implements View {
       LESSON_INTRO_TITLE_X,
       LESSON_INTRO_TITLE_Y,
       LESSON_INTRO_TITLE_WIDTH,
-      LESSON_INTRO_TITLE_Y,
+      LESSON_INTRO_TITLE_HEIGHT,
       model.title,
     );
     const descriptionText = new TextBoxComponent(
