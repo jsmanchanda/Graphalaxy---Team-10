@@ -9,12 +9,13 @@ import {Task, ReadingTask, QuestionTask} from './SessionCacheModels';
 import type {
   ScreenModel,
   ReadingScreenModel,
-  Question,
   QuestionScreenModel,
   QuestionResultScreenModel,
   LessonIntroScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
+
+import type {Question} from './types';
 
 /**
  * Converts a task into the screen model for that task's type.
@@ -54,16 +55,11 @@ export function readingTaskToScreen(
 export function questionTaskToQuestionScreen(
   questionTask: QuestionTask,
 ): QuestionScreenModel {
-  // this hardcode 4 options, need to figure out how to not do that
-  const [option1 = '', option2 = '', option3 = '', option4 = ''] =
-    questionTask.options;
-
   const question: Question = {
+    type: 'Question',
     prompt: questionTask.prompt,
-    option1,
-    option2,
-    option3,
-    option4,
+    options: questionTask.options,
+    correct: questionTask.correct,
   };
 
   return {type: 'question', question: question};
