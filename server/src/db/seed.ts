@@ -10,7 +10,7 @@ interface Q {
 
 const QUESTIONS: Q[] = [
   {
-    prompt: 'What is the slope of y = 2x + 3?',
+    prompt: 'PROOF THAT DB IS BEING READ. What is the slope of y = 2x + 3?',
     fn: '2*x+3',
     options: ['2', '3', '5', '0'],
     correct: 0,

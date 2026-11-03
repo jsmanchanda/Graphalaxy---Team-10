@@ -1,6 +1,9 @@
-import type {DataWriter, Question, User} from '../data-writer';
-import {QuestionManagerError} from '../question-manager/QuestionManager';
-
+import type {User} from '../data-writer';
+import {
+  QuestionManagerError,
+  type PlanetContent,
+  type PlanetQuestion,
+} from '../question-manager/QuestionManager';
 //MOCK 4 DEMO. TEST IN SPRINT 2.
 
 /** A player in the shape the client's `Player` model parses. */
@@ -52,88 +55,50 @@ export function toPlayerPayload(user: User): PlayerPayload {
     settings: {musicVolume: user.musicVolume, sfxVolume: user.sfxVolume},
   };
 }
-
 /**
- * Builds a planet with its readings first (in reading order), then its
- * multiple-choice questions (in question order), each marked solved or not for
- * this user. Questions of other types are skipped because the client cannot
- * show them.
+ * Converts QuestionManager's planet content to the client's planet shape:
+ * readings first, then questions. All loading, ordering and validation happens
+ * in QuestionManager; this only changes the shape.
  *
  * NOTE: this sends each question's correct answer index to the browser, as the
  * client's `QuestionTask` model requires. Anyone can read it from the network
  * tab, so it is fine for a demo but not for graded play.
- * @param dataWriter the Data Writer (only content and answers are used)
- * @param userId the player the `solved` flags are for
- * @param planetId the planet to load
- * @throws {QuestionManagerError} NOT_FOUND if the planet does not exist, or
- * INVALID_CONTENT if a question's options or graph are malformed.
+ * @param planet the planet content from QuestionManager.getPlanetContent
+ * @throws {QuestionManagerError} INVALID_CONTENT if a question's graph is not a
+ * JSON object.
  */
-export function buildPlanetPayload(
-  dataWriter: Pick<DataWriter, 'content' | 'answers'>,
-  userId: number,
-  planetId: number,
-): PlanetPayload {
-  const {content} = dataWriter;
-  const planet = content.getPlanet(planetId);
-  if (!planet) {
-    throw new QuestionManagerError(
-      'NOT_FOUND',
-      `Planet ${planetId} does not exist.`,
-    );
-  }
-
-  const readings: ReadingTaskPayload[] = [...content.getReadings(planetId)]
-    .sort(
-      (a, b) => a.readingNumber - b.readingNumber || a.readingId - b.readingId,
-    )
-    .map(reading => ({type: 'Reading', text: reading.text}));
-
-  const questions = content
-    .getQuestions(planetId)
-    .filter(question => question.qtype === 'mcq')
-    .map(question => toQuestionTask(dataWriter, question, userId));
-
+export function toPlanetPayload(planet: PlanetContent): PlanetPayload {
   return {
     planetId: planet.planetId,
     name: planet.name,
     introText: planet.introText,
     graphOrder: planet.graphOrder,
-    tasks: [...readings, ...questions],
+    tasks: [...planet.readings, ...planet.questions.map(toQuestionTask)],
   };
 }
 
-/** Builds one question slide, checking that its options make sense. */
-function toQuestionTask(
-  {content, answers}: Pick<DataWriter, 'content' | 'answers'>,
-  question: Question,
-  userId: number,
-): QuestionTaskPayload {
-  const options = content.getPublicOptions(question.questionId);
-  const correctOption = content.getCorrectOption(question.questionId);
-  const correct = correctOption
-    ? options.findIndex(option => option.optionId === correctOption.optionId)
-    : -1;
-  if (options.length < 2 || options.length > 4 || correct < 0) {
-    throw new QuestionManagerError(
-      'INVALID_CONTENT',
-      `Question ${question.questionId} must have two to four options and one correct option.`,
-    );
-  }
+/** Converts one question to the client's slide shape. */
+function toQuestionTask(question: PlanetQuestion): QuestionTaskPayload {
   const graph = parseGraph(question);
   return {
     type: 'Question',
     questionId: question.questionId,
     prompt: question.prompt,
     ...(graph === undefined ? {} : {graph}),
-    options: options.map(option => option.text),
-    correct,
-    solved: answers.hasSolved(userId, question.questionId),
+    options: question.options.map(option => option.text),
+    // QuestionManager has already checked the correct option is in the list.
+    correct: question.options.findIndex(
+      option => option.optionId === question.correctOptionId,
+    ),
+    solved: question.solved,
   };
 }
 
 /** Parses the stored graph JSON (e.g. {"fn":"2*x+3"}), or undefined if none. */
-function parseGraph(question: Question): Record<string, unknown> | undefined {
-  if (question.graph === null) return undefined;
+function parseGraph(
+  question: PlanetQuestion,
+): Record<string, unknown> | undefined {
+  if (question.graph === undefined) return undefined;
   try {
     const graph: unknown = JSON.parse(question.graph);
     if (typeof graph === 'object' && graph !== null && !Array.isArray(graph)) {

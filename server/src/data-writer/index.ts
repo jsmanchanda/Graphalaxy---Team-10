@@ -32,6 +32,7 @@ export interface DataWriter {
    * @param fn the function to run in a transaction
    */
   transaction<T>(fn: () => T): T;
+  //whatever type fn returns, transaction returns same type
 }
 
 /**
