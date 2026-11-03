@@ -67,11 +67,10 @@ import {QuestionScreenView} from './QuestionScreenView';
 const questionModel: QuestionScreenModel = {
   type: 'question',
   question: {
+    type: 'Question',
     prompt: 'What is the answer?',
-    option1: 'Answer 1',
-    option2: 'Answer 2',
-    option3: 'Answer 3',
-    option4: 'Answer 4',
+    options: ['Answer 1', 'Answer 2', 'Answer 3', 'Answer 4'],
+    correct: 0,
   },
 };
 
@@ -118,7 +117,7 @@ describe('QuestionScreenView option selection', () => {
     option3.fire('click');
     confirmButton.fire('click');
 
-    expect(onAction).toHaveBeenCalledWith({type: 'answer', option: 3});
+    expect(onAction).toHaveBeenCalledWith({type: 'answer', option: 2});
   });
 
   it('does not submit when no option is selected', () => {
