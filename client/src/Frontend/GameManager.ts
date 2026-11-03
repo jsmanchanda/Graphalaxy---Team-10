@@ -13,7 +13,7 @@ const VALID_READING = {type: 'Reading', text: 'The slope is m.'};
 const VALID_QUESTION = {
   type: 'Question',
   prompt: 'What is the slope of y = 2x + 3?',
-  options: ['2', '3'],
+  options: ['1', '101', '2', '3'],
   correct: 0,
 };
 const VALID_PLANET = {
@@ -75,7 +75,7 @@ export class GameManager {
         this.ui.displayScreen(screenModel);
         break;
       }
-      case 'next':
+      case 'next': {
         this.taskIndex++;
         if (this.taskIndex >= this.planet.tasks.length) {
           this.ui.displayScreen({
@@ -88,6 +88,7 @@ export class GameManager {
           this.ui.displayScreen(screenModel);
         }
         break;
+      }
       case 'back': {
         this.taskIndex--;
         if (this.taskIndex <= 0) {
