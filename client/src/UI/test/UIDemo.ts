@@ -6,11 +6,11 @@
  *        npm run dev:demo -w client # starts Vite and opens http://localhost:5173/demo.html
  */
 
+import {Question} from '../../Frontend/types';
 import {FONT_CONTHRAX, FONT_PLANET_KOSMOS} from '../constants';
 import {
   LessonIntroScreenModel,
   LessonResultScreenModel,
-  Question,
   QuestionResultScreenModel,
   QuestionScreenModel,
   ReadingScreenModel,
@@ -37,11 +37,10 @@ const readingScreen: ReadingScreenModel = {
 };
 
 const question: Question = {
+  type: 'Question',
   prompt: 'Question 1',
-  option1: 'a',
-  option2: 'b',
-  option3: 'c',
-  option4: 'd',
+  options: ['a', 'b', 'c', 'd'],
+  correct: 1,
 };
 
 const questionScreen: QuestionScreenModel = {

@@ -51,39 +51,39 @@ export class QuestionScreenView implements View {
       model.question.prompt,
     );
 
-    const option1 = new ButtonComponent(
+    const option0 = new ButtonComponent(
       MULTIPLE_CHOICE_OPTION_LEFT_X,
       MULTIPLE_CHOICE_OPTION_TOP_Y,
       MULTIPLE_CHOICE_OPTION_WIDTH,
       MULTIPLE_CHOICE_OPTION_HEIGHT,
-      model.question.option1,
+      model.question.options[0],
+      () => selectOption(0),
+    );
+    const option1 = new ButtonComponent(
+      MULTIPLE_CHOICE_OPTION_RIGHT_X,
+      MULTIPLE_CHOICE_OPTION_TOP_Y,
+      MULTIPLE_CHOICE_OPTION_WIDTH,
+      MULTIPLE_CHOICE_OPTION_HEIGHT,
+      model.question.options[1],
       () => selectOption(1),
     );
     const option2 = new ButtonComponent(
-      MULTIPLE_CHOICE_OPTION_RIGHT_X,
-      MULTIPLE_CHOICE_OPTION_TOP_Y,
-      MULTIPLE_CHOICE_OPTION_WIDTH,
-      MULTIPLE_CHOICE_OPTION_HEIGHT,
-      model.question.option2,
-      () => selectOption(2),
-    );
-    const option3 = new ButtonComponent(
       MULTIPLE_CHOICE_OPTION_LEFT_X,
       MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
       MULTIPLE_CHOICE_OPTION_WIDTH,
       MULTIPLE_CHOICE_OPTION_HEIGHT,
-      model.question.option3,
-      () => selectOption(3),
+      model.question.options[2],
+      () => selectOption(2),
     );
-    const option4 = new ButtonComponent(
+    const option3 = new ButtonComponent(
       MULTIPLE_CHOICE_OPTION_RIGHT_X,
       MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
       MULTIPLE_CHOICE_OPTION_WIDTH,
       MULTIPLE_CHOICE_OPTION_HEIGHT,
-      model.question.option4,
-      () => selectOption(4),
+      model.question.options[3],
+      () => selectOption(3),
     );
-    const options = [option1, option2, option3, option4];
+    const options = [option0, option1, option2, option3];
 
     function selectOption(option: number): void {
       selectedOption = option;
@@ -93,7 +93,7 @@ export class QuestionScreenView implements View {
 
         // Highlight the selected option by changing its background color
         if (buttonBackground instanceof Konva.Rect) {
-          buttonBackground.fill(index + 1 === option ? '#3b82f6' : '#0c22cbc3');
+          buttonBackground.fill(index === option ? '#3b82f6' : '#0c22cbc3');
         }
       });
     }
@@ -132,10 +132,10 @@ export class QuestionScreenView implements View {
     this.group.add(alienCat.getGroup());
     this.group.add(prompt.getGroup());
     this.group.add(confirmButton.getGroup());
+    this.group.add(option0.getGroup());
     this.group.add(option1.getGroup());
     this.group.add(option2.getGroup());
     this.group.add(option3.getGroup());
-    this.group.add(option4.getGroup());
   }
 
   /**
