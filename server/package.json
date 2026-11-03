@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "lint": "eslint . --no-error-on-unmatched-pattern",
+    "dev" : "tsx watch src/index.ts",
+    "start" : "tsx src/index.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "node -e \"require('fs').rmSync('var/game.db',{force:true})\" && npm run db:migrate && npm run db:seed",
