@@ -3,12 +3,15 @@ import type {
   AnswerResult,
   Lesson,
   Question,
+  ReadingTask,
 } from '@graphalaxy/shared';
 import type {AnswerProgress} from './AnswerProgress';
 import type {
   DataWriter,
+  Planet,
   PrivateOption,
   PublicOption,
+  Reading,
   Question as StoredQuestion,
 } from '../data-writer';
 
@@ -33,6 +36,25 @@ export class QuestionManagerError extends Error {
   }
 }
 
+/**
+ * Represents a question associated with a planet, including its correct option and whether it has been solved.
+ */
+export interface PlanetQuestion extends Question {
+  correctOptionId: number;
+  solved: boolean;
+}
+/**
+ * Represents the content of a planet, including its readings and questions.
+ */
+export interface PlanetContent {
+  planetId: number;
+  name: string;
+  introText: string;
+  graphOrder: number;
+  readings: ReadingTask[];
+  questions: PlanetQuestion[];
+}
+
 /** Loads lesson content and grades MCQs through the Data Writer boundary. */
 export class QuestionManager {
   /** Injects the Data Writer and a synchronous Progress Manager handler. */
@@ -52,18 +74,48 @@ export class QuestionManager {
     this.validateId(planetId, 'planetId');
     return this.withStorageError('Unable to load lessons.', () => {
       this.requirePlanet(planetId);
-      return this.dataWriter.content
-        .getReadings(planetId)
-        .sort(
-          (a, b) =>
-            a.readingNumber - b.readingNumber || a.readingId - b.readingId,
-        )
-        .map(reading => ({
-          lessonId: reading.readingId,
-          lessonNumber: reading.readingNumber,
-          lessonName: `Reading ${reading.readingNumber}`,
-          tasks: [{type: 'Reading', text: reading.text}],
-        }));
+      return this.sortedReadings(planetId).map(reading => ({
+        lessonId: reading.readingId,
+        lessonNumber: reading.readingNumber,
+        lessonName: `Reading ${reading.readingNumber}`,
+        tasks: [{type: 'Reading', text: reading.text}],
+      }));
+    });
+  }
+
+  /**
+   * Retrieves the content of a planet, including its readings and questions, for a specific user.
+   */
+  getPlanetContent(userId: number, planetId: number): PlanetContent {
+    this.validateId(userId, 'userId');
+    this.validateId(planetId, 'planetId');
+    return this.withStorageError('Unable to load the planet.', () => {
+      const planet = this.requirePlanet(planetId);
+      const questions = this.dataWriter.content
+        .getQuestions(planetId)
+        .filter(question => question.qtype === 'mcq')
+        .map(question => {
+          const {options, correctOption} = this.validOptions(question);
+          return {
+            ...this.toQuestion(question, options),
+            correctOptionId: correctOption.optionId,
+            solved: this.dataWriter.answers.hasSolved(
+              userId,
+              question.questionId,
+            ),
+          };
+        });
+      return {
+        planetId: planet.planetId,
+        name: planet.name,
+        introText: planet.introText,
+        graphOrder: planet.graphOrder,
+        readings: this.sortedReadings(planetId).map(reading => ({
+          type: 'Reading',
+          text: reading.text,
+        })),
+        questions,
+      };
     });
   }
 
@@ -191,29 +243,38 @@ export class QuestionManager {
     return {options, correctOption};
   }
 
-  private toQuestion(question: StoredQuestion): Question {
+  private toQuestion(
+    question: StoredQuestion,
+    options: PublicOption[] = this.validOptions(question).options,
+  ): Question {
     return {
       questionId: question.questionId,
       prompt: question.prompt,
       ...(question.graph === null ? {} : {graph: question.graph}),
       type: 'mcq',
-      options: this.validOptions(question).options.map(option =>
-        this.toOption(option),
-      ),
+      options: options.map(option => this.toOption(option)),
     };
+  }
+
+  private sortedReadings(planetId: number): Reading[] {
+    return [...this.dataWriter.content.getReadings(planetId)].sort(
+      (a, b) => a.readingNumber - b.readingNumber || a.readingId - b.readingId,
+    );
   }
 
   private toOption(option: PublicOption): AnswerOption {
     return {optionId: option.optionId, label: option.label, text: option.text};
   }
 
-  private requirePlanet(planetId: number): void {
-    if (!this.dataWriter.content.getPlanet(planetId)) {
+  private requirePlanet(planetId: number): Planet {
+    const planet = this.dataWriter.content.getPlanet(planetId);
+    if (!planet) {
       throw new QuestionManagerError(
         'NOT_FOUND',
         `Planet ${planetId} does not exist.`,
       );
     }
+    return planet;
   }
 
   private validateId(value: number, name: string): void {

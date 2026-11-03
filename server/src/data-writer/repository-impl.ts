@@ -30,8 +30,8 @@ const PROGRESS_COLS = `user_id AS userId, planet_id AS planetId, status,
 
 const toGraded = (row: unknown): PrivateOption | undefined => {
   if (!row) return undefined;
-  const r = row as Omit<PrivateOption, 'isCorrect'> & {isCorrect: number};
-  return {...r, isCorrect: r.isCorrect === 1};
+  const r = row as Omit<PrivateOption, 'isCorrect'> & {isCorrect: number}; //private option w/o isCorrect. add isCorrect as a number
+  return {...r, isCorrect: r.isCorrect === 1}; //copy all of r, then change isCorrect to true/false
 };
 
 const toHint = (row: unknown): Hint => {
@@ -43,7 +43,7 @@ const toHint = (row: unknown): Hint => {
  * SqliteUserRep is a UserRep that uses the given db to implement the interface.
  */
 export class SqliteUserRep implements UserRep {
-  private readonly byId: Statement;
+  private readonly byId: Statement; //readonly -- only assigned in constructor
   private readonly byName: Statement;
   private readonly insert: Statement;
   private readonly settings: Statement;
@@ -55,14 +55,14 @@ export class SqliteUserRep implements UserRep {
    * @param db database
    */
   constructor(db: Database) {
-    this.byId = db.prepare(`SELECT ${USER_COLS} FROM users WHERE user_id = ?`);
+    this.byId = db.prepare(`SELECT ${USER_COLS} FROM users WHERE user_id = ?`); //tmp literal, select cols where user id matches
     this.byName = db.prepare(
       `SELECT ${USER_COLS} FROM users WHERE username = ?`,
     );
-    this.insert = db.prepare('INSERT INTO users (username) VALUES (?)');
+    this.insert = db.prepare('INSERT INTO users (username) VALUES (?)'); //sets username
     this.settings = db.prepare(
       'UPDATE users SET music_volume = ?, sfx_volume = ? WHERE user_id = ?',
-    );
+    ); //update settings 4 specific user
     this.spend = db.prepare(
       'UPDATE users SET hint_quota = hint_quota - 1 WHERE user_id = ? AND hint_quota > 0',
     );
@@ -76,7 +76,7 @@ export class SqliteUserRep implements UserRep {
    * @param userId the id of the user
    */
   findById(userId: number): User | undefined {
-    return this.byId.get(userId) as User | undefined;
+    return this.byId.get(userId) as User | undefined; //get runs the template ltieral, returns first row as obj or undefined
   }
 
   /**
@@ -175,7 +175,9 @@ export class SqliteContentRep implements ContentRep {
              AND ua.correct = 1)
        ORDER BY q.question_id
        LIMIT 1`,
-    );
+    ); //QUESTION COLS, from questions table, set q = table alias so questions = q. then
+    //planet_id = @planetId the named parameter {userId, planetId}, and keep the question if the following finds no rows:
+    //any row in ua with the same user_id and question_id and correct = 1.EXCLUDE THOSE. order by the question id (lowest first), and only return 1 row.
     this.publicOpts = db.prepare(
       'SELECT option_id AS optionId, question_id as questionId, label, text FROM answer_options WHERE question_id = ? ORDER BY label',
     );
@@ -419,7 +421,9 @@ export class SqliteHintRep implements HintRep {
        LEFT JOIN user_hints uh ON uh.hint_id = h.hint_id AND uh.user_id = @userId
        WHERE h.planet_id = @planetId
        ORDER BY h.hint_number`,
-    );
+    ); // h = planet_hints alias. LEFT JOIN user_hints, alias uh: user_hints.hint_id = planet_hints hint id.
+    // match hint to user. LEFT JOIN - hint appears even when no matching user record exists.
+    //LEFT JOIN - return all rows from left table and matching ones from right table.
     this.used = db.prepare(
       'INSERT OR IGNORE INTO user_hints (user_id, hint_id) VALUES (?, ?)',
     );

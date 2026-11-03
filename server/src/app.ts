@@ -1,7 +1,7 @@
 import express from 'express';
 import type {ErrorRequestHandler} from 'express';
 import type {DataWriter, User} from './data-writer';
-import {buildPlanetPayload, toPlayerPayload} from './api/payloads';
+import {toPlanetPayload, toPlayerPayload} from './api/payloads';
 import {
   QuestionManagerError,
   type QuestionErrorCode,
@@ -30,8 +30,8 @@ const MAX_USERNAME_LENGTH = 32;
 
 /** What the HTTP layer needs. Narrow types keep tests easy to fake. */
 export interface AppDeps {
-  questions: Pick<QuestionManager, 'submit'>;
-  dataWriter: Pick<DataWriter, 'users' | 'content' | 'answers'>;
+  questions: Pick<QuestionManager, 'submit' | 'getPlanetContent'>;
+  dataWriter: Pick<DataWriter, 'users'>;
 }
 
 /**
@@ -123,8 +123,8 @@ function parseSettings(body: unknown): {
  *   POST  /api/users/:userId/questions/:questionId/answer
  *                                       {optionId}              -> AnswerResult
  * @param deps the services the routes use (or fakes in tests)
- * @param deps.questions records and grades answers
- * @param deps.dataWriter reads and writes users, content and answers
+ * @param deps.questions loads planets and records and grades answers
+ * @param deps.dataWriter reads and writes users
  * @returns the Express app, ready to listen
  */
 export function createApp({questions, dataWriter}: AppDeps): express.Express {
@@ -155,8 +155,12 @@ export function createApp({questions, dataWriter}: AppDeps): express.Express {
 
   app.get('/api/users/:userId/planets/:planetId', (req, res) => {
     const user = requireUser(req.params.userId);
-    const planetId = parseId(req.params.planetId, 'planetId');
-    res.json(buildPlanetPayload(dataWriter, user.userId, planetId));
+    // QuestionManager validates planetId and throws INVALID_INPUT / NOT_FOUND.
+    const planet = questions.getPlanetContent(
+      user.userId,
+      Number(req.params.planetId),
+    );
+    res.json(toPlanetPayload(planet));
   });
 
   app.patch('/api/users/:userId/settings', (req, res) => {
