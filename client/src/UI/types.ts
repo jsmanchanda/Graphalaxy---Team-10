@@ -1,4 +1,5 @@
 import type {Group} from 'konva/lib/Group';
+import {Question} from '../Frontend/types';
 
 /**
  * Data being displayed
@@ -18,20 +19,7 @@ export type UiAction =
   | {type: 'back'}
   | {type: 'retryLesson'};
 
-/**
- * Multiple Choice Question
- * TODO: Merge this with the type in FE
- */
-export interface Question {
-  prompt: string;
-  option1: string;
-  option2: string;
-  option3: string;
-  option4: string;
-}
-
 // ================== Screens Models ===================
-
 /**
  * Title Screen Data
  */
