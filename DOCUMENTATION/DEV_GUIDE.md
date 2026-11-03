@@ -1,6 +1,6 @@
 # START HERE: Running, testing, and changing code in the Graphalaxy repo. 
 
-Commands assume you are in the repo root unless stated otherwise. Items marked **Planned** aren't installed/configured yet.
+Commands assume you are in the repo root unless stated otherwise. Checked against the repository on November 2, 2026. See [Project architecture](PROJECT_ARCHITECTURE.md) for current implementation status.
 
 ## 1. Project at a glance
 
@@ -71,6 +71,8 @@ npm ci
 
 **Never run `npm install` inside `client/` or `server/`.** Always install from the root.
 
+On Windows PowerShell with script execution disabled, use `npm.cmd` in place of `npm`.
+
 ### 2.5 Verify
 
 ```bash
@@ -98,6 +100,7 @@ These are the root `devDependencies`. Version ranges are as of this writing, so 
 | `lint-staged` | Runs `eslint --fix` on the files you are committing |
 | `@commitlint/cli`, `@commitlint/config-conventional` | Enforces the commit message format |
 | `@types/node` | Type definitions for Node |
+| `vite` | Browser development and test tooling; also declared by the client workspace |
 
 The root `package.json` also has an `overrides` entry that forces `tmp` to `^0.2.6`. Leave it unless you know why you are changing it.
 
@@ -107,9 +110,11 @@ Installed with `npm ci`.
 
 | Workspace | Runtime | Dev |
 | --- | --- | --- |
-| `server` | `express` (v5), `better-sqlite3` | `tsx`, `vitest`, `supertest`, `@types/express`, `@types/better-sqlite3`, `@types/supertest` |
-| `client` | `konva`, a graph-expression parser (`mathjs` or `expr-eval`, decision pending) | `vite`, `vitest` |
-| `shared` | `zod` | none |
+| `server` | `@graphalaxy/shared`, `express` (v5), `better-sqlite3` | `tsx`, `vitest`, `supertest`, `@types/express`, `@types/better-sqlite3`, `@types/supertest` |
+| `client` | `@graphalaxy/shared`, `konva` | `vite`, `vitest` |
+| `shared` | none (TypeScript response interfaces) | none |
+
+No graph-expression parser or `zod` dependency is currently declared.
 
 ### 3.3 Where does a dependency go?
 
@@ -129,7 +134,7 @@ Installed with `npm ci`.
 | `npm run fix` | `gts fix`: auto-fixes lint and formatting problems |
 | `npm run compile` | `tsc`: type-checks and compiles to `build/` |
 | `npm run clean` | `gts clean`: deletes the `build/` output |
-| `npm test` | Today this is compile, then lint, then lint again (`pretest`, `test`, `posttest`). It has no unit tests yet (see section 5) |
+| `npm test` | Compiles (`pretest`), lints and runs workspace tests (`test`), then lints again (`posttest`) |
 | `npm run prepare` | Runs `husky`. It runs automatically after install, so you never run it by hand |
 
 ### 4.2 Run a script in one workspace
@@ -140,11 +145,11 @@ npm run lint -w @graphalaxy/server     # by package name
 npm run lint --workspaces --if-present # in every workspace that defines it
 ```
 
-The `client` and `server` workspaces currently define a single script, `lint` (`eslint . --no-error-on-unmatched-pattern`).
+Both workspaces provide `lint`, `dev`, `test`, and `test:watch`. The client also provides `dev:demo`; the server provides `start`, `db:migrate`, `db:seed`, and `db:reset`.
 
-### 4.3 Dev servers (Planned)
+### 4.3 Dev servers and UI demo
 
-Add these scripts when the code exists:
+The existing development scripts are:
 
 - `server/package.json`: `"dev": "tsx watch src/index.ts"` (restarts on file changes)
 - `client/package.json`: `"dev": "vite"`
@@ -152,11 +157,11 @@ Add these scripts when the code exists:
 Then run each in its own terminal:
 
 ```bash
-npm run dev -w server    # Express, planned port 3001
-npm run dev -w client    # Vite, default port 5173
+npm run dev -w server    # Express, default port 3000
+npm run dev -w client    # Vite, default port 5173; demo is at /demo.html
 ```
 
-Configure Vite to proxy `/api` to `http://localhost:3001`. The browser then talks only to Vite, so you never deal with CORS. A single `npm run dev` that starts both (using the `concurrently` package) can be added later.
+`client/vite.config.ts` already proxies `/api` to `http://localhost:3000`. If you override the backend `PORT`, update the proxy target to match. There is no root `dev` script that starts both processes. `npm run start -w server` runs the backend without watch mode.
 
 **UI demo.** To run the client against the mock lesson data in `client/src/UI/test/UIDemo.ts` instead of `main.ts`:
 
@@ -165,6 +170,8 @@ npm run dev:demo -w client    # starts Vite and opens http://localhost:5173/demo
 ```
 
 `client/demo.html` is a copy of `index.html` that loads `UIDemo.ts`. If the regular dev server is already running, you can also just open `/demo.html` in the browser.
+
+`client/src/main.ts` is currently empty, so the normal `/` page does not initialize the game. The UI demo uses fixed mock data and does not issue API requests; setting up the proxy does not connect it to the backend. The backend can be run separately to exercise its demo HTTP routes.
 
 ### 4.4 Local database and secrets
 
@@ -176,47 +183,50 @@ server/var/
 .env
 ```
 
-The database is rebuilt from migration files plus a seed script, so a planned `npm run db:reset -w server` will recreate it for everyone.
+Backend startup opens the database, applies unapplied migrations, and seeds sample content when the planets table is empty. Normal startup does not require a reset. To run the database tools explicitly:
+
+```bash
+npm run db:migrate -w server
+npm run db:seed -w server
+```
+
+`DB_PATH` overrides the default `server/var/game.db`. The existing `npm run db:reset -w server` deletes the default file and then migrates and seeds. Its delete step always targets `server/var/game.db`, even when `DB_PATH` points elsewhere.
 
 ### 4.5 TypeScript config notes
 
 The root `tsconfig.json` extends `node_modules/gts/tsconfig-google.json`, sets `rootDir` to `.`, writes output to `build/`, and includes `client/**/*.ts`, `server/**/*.ts`, `shared/**/*.ts`, and `test/**/*.ts`. Two consequences:
 
 - Any `.ts` file inside `client/`, `server/`, or `shared/` is type-checked by `npm run compile`. Put tests inside the workspace they test.
-- The gts base config is aimed at Node and CommonJS. Client code that touches the browser needs DOM typings, and Vite expects its own module settings. Whoever sets up the client should add a `client/tsconfig.json` that extends or overrides the root config, and tell Teams 2 and 3.
+- The root config already overrides the gts defaults with `module: ESNext`, `moduleResolution: Bundler`, the `ES2023`, `DOM`, and `DOM.Iterable` libraries, `esModuleInterop: true`, and `skipLibCheck: true`. There is no separate client TypeScript config required by the current setup.
 
-Plain `tsc` output is for type checking. During development, run TypeScript directly with `tsx` (server) and Vite (client).
+`tsc` type-checks and emits to `build/`. The supported development/runtime scripts use `tsx` (server) and Vite (client); production packaging of the emitted files is not configured.
 
 ## 5. Testing
 
 ### 5.1 Where things stand
 
-`npm test` currently compiles and lints. There is no unit test runner yet, and `tsc` fails with `TS18003: No inputs were found` until at least one `.ts` file exists under `client/`, `server/`, or `shared/`.
+Vitest is installed and configured in both workspaces. The current suites contain 200 cases: 84 client and 116 server, including 47 Question Manager tests. The server suites cover the official schema/seed, Data Writer, and Question Manager; client suites cover model parsing and screen geometry. HTTP routes and browser-to-database integration do not yet have committed test suites.
 
-### 5.2 Set up Vitest (Planned)
+### 5.2 Existing test configuration
 
-Vitest is the team's intended test runner for both workspaces.
+The existing workspace scripts are:
 
-```bash
-npm install -D vitest -w server
-npm install -D vitest -w client
-npm install -D supertest @types/supertest -w server
-```
+| Script | Client | Server |
+| --- | --- | --- |
+| `test` | `vitest run` | `vitest run` |
+| `test:watch` | `vitest` | `vitest watch` |
 
-Then add these scripts to `server/package.json` and `client/package.json`:
+`supertest` and its types are already server development dependencies for future HTTP tests. Install the locked dependencies with `npm ci`; no separate Vitest setup is needed.
 
-- `"test": "vitest run"` (run once, used in CI)
-- `"test:watch": "vitest"` (re-runs as you edit)
-
-The root `test` script will need to change so it runs the workspace tests. A reasonable split is `"test": "npm run test --workspaces --if-present"` for unit tests and a new `"check"` script for compile plus lint. Agree on this as a team before changing it.
+Root `npm test` already runs workspace tests. `.github/workflows/ci.yml` type-checks, lints, and runs workspace tests on pull requests and pushes to `main`.
 
 ### 5.3 Running tests
 
 ```bash
-npm test                                        # everything (once the root script is updated)
+npm test                                        # compile, lint, workspace tests, lint
 npm test -w server                              # one workspace
-npm test -w server -- path/to/file.test.ts      # one file (arguments after --)
-npm test -w server -- -t "duplicate submit"     # tests whose name matches
+npm test -w server -- src/question-manager/QuestionManager.test.ts  # one file
+npm test -w server -- -t "repeated correct"     # tests whose name matches
 npm run test:watch -w client                    # watch mode
 ```
 
@@ -240,9 +250,9 @@ describe('evaluate', () => {
 });
 ```
 
-### 5.5 What each team tests
+### 5.5 Planned testing responsibilities
 
-From `SPRINTONE_TEAMS.md`:
+The following responsibilities come from `SPRINTONE_TEAMS.md`; they are a plan, not a list of completed tests. Current coverage is summarized in section 5.1.
 
 - **Team 1:** Question Manager against an in-memory fake data store. An API-level test (using `supertest` against the Express app) confirming `is_correct` never appears in any response. A duplicate-submit test. Use `:memory:` SQLite for tests that need a real database.
 - **Team 2:** Game Manager against a fake Session Cache. Session Cache against a fake gateway, including a failed submit that keeps the selection. API Client retry and error mapping against a mocked HTTP layer.
@@ -336,7 +346,7 @@ If `npm ci` complains that `package.json` and `package-lock.json` are out of syn
 
 ### 7.1 The idea
 
-The root `package.json` lists `"workspaces": ["client", "server"]`. Each listed folder with its own `package.json` is a separate package (`@graphalaxy/client`, `@graphalaxy/server`). npm installs all their dependencies into the one root `node_modules/` and symlinks the workspaces themselves into `node_modules/@graphalaxy/`, so packages can import each other by name.
+The root `package.json` lists `"workspaces": ["client", "server", "shared"]`. Each listed folder has its own `package.json` and package name: `@graphalaxy/client`, `@graphalaxy/server`, and `@graphalaxy/shared`. npm installs their dependencies into the root `node_modules/` and links the workspaces under `node_modules/@graphalaxy/`, so packages can import each other by name.
 
 Each workspace has its own `package.json` so that it declares only the dependencies it needs, owns its own scripts, and shows up in the right team's PRs.
 
@@ -360,51 +370,27 @@ npm ls --workspaces --depth=0            # list every workspace and its dependen
 
 `--if-present` skips workspaces that do not define the script, so the command does not fail on them.
 
-### 7.4 Add a workspace (example: `shared`)
+### 7.4 Existing shared workspace
 
-`shared/` exists as a folder but is not a workspace yet, because it is missing from the root `workspaces` list and has no `package.json`. To make it one:
+`shared` is already initialized and listed in the root workspace configuration. Both client and server declare `"@graphalaxy/shared": "*"`. Do not reinitialize it or replace its manifest as a setup step; `npm ci` links it along with the other workspaces.
 
-1. Generate the manifest. This also adds the folder to the root `workspaces` list:
+`shared/package.json` points `main` and `types` to `src/index.ts`. That entry point exports the response interfaces from `src/api.ts`, including `Question`, `AnswerOption`, `AnswerResult`, `Lesson`, `ReadingTask`, and `QuestionTask`. There is no separate shared build step or runtime validation schema.
 
-   ```bash
-   npm init -w ./shared -y
-   ```
-2. Edit `shared/package.json`:
+Verify the existing connection with:
 
-   ```json
-   {
-     "name": "@graphalaxy/shared",
-     "version": "1.0.0",
-     "private": true,
-     "main": "src/index.ts",
-     "types": "src/index.ts",
-     "scripts": {
-       "lint": "eslint . --no-error-on-unmatched-pattern"
-     }
-   }
-   ```
-3. In `client/package.json` and `server/package.json`, add the dependency:
+```bash
+npm ls @graphalaxy/shared
+```
 
-   ```json
-   "dependencies": {
-     "@graphalaxy/shared": "*"
-   }
-   ```
-4. From the root, run `npm install` to create the symlink.
-5. Verify with `ls -l node_modules/@graphalaxy` (you should see links to `client`, `server`, `shared`) and `npm ls @graphalaxy/shared`.
-6. Commit all three `package.json` files plus `package-lock.json`, and update the docs.
-
-Because `main` points at TypeScript source, there is no build step for `shared`. `tsx`, Vite, and Vitest read it directly. Plain `node` cannot run it, so if the team later needs a production build, revisit this.
-
-The same steps work for any new workspace. Pick a folder name, run `npm init -w ./<folder> -y`, name it `@graphalaxy/<folder>`, give it a `lint` script like the others, and run `npm install`.
+For a genuinely new workspace, choose an unused folder, run `npm init -w ./<folder> -y` from the root, configure its manifest and scripts, and update the dependencies of its consumers. Commit the manifests and generated lockfile together.
 
 ### 7.5 Importing between workspaces
 
 ```ts
-import {QuestionSchema} from '@graphalaxy/shared';
+import type {AnswerResult, Question} from '@graphalaxy/shared';
 ```
 
-`client` and `server` import from `shared`, never from each other. That keeps server code out of the browser bundle. Once the code exists, enforce this with an ESLint `no-restricted-imports` rule. Changes to `shared/` affect both sides, so ask for review from both affected teams.
+`client` and `server` import shared contracts from this package, rather than importing each other's implementation code. The current exports are types; `QuestionSchema` is not exported. Use `import type` for these interfaces. Changes to `shared/` affect both sides, so ask for review from both affected teams. The existing frontend/demo payload types still differ from the shared question contract; see [Project architecture](PROJECT_ARCHITECTURE.md) before integrating them.
 
 ### 7.6 Remove a workspace
 

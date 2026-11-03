@@ -1,197 +1,194 @@
-# Question Manager integration
+# Question Manager
 
-`QuestionManager` is a synchronous backend service. Its constructor requires a
-`QuestionRepo` and an `AnswerProgress` handler, so tests need neither Express nor
-a live database. `SqliteQuestionRepo` implements the Data Writer boundary using
-an existing `better-sqlite3` connection. It never opens or closes a connection.
+Checked against the repository on November 2, 2026. This document describes the
+implemented service and its current demo integration. See
+[Project architecture](PROJECT_ARCHITECTURE.md) for the rest of the application.
 
-## Public methods and response types
+## Files and dependencies
 
-- `getLessons(planetId): Lesson[]` returns intro (lesson number zero) and lessons
-  ordered by lesson number, then lesson ID. Each lesson contains a `ReadingTask`
-  followed by `QuestionTask`s ordered by question position, then question ID.
-  Names are `Introduction` or `Lesson N` because the schema has no title column.
-- `nextQuestion(userId, planetId): Question | null` returns the first question
-  without a correct attempt by that user, ordered across the planet's lessons.
-  Incorrect attempts remain eligible. Existing planets without questions return
-  `null`; nonexistent planets throw `NOT_FOUND`.
-- `submit(userId, questionId, optionId): AnswerResult` validates question/option
-  ownership, grades the MCQ, appends an attempt, and returns `correct` and
-  `correctOption`. Only a first correct attempt calls `onAnswer` with
-  `{userId, questionId, planetId}`. Repeated submissions still produce attempt rows
-  and feedback, but do not award progress again. Completion is per user.
+| File | Responsibility |
+| --- | --- |
+| [QuestionManager.ts](../server/src/question-manager/QuestionManager.ts) | Reading retrieval, next-question selection, grading, serialization, and typed errors |
+| [AnswerProgress.ts](../server/src/question-manager/AnswerProgress.ts) | First-correct event and synchronous progress callback interfaces |
+| [QuestionManager.test.ts](../server/src/question-manager/QuestionManager.test.ts) | Unit tests using a fake Data Writer |
+| [QuestionManager.integration.test.ts](../server/src/question-manager/QuestionManager.integration.test.ts) | Integration tests using the official migration, Data Writer, and in-memory SQLite |
 
-Shared types are exported from `@graphalaxy/shared` via `shared/src/index.ts`.
-`Question` and `AnswerOption` contain no answer keys. The manager constructs
-responses by explicitly selecting allowed fields, including nested lesson
-questions; extra fields on repository records cannot leak through serialization.
-Graphs are optional function strings passed through unchanged.
+The constructor accepts `Pick<DataWriter, 'content' | 'answers' | 'transaction'>`
+and an `AnswerProgress` handler. The service uses the existing
+[Data Writer](../server/src/data-writer/index.ts) and
+[official migration](../server/migrations/001_schema.sql). It opens no connection,
+contains no SQL, and does not write progress tables directly. The earlier
+QuestionRepo, SQLiteQuestionRepo, and question-schema.sql implementations are no
+longer part of the codebase.
 
-Example lesson response:
+Response types come from [shared/src/api.ts](../shared/src/api.ts), exported by
+`@graphalaxy/shared`. Stored row types come from the Data Writer; these are
+separate from objects intended for the client.
+
+## Public methods
+
+### getLessons(planetId): Lesson[]
+
+Checks that the planet exists, loads `content.getReadings(planetId)`, and sorts by
+`readingNumber`, then `readingId`. Each reading becomes one display page:
 
 ```json
 {
   "lessonId": 10,
   "lessonNumber": 1,
-  "lessonName": "Lesson 1",
-  "tasks": [
-    {"type": "Reading", "text": "A line has constant slope."},
-    {
-      "type": "Question",
-      "question": {
-        "questionId": 2,
-        "prompt": "What is the slope?",
-        "graph": "2*x+1",
-        "type": "mcq",
-        "options": [
-          {"optionId": 21, "label": "A", "text": "2"},
-          {"optionId": 22, "label": "B", "text": "3"}
-        ]
-      }
-    }
-  ]
+  "lessonName": "Reading 1",
+  "tasks": [{"type": "Reading", "text": "A line has constant slope."}]
 }
 ```
 
-The existing `client/src/Frontend/types.ts` is an unused draft of separate union
-members (for example, a `Lesson` is a name *or* tasks). It cannot express the
-complete response and its question draft includes correctness. It is left intact
-to avoid overwriting frontend work. Session Cache should adopt the shared types
-or explicitly map these responses into its display models, retaining option IDs
-for submission. Pre-submission questions must never contain a `correct` index.
+`lessonId` and `lessonNumber` retain legacy response names; their values are the
+reading ID and reading number. These are reading-only display wrappers, not rows
+in a lessons table. `planets.intro_text` remains planet metadata and is not
+converted into an introduction reading. An existing planet with no readings
+returns `[]`.
 
-## Schema decision and queries
+Readings and questions both belong directly to a planet. There is no foreign key
+or junction table associating a particular reading with questions. Accordingly,
+this method does not attach question tasks to reading pages.
 
-There was no implemented schema, migration, seed, or Data Writer in the checkout.
-The consolidated architecture document proposes `questions.planet_id`; this
-component instead implements the requested direct relationship:
+### nextQuestion(userId, planetId): Question | null
+
+Checks the planet and delegates to `content.nextUnsolvedQuestion`. The official
+repository selects by ascending `question_id`, excluding questions with a
+correct attempt by this user. Wrong attempts remain eligible; another user's
+completion has no effect. Questions can be retrieved even without any readings.
+Returns `null` when none remain, including an existing planet with no questions.
+
+The response contains `questionId`, `prompt`, `type: 'mcq'`, optional `graph`, and
+`options: AnswerOption[]`. Each option contains only `optionId`, `label`, and
+`text`. Options are ordered by label by the Data Writer. The stored `qtype` field
+maps to response `type`. Null graphs are omitted; non-null graph text is returned
+unchanged, including seeded JSON strings such as `'{"fn":"2*x+3"}'`.
+
+This method does not authenticate a user or enforce planet prerequisites. The
+caller owns those checks; the current HTTP layer checks user existence.
+
+### submit(userId, questionId, optionId): AnswerResult
+
+Runs these steps inside `dataWriter.transaction()`:
+
+1. Load the question; reject a missing question or unsupported question type.
+2. Validate the public options and the server-side correct option.
+3. Use `content.findOption(questionId, optionId)` to verify option ownership and
+   check that its correctness agrees with the correct option.
+4. Check `answers.hasSolved(userId, questionId)`.
+5. Record the attempt through `answers.record(userId, questionId, optionId, correct)`
+   unless it is a repeated correct submission.
+6. Invoke `progress.onAnswer({userId, questionId, planetId})` only for a first
+   correct answer. A thrown handler rolls back the answer and same-connection
+   progress writes.
+7. Return `{questionId, correct, correctOption}`. The correct option is serialized
+   to the same safe option shape used elsewhere.
+
+The official schema requires `selected_option_id` and permits only one correct
+row per user/question. A repeated correct submission still validates and returns
+feedback, but creates no additional attempt or progress update. Incorrect
+submissions are recorded, including those made after completion. They never erase
+the earlier correct row. Completion survives new manager instances.
+
+## Validation, serialization, and errors
+
+All public identifiers must be positive safe integers. MCQs must have two to four
+options, distinct option IDs, matching question ownership, and a correct option
+in the public option set. The official partial unique index enforces at most one
+correct option per question; the manager rejects content with no valid correct
+option. The schema permits `free_response`, but the manager supports only `mcq`.
+
+Responses are constructed with explicit property lists. Extra fields on Data
+Writer objects, including `isCorrect`, `is_correct`, and answer keys, are not
+copied into service question responses. Grading feedback is returned only after
+a valid submission. This service guarantee does not cover the separate demo
+planet payload described below.
+
+| Error code | Meaning | Current HTTP mapping |
+| --- | --- | --- |
+| `INVALID_INPUT` | Invalid ID or option outside the question | 400 |
+| `NOT_FOUND` | Missing question or planet | 404 |
+| `INVALID_CONTENT` | Unsupported type or malformed question content | 500 |
+| `STORAGE_ERROR` | Data Writer operation or transaction failed | 500 |
+| `PROGRESS_UPDATE_FAILED` | Synchronous progress handler threw | 500 |
+
+`QuestionManagerError` preserves an internal `cause`. The HTTP error handler logs
+that cause and sends only `{error: {code, message}}`. Database foreign keys reject
+unknown users when an attempt is inserted; direct service calls wrap that failure
+as `STORAGE_ERROR`. The HTTP layer looks up the user first and returns 404 instead.
+
+## Current HTTP and demo integration
+
+[server/src/index.ts](../server/src/index.ts) opens the database, runs migrations
+and the seed, creates the Data Writer, and constructs Question Manager. Its
+current `onAnswer` handler is a no-op. Consequently, a correct answer is saved,
+but startup does not increment `planet_progress`, mark planets peaceful, or
+compute unlocks. Replaying an already saved correct answer will not backfill
+missing progress later.
+
+[server/src/app.ts](../server/src/app.ts) calls `submit` through:
 
 ```text
-planets -> lessons (planet_id) -> questions (lesson_id) -> answer_options
-users -> user_answer (user_id, question_id, correct; one row per attempt)
+POST /api/users/:userId/questions/:questionId/answer
+Body: {"optionId": 1}
+Response: {"questionId": 1, "correct": true, "correctOption": {...}}
 ```
 
-`server/src/question-schema.sql` is the initial schema for these four
-question-owned tables. Data Writer must create `users(user_id)` and
-`planets(planet_id)` first and enable `PRAGMA foreign_keys = ON` on the shared
-connection. The SQL is applied once by the future database initializer, not by
-the manager. It is intentionally not an idempotent migration; if another branch
-introduces a populated `questions.planet_id` schema, its owner must assign each
-question to a lesson and position before migrating. Planet ownership must resolve
-through lessons, with no junction table or redundant question planet column.
+The route validates user existence; the user ID in the URL is not an authenticated
+session. There are no HTTP routes for `getLessons` or `nextQuestion` yet.
 
-Lesson numbers are unique per planet; question positions are unique per lesson.
-MCQs must have at least two (upto four) options and exactly one correct option, checked by the
-manager before returning content or recording an answer. The schema constrains
-boolean flags and foreign keys. Intro lessons may contain only a reading.
+The existing `GET /api/users/:userId/planets/:planetId` route uses
+[api/payloads.ts](../server/src/api/payloads.ts) directly, not Question Manager's
+read methods. It returns readings followed by all MCQs, with string options,
+parsed graph objects, per-user `solved` flags, and a **pre-submission `correct`
+answer index**. This is an implemented demo compatibility path, not the safe
+shared `Question` contract. It also omits database option IDs from the options.
 
-The repository uses bound parameters for all identifiers and aliases snake_case
-columns into camelCase records. Its operations are:
+The current frontend `QuestionTask` model requires that answer index and
+`options: string[]`; it does not preserve extra question IDs, graphs, or solved
+flags when constructing its model. The UI expects `option1` through `option4`
+and emits positions 1 through 4. A future API/Session Cache adapter must preserve
+question and option IDs, map UI positions to those IDs, and use server feedback
+instead of requiring an answer key. The current UI demo uses fixed mock data;
+it does not call the answer route.
 
-| Method | Query / behavior |
-| --- | --- |
-| `planetExists` | Lookup planet separately from authored lessons |
-| `getLessons` | Filter by planet, order by lesson number / ID |
-| `getQuestions` | Join questions to lessons, filter by lesson's planet, order by lesson and question position |
-| `getQuestion` | Join a question to its lesson to resolve planet identity |
-| `getAnswerOptions` | Filter by question; order by label / ID; convert SQLite correctness flag to boolean |
-| `getCompletedQuestionIds` | Distinct correct attempts for user, joined through lessons to filter planet |
-| `recordAnswer` | Check for an existing correct attempt, insert the new attempt, return first-correct flag |
-| `transaction` | Run submission and progress handler in `BEGIN IMMEDIATE` transaction |
+## Progress integration contract
 
-The `(user_id, question_id, correct)` index supports completion checks. Attempts
-are appended, so a later wrong answer never erases an earlier completion.
+`AnswerProgress.onAnswer(event): void` must run synchronously and use the same
+Data Writer connection for its writes. The callback owns counts, peaceful status,
+and unlock rules. The manager neither implements a second Progress Manager nor
+accesses `dataWriter.progress` itself.
 
-## API Manager, Data Writer, and Progress Manager handoff
-
-Composition at the backend boundary, once these components exist:
-
-```ts
-const questionRepo = new SqliteQuestionRepo(dataWriterConnection);
-const questionManager = new QuestionManager(questionRepo, progressManager);
-
-const lessons = questionManager.getLessons(planetId);
-const question = questionManager.nextQuestion(authenticatedUserId, planetId);
-const result = questionManager.submit(authenticatedUserId, questionId, optionId);
-```
-
-The API Manager owns authentication/user lookup, body parsing, routes, and error
-serialization. Pass numeric positive safe-integer IDs; do not trust a client body
-to establish the authenticated user. The database rejects unknown users on writes.
-Possible error mapping:
-
-| Code | Suggested HTTP status | Meaning |
-| --- | --- | --- |
-| `INVALID_INPUT` | 400 | Invalid ID or option does not belong to question |
-| `NOT_FOUND` | 404 | Missing question or planet |
-| `INVALID_CONTENT` | 500 | Unsupported type, malformed options, or missing lesson |
-| `STORAGE_ERROR` | 500 | Repository read/write/transaction failed |
-| `PROGRESS_UPDATE_FAILED` | 500 | Progress handler threw |
-
-Serialize only the code and public message; `cause` is for internal diagnostics.
-The manager does not implement HTTP routes or write `planet_progress`.
-
-Progress Manager must implement `onAnswer(event): void` **synchronously**, using
-the same Data Writer connection for its writes. It receives only first-correct
-events and owns all progress/status/unlock calculations. `BEGIN IMMEDIATE`
-serializes SQLite writers before the prior-completion check. A thrown handler
-rolls back both the attempt and same-connection progress writes, so a retry can
-award progress. The constructor deliberately requires a handler to avoid silently
-dropping progress when composition is forgotten. Do not use an async callback,
-another database connection, network calls, or external side effects inside this
-transaction; those effects cannot be rolled back. An asynchronous event system
-would require a separate durable delivery design.
-
-Remaining work for other components: database initialization and authored seed
-content, real Progress Manager, API routes/authentication plus HTTP-level answer
-privacy tests, and Session Cache adoption of the shared models. `server/src/app.ts`
-is still an empty placeholder; there is no server startup command yet.
+The existing transaction wrapper calls `db.transaction(fn)()`; it does not request
+`BEGIN IMMEDIATE`. Callback or database errors roll back participating writes.
+Async callbacks, other database connections, and external side effects do not
+participate in that rollback. The current integration tests exercise repeated
+submissions across manager instances on one connection, not simultaneous writers
+on separate connections.
 
 ## Verification and commands
 
-Verified locally: `npm test` passed TypeScript compilation, all 35 tests
-(27 fake-repository unit cases and 8 in-memory SQLite cases), and repository
-linting. `git diff --check` also passed.
-
-From the repository root:
+Run from the repository root. Use `npm.cmd` in PowerShell if script execution is
+disabled:
 
 ```bash
-npm ci
+npm test -w server -- src/question-manager/QuestionManager.test.ts src/question-manager/QuestionManager.integration.test.ts
 npm test -w server
-npm test -w server -- src/QuestionManager.test.ts
-npm run test:watch -w server
 npm run compile
 npm run lint
 npm test
 ```
 
-On Windows PowerShell with script execution disabled, use `npm.cmd` instead of
-`npm`. No dependencies were added. Root `npm test` now compiles, runs workspace
-tests where configured, and lints. TypeScript uses `NodeNext` module resolution
-so the installed Vitest/Vite exported type paths resolve without suppressing
-library checks.
+The unit suite uses a transactional fake implementing the official interfaces.
+The integration suite uses `openDb(':memory:')`, the real `migrate` function,
+`createDataWriter`, and the production seed. It covers reading and question order,
+safe serialization, grading, selected option persistence, missing/invalid inputs,
+duplicate completion, user isolation, and answer/progress rollback and retry.
+The seeded integration scenario completes all five questions.
 
-The fake-repository unit suite covers lesson/question order, completed-question
-skipping, empty/missing planets, answer privacy, grading, invalid IDs/options,
-duplicate submissions across manager instances/users, malformed content, storage
-failures, and rollback/retry after progress failure. The SQLite suite verifies
-actual joins, ordering, integer conversion, attempt history, schema constraints,
-duplicate completion, unknown-user rejection, and answer/progress rollback.
-
-## Files created or modified
-
-- `server/src/QuestionManager.ts`: manager and typed errors (filled empty local placeholder).
-- `server/src/QuestionRepo.ts`: injected repository and progress contracts (filled empty local placeholder).
-- `server/src/question-schema.sql`: initial question-owned schema (new).
-- `DOCUMENTATION/PROJECT_ARCHITECTURE.md`: note identifying the schema conflict.
-- `DOCUMENTATION/QUESTION_MANAGER.md`: contracts, queries, integration, and validation notes (new).
-
- ## Changes/Additions to be made:
-- `shared/src/api.ts`: shared response contracts (filled empty tracked file).
-- `shared/src/index.ts`: shared package entry point (new).
-- `server/package.json`: unit-test and watch scripts.
-- `package.json`: root workspace-test invocation.
-- `tsconfig.json`: module resolution compatible with installed Vitest types.
-- `server/src/SQLiteQuestionRepo.ts`: existing-connection SQLite adapter (filled empty local placeholder).
-- `server/src/QuestionManager.test.ts`: fake-repository unit tests (filled empty local placeholder).
-- `server/src/SQLiteQuestionRepo.test.ts`: SQLite integration tests (new).
+The current suites contain 47 Question Manager cases. The repository has 200
+tests total: 116 server and 84 client. These suites do not include HTTP route
+tests, API payload-builder tests, or a browser-to-database test. Passing the
+service tests does not establish that the current demo HTTP responses hide
+answer keys or that startup updates progress.

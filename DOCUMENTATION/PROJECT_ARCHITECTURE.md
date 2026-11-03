@@ -1,626 +1,384 @@
-# Consolidated Architecture
-Implementation note: the Question Manager uses `questions.lesson_id` and
-`question_order` instead of the older `questions.planet_id` proposal below.
-Planet ownership is resolved through lessons. See
-[Question Manager integration](QUESTION_MANAGER.md) for the implemented schema,
-shared response contracts, and progress transaction boundary.
+# Graphalaxy architecture
 
-also consider changing the name of these so it's not manager manager manager
-## FRONTEND
-#### UI
-- Calls **Graph Renderer** to draw graphs
-- Renders screens, planet select (laid out by graph_order), intro and lessons, question, hints, mini-games, settings
-- Captures user input, turns it into intents (i.e. selectanswer, nextpage) and sends it to **Game Manager**
-- Redraws from **Session Cache**'s change event
-#### GAME MANAGER
-- Enforces rules, i.e. no submit without a selection, no double submit, hint quota 0, etc.
-- Handles the flow of the game: switching between screens, pause, what follows a result (i.e. next question, planet cleared, return to planet select)
-- Starts minigames, handles minigame results, early exits, passes result to **Session Cache** 
-- Does NOT call **API Client**, store data, or draw
+Checked against the repository on November 2, 2026. This document describes the
+current implementation and identifies planned components separately. The source
+files and [official migration](../server/migrations/001_schema.sql) define the
+implemented contracts. See [Question Manager](QUESTION_MANAGER.md) for its public
+methods, validation, and transaction behavior.
 
-#### SESSION CACHE
-- Holds the user data (settings, hint quota, completion), the current planet and planet status, the lesson pages for the planet, the current question and question options, the selected option, the hints revealed for this question, the last result, and the progress map
-- Handles actions. When a user wants to do `action`, **Session Cache** will call the necessary functions. 
-    - EX: The user wants to `loadNextQuestion`. **Session Cache** will call the API Client, store the reply, clear the old selection, and publish a change event.
-    - EX: Other actions may include `submit answer`, `fetch hint`, `report minigame results`, `load progress`, `save settings`
-- Calls **API Client** for each action (or optionally at a save point) and writes the reply into itself
-- (OPTIONAL) Tracks request status so the UI can show a spinner or retry
-- Enforces rules regarding data: selected option belongs to current question, quota never negative, etc
-- Publishes change event, produces and restores snapshots
+## Current implementation status
 
-#### API CLIENT
-- Makes HTTPS/JSON requests for necessary actions and parses replies
-- Attaches the user identity
-- Handles timeouts, retries, and typed errors
-- Does NOT have game logic
+Graphalaxy is an npm-workspace project using TypeScript, Konva, Vite, Express,
+SQLite through synchronous `better-sqlite3`, and Vitest. The repository contains
+a working UI demonstration, database/repository services, Question Manager, and a
+demo HTTP API. These are not yet one connected browser-to-database game.
 
-#### ASTEROID SHOOTER
-- yay minigame
+| Area | Implemented | Current boundary |
+| --- | --- | --- |
+| UI | `UiManager`, reusable Konva components, six screen views, mock demo controller | Demo screens use fixed data and do not call the backend |
+| Frontend models | JSON parsing for `Settings`, `Player`, `Planet`, `ReadingTask`, and `QuestionTask` | Models do not implement a live Session Cache or HTTP transport |
+| HTTP API | User creation/lookup by username, planet payload, settings update, answer submission | Demo code; no password/session authentication or route tests |
+| Question Manager | Reading pages, next unsolved MCQ, grading, safe service responses, first-correct callback | Only `submit` is currently exposed through HTTP |
+| Data Writer | Users, content, answers, progress, hints, and transactions | Persists rows; does not decide game progression |
+| Database | Official migration, connection helper, migration runner, seed, tests | One planet seeded with two readings, five MCQs, and three hints |
+| Progress | Repository operations and `AnswerProgress` interface | Server startup supplies a no-op handler; no Progress Manager implementation |
+| Other game services | Planned Game Manager/Session Cache/API Client, Profile/Hint Managers, graph renderer, minigames, navigation/settings screens | No standalone implementations of these services in the current source tree; the demo has a local mock `GameManager` |
 
-#### RADIO WAVES
-- yay minigame 2
+## Repository layout
 
-#### GRAPH RENDERER
-- Parses function input and flags invalid input
-- Evaluates points and renders graph
-
-## BACKEND
-#### API MANAGER
-- Handles and validates requests, identifies user
-
-#### PROFILE MANAGER
-- Handles users. Creates if not pre-existing and looks up if existing from `users`
-- Read/write user settings
-- Saves and loads game snapshot
-
-#### QUESTION MANAGER
-- When a user loads questions:
-    - Picks the next question, skips questions already answered correctly
-    - Returns question with its options minus `is_correct`
-- When a user clicks onto a planet:
-    - Return the intro and lessons in order
-- When a user answers a question:
-    - Checks that the selected option belongs to the question and read `is_correct`
-    - Writes to `user_answer`, publishes *change event*, returns the result (correct, incorrect) with the correct option
-
-#### PROGRESS MANAGER
-- Subscribes to **QUESTION MANAGER**'s *change event*
-- Increments `correct_count` the first time a question is answered correctly
-- Flips `status` from hostile to peaceful at the threshold
-- Computes completion percentage and returns progress for the navigation screen
-
-#### HINT MANAGER
-- Returns a question's hint
-- Decrements 1 from `hint_quota` and updates the `used` to true
-- Converts minigame results into hints
-- Returns updated hint quota
-
-#### DATA WRITER
-- Handles repository interfaces per table group and
-- Allows tests swap in fake data
-
-
-#### DATABASE TABLES
-- **users**: user_id, username, hint_quota, music_volume, sfx_volume, date_of_creation
-- **planets**: planet_id, name, lesson, intro_text, graph_order (like which depth in the graph they are for the selection)
-- **<span style="color:lightblue">planet_prereqs: planet_id, prereq_planet_id</span>**
-> [name=dureduck] edges of the graph
-prereq_planet_id
-- **questions**: question_id, planet_id, prompt (ie the actual question), graph (optional, for holding the graph visualization), type (mcq, free-response, etc)
-- **answer_options**: option_id, question_id, label (ie a, b, c,d), text (ie the text of the question), is_correct (bool)
-- **hints**: hint_id, user_id, question_id, text, used (for allowing previous hints to be seen again?) (shift hints to user table?)
-- **lessons**: lesson_id, planet_id, lesson_number, text
-- **user_answer**: user_id, question_id, correct
-- **planet_progress**: user_id, planet_id, status (hostile, peaceful), correct_count
-
-## Scenario
-A user is logged in and finished a lesson. 
-1. The user clicks next on the lesson. The **UI** categorizes it into an intent: `startQuestions` and sends it to the **Game Manager**
-2. The **Game Manager** tells **Session Cache** to load the next question. The **Session Cache** calls the **API Client**, which routes it to the **Question Manager**.
-3. **Question Manager** reads `user_answer` to skip previously solved questions, `questions`, and `answer_options`. It returns the prompt, graphing function (as input for **Graph Manger**), and answer options, excluding whether they are correct or not. 
-4. **Session Cache** stores the question, clears the old data, and publishes the *change event*. The **UI** redraws and calls **Graph Renderer** to draw the graph.
-5. The user chooses B. The **Game Manager**  checks that a question is loaded and not submitted. Then, **Session State** records the selection, enforcing that B belongs to this question. The **UI** highlights it.
-6. The user chooses a hint. If hint quota is 0 and no hint was previously used on this question, the **Game Manger** shows "out of hints" with the option to do a minigame. Otherwise **Session Cache** connects to **Hint Manger**, which updates relevant fields. The hint and hint quota are updated, and the **UI** redraws.
-7. Once the user submits, **Game Manager** calls **Session State**, which then calls **API CLient**, and **Question Manager** updates relevant fields. A *change event* is published and **Progress Manager** updates all relevant fields. 
-8. The correctness of the user's answer, the correct option, planet progress and status are returned. **Session Cache** stores it and **UI** redraws. 
-
-```mermaid
-flowchart TB
-  subgraph FE[FRONTEND]
-    direction TB
-    UI([UI])
-    GM([Game Manager])
-    SC([Session Cache])
-    AC([API Client])
-    AS{{Asteroid Shooter}}
-    RW{{Radio Waves}}
-    GR([Graph Renderer])
-  end
-
-  subgraph BE[BACKEND]
-    direction TB
-    API(API Manager)
-    PM(Profile Manager)
-    QM(Question Manager)
-    PG(Progress Manager)
-    HM(Hint Manager)
-    DW(Data Writer)
-    DB[(DB)]
-  end
-
-  %% frontend
-  UI -->|intents| GM
-  UI -->|draw| GR
-  GM -->|actions| SC
-  GM -->|start| AS
-  GM -->|start| RW
-  AS -->|draw| GR
-  RW -->|draw| GR
-  SC -. change event .-> UI
-  SC -->|requests| AC
-
-  %% client-server
-  AC ==>|HTTPS / JSON| API
-
-  %% backend
-  API --> PM
-  API --> QM
-  API --> PG
-  API --> HM
-  QM -. change event .-> PG
-  PM --> DW
-  QM --> DW
-  PG --> DW
-  HM --> DW
-  DW --- DB
-
-  classDef client fill:#e8f1ff,stroke:#3b6fd8,color:#000
-  classDef game fill:#fff4e0,stroke:#d88a1e,color:#000
-  classDef server fill:#eef8ee,stroke:#3a8f3a,color:#000
-  class UI,GM,SC,AC,GR client
-  class AS,RW game
-  class API,PM,QM,PG,HM,DW,DB server
+```text
+client/
+  index.html                   # loads the currently empty src/main.ts
+  demo.html                    # loads the mock UI demonstration
+  vite.config.ts               # /api proxy to localhost:3000
+  src/Frontend/                # frontend types and JSON-parsing models
+  src/UI/                      # UiManager, components, constants, screen views
+  src/UI/test/                 # UIDemo.ts and screen-bounds tests
+server/
+  migrations/001_schema.sql    # official game tables and constraints
+  src/index.ts                # database/bootstrap and Express listener
+  src/app.ts                  # createApp and demo routes
+  src/api/payloads.ts          # demo Player/Planet payload construction
+  src/question-manager/       # QuestionManager, AnswerProgress, and tests
+  src/data-writer/             # repository interfaces, implementations, tests
+  src/db/                      # connection, migration, seed, and schema tests
+shared/
+  src/api.ts                  # safe QuestionManager response types
+  src/index.ts                # shared package exports
+.github/workflows/ci.yml       # type checking, lint, workspace tests
+DOCUMENTATION/
 ```
 
-# Module View (aligned with C&C)
+There is no separate QuestionRepo or manager-owned schema. Database operations
+are provided by the existing Data Writer. Static images and fonts are served
+from `client/public/assets/`.
 
-Each diagram maps to one C&C region. Names follow the consolidated doc.
+## Implemented runtime connections
 
-## 1. Frontend: Display (UI)
-
-```mermaid
-classDiagram
-  class Screen {
-    <<abstract>>
-    +frames: Frame[]
-    +nextFrame() void
-    +previousFrame() void
-    +render() void
-  }
-  class NavigationScreen {
-    +planets: PlanetSummary[]
-    +selectPlanet(planetId: int) void
-  }
-  class PlanetScreen {
-    +planet: Planet
-    +question: Question
-  }
-  class AsteroidScreen {
-    +game: AsteroidMiniGame
-  }
-  class RadioScreen {
-    +game: RadioMiniGame
-  }
-  class SettingsScreen {
-    +settings: Settings
-  }
-  class Frame {
-    +components: Component[]
-    +render() void
-  }
-  class Component {
-    <<abstract>>
-    +x: int
-    +y: int
-    +color: str
-    +render() void
-  }
-  class Button {
-    +onPress: function
-  }
-  class TextBox {
-    +isActive: bool
-    +inputText: str
-  }
-  class Slider {
-    +value: float
-    +onChange: function
-  }
-  class Picture {
-    +pathToFile: str
-  }
-  class GraphView {
-    +fn: str
-    +pane: Point[2]
-  }
-
-  Screen <|-- NavigationScreen
-  Screen <|-- PlanetScreen
-  Screen <|-- AsteroidScreen
-  Screen <|-- RadioScreen
-  Screen <|-- SettingsScreen
-  Screen "1" *-- "1..*" Frame : frames
-  Frame "1" *-- "0..*" Component : components
-  Component <|-- Button
-  Component <|-- TextBox
-  Component <|-- Slider
-  Component <|-- Picture
-  Component <|-- GraphView
-```
-
-## 2. Frontend: Logic (Game Manager, Session Cache, API Client, Minigames, Graph Renderer)
-
-```mermaid
-classDiagram
-  class GameManager {
-    +screen: Screen
-    +handle(intent: Intent) void
-    +changeScreen(s: Screen) void
-    +startMiniGame(type: str) void
-    +onMiniGameEnd(r: MiniGameResult) void
-    +pause() void
-  }
-  class SessionCache {
-    +player: Player
-    +planets: PlanetSummary[]
-    +currentPlanet: Planet
-    +currentQuestion: Question
-    +selectedAnswer: Answer
-    +hintsShown: str[]
-    +lastResult: AnswerResult
-    +status: RequestStatus
-    +subscribe(fn: function) void
-    +loadPlanets() void
-    +enterPlanet(planetId: int) void
-    +loadNextQuestion() void
-    +selectAnswer(a: Answer) void
-    +submitAnswer() void
-    +requestHint() void
-    +reportMiniGameResult(r: MiniGameResult) void
-    +saveSettings(s: Settings) void
-  }
-  class ApiClient {
-    +get(path: str) json
-    +post(path: str, body: json) json
-  }
-  class Player {
-    +userId: int
-    +hintQuota: int
-    +settings: Settings
-  }
-  class Settings {
-    +musicVolume: float
-    +sfxVolume: float
-  }
-  class MiniGame {
-    <<abstract>>
-    +score: int
-    +play() void
-    +finish() MiniGameResult
-  }
-  class AsteroidMiniGame {
-    +questions: PracticeQuestion[]
-    +asteroids: Asteroid[]
-    +pane: Point[2]
-  }
-  class RadioMiniGame {
-    +questions: PracticeQuestion[]
-    +pane: Point[2]
-  }
-  class Asteroid {
-    +position: Point
-    +radius: int
-    +isDestroyed: bool
-    +destroy() void
-  }
-  class PracticeQuestion {
-    +prompt: str
-    +fn: str
-    +isCorrect(a: Answer) bool
-  }
-  class MiniGameResult {
-    +game: str
-    +score: int
-    +completed: bool
-  }
-  class GraphRenderer {
-    +parse(fn: str) ParsedFn
-    +render(fn: ParsedFn, pane: Point[2]) void
-  }
-  class Point {
-    +x: float
-    +y: float
-  }
-
-  GameManager --> SessionCache : actions
-  GameManager --> MiniGame : starts
-  SessionCache --> ApiClient : requests
-  SessionCache o-- Player
-  Player *-- Settings
-  MiniGame <|-- AsteroidMiniGame
-  MiniGame <|-- RadioMiniGame
-  AsteroidMiniGame "1" *-- "0..*" Asteroid
-  AsteroidMiniGame --> PracticeQuestion
-  RadioMiniGame --> PracticeQuestion
-  MiniGame ..> GraphRenderer : draws with
-  MiniGame ..> MiniGameResult : returns
-  Asteroid --> Point
-```
-
-## 3. Shared data models (what the API sends)
-
-The client never receives answers for planet questions.
-
-```mermaid
-classDiagram
-  class PlanetSummary {
-    +planetId: int
-    +name: str
-    +graphOrder: int
-    +prereqIds: int[]
-    +unlocked: bool
-    +status: str
-    +completionPct: float
-  }
-  class Planet {
-    +planetId: int
-    +name: str
-    +lessons: Lesson[]
-  }
-  class Lesson {
-    +lessonNumber: int
-    +text: str
-  }
-  class Question {
-    <<abstract>>
-    +questionId: int
-    +prompt: str
-    +graph: str
-    +type: str
-  }
-  class MultipleChoiceQuestion {
-    +options: Option[]
-  }
-  class SliderQuestion {
-    +sliders: Interval[]
-  }
-  class ShortAnswerQuestion {
-    +parseInput(s: str) bool
-  }
-  class Option {
-    +optionId: int
-    +label: str
-    +text: str
-  }
-  class Interval {
-    +start: float
-    +end: float
-  }
-  class AnswerResult {
-    +correct: bool
-    +correctAnswer: Answer
-    +planet: PlanetSummary
-    +newlyUnlocked: int[]
-  }
-
-  Planet "1" *-- "1..*" Lesson : ordered
-  Question <|-- MultipleChoiceQuestion
-  Question <|-- SliderQuestion
-  Question <|-- ShortAnswerQuestion
-  MultipleChoiceQuestion "1" *-- "2..*" Option
-  SliderQuestion "1" *-- "1..*" Interval : slider bounds
-  AnswerResult --> PlanetSummary
-```
-
-## 4. Backend
-
-`isCorrect()` moves here as a `Grader` per question type.
-
-```mermaid
-classDiagram
-  class ApiManager {
-    +authenticate(req) int
-    +route(req) Response
-  }
-  class ProfileManager {
-    +getOrCreateUser(userId: int) Player
-    +getSettings(userId: int) Settings
-    +saveSettings(userId: int, s: Settings) void
-    +saveSnapshot(userId: int, s: Snapshot) void
-    +loadSnapshot(userId: int) Snapshot
-  }
-  class QuestionManager {
-    +getLessons(planetId: int) Lesson[]
-    +nextQuestion(userId: int, planetId: int) Question
-    +submit(userId: int, questionId: int, a: Answer) AnswerResult
-  }
-  class Grader {
-    <<interface>>
-    +grade(questionId: int, a: Answer) bool
-  }
-  class MultipleChoiceGrader
-  class SliderGrader
-  class ShortAnswerGrader
-  class ProgressManager {
-    +onAnswer(e: AnswerEvent) void
-    +listPlanets(userId: int) PlanetSummary[]
-  }
-  class HintManager {
-    +requestHint(userId: int, questionId: int) str
-    +addHints(userId: int, r: MiniGameResult) int
-  }
-  class DataWriter {
-    +users: UserRepo
-    +content: ContentRepo
-    +progress: ProgressRepo
-    +hints: HintRepo
-  }
-
-  ApiManager --> ProfileManager
-  ApiManager --> QuestionManager
-  ApiManager --> ProgressManager
-  ApiManager --> HintManager
-  QuestionManager --> Grader
-  Grader <|.. MultipleChoiceGrader
-  Grader <|.. SliderGrader
-  Grader <|.. ShortAnswerGrader
-  QuestionManager ..> ProgressManager : change event
-  ProfileManager --> DataWriter
-  QuestionManager --> DataWriter
-  ProgressManager --> DataWriter
-  HintManager --> DataWriter
-```
-
-## What changed from the original module view
-
-| Original | Now | Why |
-|---|---|---|
-| `GameEngine` | `GameManager` | Matches C&C |
-| `Player.Progress`, `HintStateTracker` | `SessionCache` + server tables | One owner for client state; server is the source of truth |
-| `HintController` | `SessionCache.requestHint()` → `HintManager` | Quota is enforced server-side |
-| `SettingsManager` | `Player.settings` | A single float doesn't need its own manager |
-| `Question.isCorrect()`, `correctOption`, `acceptableRanges` on the client | `Grader` classes on the backend | The client must not hold the answers |
-| `MainScreen` subclass | Instance of `Screen` | It adds only a title, no behavior |
-| `Planet.tasks: Task[]` (Reading / Quiz) | `Planet.lessons` + questions fetched one at a time | Matches the DB and the C&C flow |
-| (missing) | `ApiClient`, `GraphRenderer`, `GraphView`, backend classes | They were in C&C but not in the module view |
-
-## Current Gaps: proposed answers
-
-| Gap | Answer |
-|---|---|
-| How to store progress | `planet_progress` + `user_answer` tables. No JSON blob |
-| FE display vs BE logic objects | Display = `Screen/Frame/Component`. Models = section 3, sent over the API. Logic = backend services. Frame ≠ Task |
-| Object vs instance | Subclass only when you add behavior or fields used by logic. Otherwise configure an instance |
-| When to pull data | Planet list on login. Lessons on planet enter. Questions one at a time |
-| Interface vs abstract class | Has shared fields → abstract (`Screen`, `Component`, `MiniGame`, `Question`). Behavior only → interface (`Grader`) |
-| Generating questions | Author them for the MVP. Generated functions can come later as question templates |
-
-# DB Diagram
-
-<span style="color:lightblue">Fields marked ★ are proposed changes from the current consolidated doc.</span>
-
-## Entity-Relationship
-
-```mermaid
-erDiagram
-  users {
-    int user_id PK
-    str username
-    int hint_quota
-    float music_volume
-    float sfx_volume
-    int last_planet_id FK "★ resume point"
-    datetime created_at
-  }
-  planets {
-    int planet_id PK
-    text name
-    int graph_order "layout depth only"
-  }
-  planet_prereqs {
-    int planet_id PK, FK
-    int prereq_planet_id PK, FK
-  }
-  lessons {
-    int lesson_id PK
-    int planet_id FK
-    int lesson_number "0 = intro ★"
-    text text
-  }
-  questions {
-    int question_id PK
-    int planet_id FK
-    text prompt
-    text graph "nullable function string"
-    text type "mcq | slider | short"
-    text answer_key "★ short answer only"
-  }
-  answer_options {
-    int option_id PK
-    int question_id FK
-    text label
-    text text
-    bool is_correct
-  }
-  slider_ranges {
-    int question_id PK, FK
-    int slider_index PK
-    float min
-    float max
-    float accept_start
-    float accept_end
-  }
-  hints {
-    int hint_id PK
-    int question_id FK
-    text text
-  }
-  user_hint {
-    int user_id PK, FK
-    int hint_id PK, FK
-  }
-  user_answer {
-    int answer_id PK
-    int user_id FK
-    int question_id FK
-    int option_id FK "nullable, mcq only ★"
-    text response "nullable, slider/short ★"
-    bool correct
-    datetime answered_at "★"
-  }
-  planet_progress {
-    int user_id PK, FK
-    int planet_id PK, FK
-    text status "hostile | peaceful"
-    int correct_count
-  }
-
-  users ||--o{ user_answer : submits
-  users ||--o{ planet_progress : has
-  users ||--o{ user_hint : unlocks
-  users }o--o| planets : "last visited"
-
-  planets ||--o{ lessons : contains
-  planets ||--o{ questions : contains
-  planets ||--o{ planet_prereqs : "is unlocked by"
-  planets ||--o{ planet_prereqs : "is prereq of"
-  planets ||--o{ planet_progress : tracked_in
-
-  questions ||--o{ answer_options : "mcq options"
-  questions ||--o{ slider_ranges : "slider bounds"
-  questions ||--o{ hints : has
-  questions ||--o{ user_answer : answered_in
-  answer_options |o--o{ user_answer : chosen
-  hints ||--o{ user_hint : unlocked_as
-```
-
-## Content vs user data
+The UI demo and the HTTP API are independent entry points today. There is no
+implemented API Client connecting the diagram's two paths.
 
 ```mermaid
 flowchart LR
-  subgraph Content["Content (authored, read-only at runtime)"]
-    planets
-    planet_prereqs
-    lessons
-    questions
-    answer_options
-    slider_ranges
-    hints
+  subgraph Browser[Browser demo]
+    Demo[UIDemo mock GameManager]
+    UI[UiManager]
+    Views[Six screen views]
+    Components[Konva components]
+    Demo -->|ScreenModel| UI
+    UI -->|construct and display| Views
+    Views -->|build groups| Components
+    Views -->|UiAction callback| Demo
   end
-  subgraph User["User data (written during play)"]
-    users
-    user_answer
-    planet_progress
-    user_hint
+  subgraph Server[Node backend]
+    Boot[index.ts bootstrap]
+    Api[Express createApp]
+    Payload[Demo payload builder]
+    QM[QuestionManager]
+    Progress[AnswerProgress callback: currently no-op]
+    DW[Data Writer repositories]
+    Tools[openDb / migrate / seed]
+    DB[(SQLite)]
+    Boot --> Tools
+    Tools --> DB
+    Boot -->|create and inject| DW
+    Boot -->|create and inject| QM
+    Boot -->|listen| Api
+    Api -->|planet and player payloads| Payload
+    Api -->|submit answer| QM
+    Api -->|user lookup and settings| DW
+    Payload -->|read content and solved state| DW
+    QM -->|content / answers / transaction| DW
+    QM -->|first correct answer| Progress
+    DW -->|prepared SQL statements| DB
   end
+  Caller[External HTTP caller] -->|HTTP JSON| Api
 ```
 
-## Which service writes which table
+Rectangles denote executing modules or services; the cylinder denotes persistent
+storage. Solid arrows denote existing calls, callbacks, or data flow. Bootstrapping
+edges show dependency construction, not additional independent connections.
 
-| Table | Read by | Written by |
-|---|---|---|
-| users | Profile, Hint | Profile (settings, last_planet_id), Hint (hint_quota) |
-| planets, planet_prereqs | Progress | seed script |
-| lessons | Question | seed script |
-| questions, answer_options, slider_ranges | Question | seed script |
-| hints | Hint | seed script |
-| user_answer | Question, Progress | Question |
-| planet_progress | Progress | Progress |
-| user_hint | Hint | Hint |
+## Frontend modules
 
-## Changes from previous discussion
-1. `hints.user_id` and `hints.used` → new `user_hint` table, so hint text isn't copied per user
-2. `planets.lesson` and `planets.intro_text` removed; the intro becomes `lessons.lesson_number = 0`
-3. `user_answer` gets one row per attempt, plus `option_id` / `response` / `answered_at`
-4. `slider_ranges` + `questions.answer_key` support non-MCQ grading
+### Display and demo flow
 
+[UiManager](../client/src/UI/UIManager.ts) owns a Konva stage and layer, adds the
+background, replaces the current view, and scales/centers an 800 by 500 design
+within the browser window. Each view implements `View.getGroup()` and uses
+`Component`, `TextBoxComponent`, `ButtonComponent`, or `ImageComponent`.
+
+The screen types are `title`, `intro`, `reading`, `question`, `questionResult`,
+and `lessonResult`. There is no implemented `Screen`/`Frame` hierarchy from the
+earlier design. The screen model union lives in
+[UI/types.ts](../client/src/UI/types.ts).
+
+The question view keeps its selected option locally, highlights the selected
+button, and emits `{type: 'answer', option: 1..4}` only when Confirm is clicked
+with a selection. Other actions are `start`, `next`, `back`, and `retryLesson`.
+The current mock controller handles only start/next/answer/back.
+
+[UIDemo.ts](../client/src/UI/test/UIDemo.ts) loads fonts and steps through a fixed
+intro, reading, question, question result, and lesson result. Its mock
+`GameManager` advances the screen index; it does not grade, submit, or calculate
+the displayed score. `client/src/main.ts` is empty, so the normal index page does
+not bootstrap the game yet.
+
+### Parsing models
+
+[SessionCacheModels.ts](../client/src/Frontend/SessionCacheModels.ts) validates
+JSON and constructs `Settings`, `Player`, `Planet`, and reading/question tasks.
+`Planet.tasks` is a flat ordered list. These are data models, not a Session Cache
+with actions, subscriptions, retry state, or persistence.
+
+The frontend `QuestionTask` currently requires `prompt`, string options, and a
+zero-based `correct` index. Its constructor and `toType()` preserve only those
+fields plus the task type; extra `questionId`, `graph`, and `solved` properties
+from the demo HTTP payload are not retained.
+
+## Backend modules and HTTP API
+
+[index.ts](../server/src/index.ts) opens one SQLite connection, applies unapplied
+migrations, seeds content if no planets exist, creates one Data Writer, constructs
+Question Manager, and starts the Express app. `PORT` defaults to 3000. Its
+`AnswerProgress.onAnswer` implementation currently does nothing.
+
+[createApp](../server/src/app.ts) uses `express.json()`, validates request data,
+looks up users, and handles these four routes. All return 200 on success.
+
+| Method and path | Input | Response / implementation |
+| --- | --- | --- |
+| `POST /api/users` | `{username}` | Get or create user; return `PlayerPayload` |
+| `GET /api/users/:userId/planets/:planetId` | Path IDs | `buildPlanetPayload` using Data Writer directly |
+| `PATCH /api/users/:userId/settings` | `{musicVolume, sfxVolume}` | Save volumes; return updated `PlayerPayload` |
+| `POST /api/users/:userId/questions/:questionId/answer` | `{optionId}` | `QuestionManager.submit`; return shared `AnswerResult` |
+
+The answer path is singular `/answer`. There are no HTTP routes for Question
+Manager's reading/next-question methods, planet lists, hints, minigame results,
+or progress summaries yet.
+
+Username input is trimmed and must contain 1 to 32 characters. Audio volumes
+must be numbers from 0 to 1. User IDs in existing-user routes must resolve to a
+stored user. This is username-based demo identity, not password or session
+authentication; providing an existing user ID selects that user's data.
+
+Handled route errors use `{error: {code, message}}`. Question Manager input and
+not-found errors map to 400 and 404; its other codes map to 500. Malformed JSON
+and other Express 4xx parsing errors become `INVALID_INPUT`; unexpected failures
+use `INTERNAL` with a generic message. Internal causes are logged rather than
+included in responses. No custom unmatched-route response is installed.
+
+### Data contracts: service, demo API, and UI
+
+These formats are separate in the current codebase:
+
+| Contract | Options | Correctness | Graph / identity |
+| --- | --- | --- | --- |
+| Shared `Question` from Question Manager | Objects with `optionId`, `label`, `text` | No answer key before submission | `questionId`; optional stored graph string |
+| Demo `QuestionTaskPayload` | `string[]` | Includes zero-based `correct` index before submission | `questionId`, optional parsed graph object, `solved`; no option IDs |
+| Frontend `QuestionTask` model | `string[]` | Requires `correct` | Extra graph/question/solved fields are discarded |
+| UI question screen model | Four strings: `option1` through `option4` | No grading field in the screen model | Emits button positions 1 through 4 |
+
+[api/payloads.ts](../server/src/api/payloads.ts) maps users to
+`{userId, name, hintQuota, settings}` and builds a planet with metadata and
+`tasks`: all readings in reading order, then MCQs in question order. Non-MCQs are
+skipped. Solved questions stay in the list with per-user flags. Graph JSON must
+parse to a non-null, non-array object or the builder throws `INVALID_CONTENT`.
+
+**The demo planet GET response exposes the correct answer index.** It bypasses
+Question Manager's safe retrieval methods to satisfy the current frontend model.
+The service's safe-serialization tests therefore do not guarantee answer privacy
+for that endpoint. There is no implemented frontend HTTP client using either
+contract yet. An adapter must preserve database IDs, map button positions to
+option IDs, and use submitted server feedback to complete the intended flow.
+
+## Question Manager and Data Writer
+
+Question Manager maps ordered readings to legacy `Lesson` display wrappers,
+selects the next unsolved question, and grades MCQs. Readings and questions are
+independent planet content; no lesson-to-question association is synthesized.
+Only answer submission currently passes through this service in the HTTP app.
+
+The Data Writer exposes five repositories and a synchronous transaction wrapper:
+
+| Repository | Responsibility |
+| --- | --- |
+| `users: UserRep` | User lookup/creation, audio settings, spending/adding hint quota |
+| `content: ContentRep` | Planets, prerequisite edges, readings, questions, public options, server-side grading options |
+| `answers: AnswerRep` | Correct-completion lookup and attempt inserts including selected option IDs |
+| `progress: ProgressRep` | Ensure/list progress rows, increment count, set status |
+| `hints: HintRep` | List planet hints with per-user usage and mark a hint used |
+
+Interfaces and stored row types live in
+[repository.ts](../server/src/data-writer/repository.ts). Implementations are
+`SqliteUserRep`, `SqliteContentRep`, `SqliteAnswerRep`, `SqliteProgressRep`, and
+`SqliteHintRep` in
+[repository-impl.ts](../server/src/data-writer/repository-impl.ts). They prepare
+statements once per instance and alias database column names to camelCase.
+
+```mermaid
+classDiagram
+  class QuestionManager {
+    getLessons(planetId) Lesson[]
+    nextQuestion(userId, planetId) QuestionOrNull
+    submit(userId, questionId, optionId) AnswerResult
+  }
+  class DataWriter {
+    content: ContentRep
+    answers: AnswerRep
+    users: UserRep
+    progress: ProgressRep
+    hints: HintRep
+    transaction(fn)
+  }
+  class AnswerProgress {
+    <<interface>>
+    onAnswer(event) void
+  }
+  QuestionManager --> DataWriter : content, answers, transaction
+  QuestionManager --> AnswerProgress : synchronous first-correct callback
+```
+
+This module diagram shows declared dependencies. An arrow does not imply that a
+full Progress Manager is implemented. There is no separate `Grader` class; MCQ
+grading is implemented by Question Manager.
+
+### Answer and progress transaction
+
+`DataWriter.transaction(fn)` calls `db.transaction(fn)()` on the shared connection.
+It commits on return and rolls back on throw, using SQLite's default transaction
+mode. Nested calls use savepoints; the wrapper does not request `BEGIN IMMEDIATE`.
+
+Question Manager validates content/option ownership, checks prior completion,
+records an attempt, and invokes its first-correct callback within that boundary.
+Repeated correct answers return feedback without another insert; wrong attempts
+are appended, even after completion. The callback must be synchronous and use
+the same connection for progress writes to participate in rollback.
+
+The current startup callback is a no-op, so even HTTP answer submissions do not
+update counts/status. Recording a correct answer through `AnswerRep` also does
+not automatically update progress. Similarly, hint quota and hint usage are
+separate operations; no Hint Manager currently pairs them into a gameplay action.
+
+## Official database model
+
+The migration creates ten game tables. `migrate()` separately creates
+`schema_migrations` to track applied filenames. All connections created by
+`openDb()` enable foreign keys.
+
+| Table | Columns |
+| --- | --- |
+| `users` | `user_id`, `username`, `hint_quota`, `music_volume`, `sfx_volume`, `date_of_creation` |
+| `planets` | `planet_id`, `name`, `intro_text`, `graph_order` |
+| `planet_prereqs` | `planet_id`, `prereq_planet_id` |
+| `readings` | `reading_id`, `planet_id`, `reading_number`, `text` |
+| `questions` | `question_id`, `planet_id`, `prompt`, `qtype`, `graph` |
+| `answer_options` | `option_id`, `question_id`, `label`, `text`, `is_correct` |
+| `planet_hints` | `hint_id`, `planet_id`, `hint_number`, `text` |
+| `user_hints` | `user_id`, `hint_id` |
+| `user_answer` | `answer_id`, `user_id`, `question_id`, `selected_option_id`, `correct`, `answered_at` |
+| `planet_progress` | `user_id`, `planet_id`, `status`, `correct_count` |
+| `schema_migrations` | `filename`, `applied_at` (migration-runner metadata) |
+
+```mermaid
+erDiagram
+  planets ||--o{ readings : contains
+  planets ||--o{ questions : contains
+  planets ||--o{ planet_hints : contains
+  planets ||--o{ planet_prereqs : planet
+  planets ||--o{ planet_prereqs : prerequisite
+  planets ||--o{ planet_progress : tracked_for
+  questions ||--o{ answer_options : offers
+  answer_options ||--o{ user_answer : selected_for_question
+  users ||--o{ user_answer : submits
+  users ||--o{ planet_progress : has
+  users ||--o{ user_hints : uses
+  planet_hints ||--o{ user_hints : used_by
+```
+
+`||` denotes one parent and `o{` zero or more child rows. Each relationship
+corresponds to a foreign key. The answer-option relationship uses the composite
+key `(question_id, selected_option_id)` referencing
+`answer_options(question_id, option_id)`.
+
+Important constraints and ownership:
+
+- Reading numbers and hint numbers are unique within a planet. The introduction
+  is stored in `planets.intro_text`. There is no `lessons` table, question order
+  column, reading-question junction, slider-ranges table, or resume/snapshot field.
+- Questions permit `mcq` or `free_response` at the schema level; only MCQs have
+  implemented grading. `graph` is nullable text; JSON parsing is a consumer rule,
+  not a database constraint.
+- Option labels are restricted to `a`, `b`, `c`, `d` and unique per question.
+  `uq_one_correct_option` enforces at most one correct option; the service checks
+  that there is a valid one before grading/returning an MCQ.
+- Attempts require a selected option from the same question.
+  `uq_one_correct_answer` permits at most one correct row per user/question;
+  repeated wrong rows are allowed.
+- Progress and used-hint rows have composite user/content keys. Repository
+  methods store data; prerequisite unlocking, hint-award rules, and peaceful
+  thresholds are not implemented game services yet.
+- Content is authored by the migration/seed tools. Runtime writes are user
+  creation/settings, attempts, and explicitly requested progress/hint operations.
+  The current app does not use the progress or hint repository operations.
+
+## Startup, configuration, and checks
+
+Use the Node 22 major version in `.nvmrc`; the package requires Node >=22.22.2.
+Install from the repository root with `npm ci`. Run the backend and UI demo in
+separate terminals:
+
+```bash
+npm run dev -w server
+npm run dev:demo -w client
+```
+
+The backend defaults to `http://localhost:3000`; Vite normally serves
+`http://localhost:5173/demo.html`. The Vite `/api` proxy targets port 3000, so a
+custom server `PORT` also requires a corresponding proxy change. The proxy
+configuration does not itself make the mock demo issue requests.
+
+`npm run start -w server` runs the backend without watch mode. `DB_PATH` overrides
+the default `server/var/game.db`; `openDb(':memory:')` is used for isolated tests.
+The database, `server/var/`, build output, and `.env` are ignored by Git.
+
+The migration runner applies new SQL files in filename order, recording each in
+the same transaction as its schema changes. The seed inserts Linear Land only
+when the planets table is empty. Database scripts are `db:migrate` and `db:seed`
+in the server workspace; resetting the database is not required for normal startup.
+
+TypeScript uses `module: ESNext`, `moduleResolution: Bundler`, DOM libraries,
+`esModuleInterop`, and `skipLibCheck`. Runtime scripts use `tsx` for server source
+and Vite for browser source. No production deployment configuration is present.
+
+```bash
+npm run compile
+npm run lint
+npm test
+```
+
+Root `npm test` compiles, lints, runs workspace tests, and lints again. CI performs
+type checking, linting, and workspace tests on pull requests and pushes to main.
+Git hooks run ESLint fixes on staged source and enforce Conventional Commits.
+
+The current test suites total 200 cases: 84 client and 116 server, including 47
+Question Manager cases. Client tests cover model parsing and screen geometry;
+server tests cover the schema/seed, repositories/transactions, and Question Manager.
+The geometry tests do not prove canvas rendering or browser behavior. HTTP routes,
+demo payloads, and browser-to-database integration have no committed test suites.
+
+## Remaining integration work
+
+1. Connect a real frontend controller/Session Cache and API Client to the backend;
+   initialize the normal client entry point and preserve question/option IDs.
+2. Agree on one public question contract and remove the demo GET response's
+   pre-submission answer index. Expose safe reading/next-question operations as
+   needed and consume submission feedback in the UI.
+3. Supply a real synchronous progress handler and implement counts, completion
+   thresholds, and prerequisite/unlock summaries. Existing correct attempts will
+   need reconciliation if progress updates are added after those attempts exist.
+4. Implement profile/authentication, hint quota/usage workflows, graph rendering,
+   navigation/settings screens, and the two minigames as their sprint scopes allow.
+5. Add route/payload tests and a complete browser-to-database demo test.
+
+These are planned changes, not behaviors provided by the current code.
