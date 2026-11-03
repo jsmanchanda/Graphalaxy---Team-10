@@ -3,10 +3,11 @@
 */
 
 // SC models (input)
-import type {ReadingTask, QuestionTask} from './SessionCacheModels';
+import {Task, ReadingTask, QuestionTask} from './SessionCacheModels';
 
 // screen models (output)
 import type {
+  ScreenModel,
   ReadingScreenModel,
   Question,
   QuestionScreenModel,
@@ -14,6 +15,23 @@ import type {
   LessonIntroScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
+
+/**
+ * Converts a task into the screen model for that task's type.
+ * Hands reading tasks and question tasks to their own mappers.
+ * @param task The current task from the planet.
+ * @returns The reading or question screen model for the UI.
+ * @throws {Error} If the task is not a ReadingTask or QuestionTask.
+ */
+export function taskToScreen(task: Task): ScreenModel {
+  if (task instanceof QuestionTask) {
+    return questionTaskToQuestionScreen(task);
+  } else if (task instanceof ReadingTask) {
+    return readingTaskToScreen(task);
+  } else {
+    throw new Error(`Unknown task type: ${task.taskType}`);
+  }
+}
 
 /**
  * Converts a reading task into a reading screen model.
@@ -56,7 +74,7 @@ export function questionTaskToQuestionScreen(
  * @param correct Whether the player's answer was correct.
  * @returns The question result screen model for the UI.
  */
-export function questionTaskToQuestionResultScreen(
+export function makeQuestionResultScreen(
   correct: boolean,
 ): QuestionResultScreenModel {
   let result: string;
