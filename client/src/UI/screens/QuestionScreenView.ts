@@ -93,7 +93,7 @@ export class QuestionScreenView implements View {
 
         // Highlight the selected option by changing its background color
         if (buttonBackground instanceof Konva.Rect) {
-          buttonBackground.fill(index + 1 === option ? '#3b82f6' : '#0c22cbc3');
+          buttonBackground.fill(index === option ? '#3b82f6' : '#0c22cbc3');
         }
       });
     }
