@@ -128,6 +128,7 @@ export class ApiClient implements ServerGateway {
       });
       const text = await response.text();
       if (!response.ok) {
+        // TODO(#99): Parse server error body in ApiClient instead of using generic status text
         throw new ApiError(
           'http',
           `Request failed with status ${response.status}`,

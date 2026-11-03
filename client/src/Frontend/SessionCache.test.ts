@@ -50,9 +50,9 @@ describe('SessionCache', () => {
   it('stores the player after login', async () => {
     const gateway = fakeGateway();
     const cache = new SessionCache(gateway);
-    await expect(cache.login(PLAYER['name'])).resolves.toBe(PLAYER);
+    await expect(cache.login(PLAYER.name)).resolves.toBe(PLAYER);
     expect(cache.player).toBe(PLAYER);
-    expect(gateway.login).toHaveBeenCalledWith(PLAYER['name']);
+    expect(gateway.login).toHaveBeenCalledWith(PLAYER.name);
   });
 
   it('stores the planet after loading it', async () => {
@@ -67,7 +67,7 @@ describe('SessionCache', () => {
     const gateway = fakeGateway();
     gateway.login.mockRejectedValue(new ApiError('network', 'offline'));
     const cache = new SessionCache(gateway);
-    await expect(cache.login(PLAYER['name'])).rejects.toMatchObject({
+    await expect(cache.login(PLAYER.name)).rejects.toMatchObject({
       kind: 'network',
     });
     expect(cache.player).toBeNull();
@@ -89,5 +89,34 @@ describe('SessionCache', () => {
       status: API_ERROR_STATUS,
     });
     expect(cache.currentPlanet).toBe(PLANET);
+  });
+
+  it('keeps the latest requested planet when responses arrive out of order', async () => {
+    const gateway = fakeGateway();
+    const cache = new SessionCache(gateway);
+    const OTHER_PLANET = Planet.createFromJson(
+      JSON.stringify({
+        ...PLANET_JSON,
+        planetId: 2,
+        name: 'Polynomial Perry the Platypus :D',
+      }),
+    );
+    let resolveFirst!: (planet: Planet) => void;
+    gateway.getPlanet
+      .mockReturnValueOnce(new Promise(resolve => (resolveFirst = resolve)))
+      .mockResolvedValueOnce(OTHER_PLANET);
+
+    const first = cache.loadPlanet(1);
+    await cache.loadPlanet(2);
+    resolveFirst(PLANET);
+    await expect(first).resolves.toBe(PLANET);
+    expect(cache.currentPlanet).toBe(OTHER_PLANET);
+  });
+
+  it('clears the current planet when a new player logs in', async () => {
+    const cache = new SessionCache(fakeGateway());
+    await cache.loadPlanet(1);
+    await cache.login(PLAYER.name);
+    expect(cache.currentPlanet).toBeNull();
   });
 });

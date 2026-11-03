@@ -7,6 +7,8 @@ import type {Planet, Player} from './SessionCacheModels';
 export class SessionCache {
   player: Player | null = null;
   currentPlanet: Planet | null = null;
+  // Counts loadPlanet calls so only the latest request sets currentPlanet.
+  private planetRequestId = 0;
 
   /**
    * Creates a new SessionCache object.
@@ -15,24 +17,32 @@ export class SessionCache {
   constructor(private readonly client: ServerGateway = new ApiClient()) {}
 
   /**
-   * Logs in and stores the player.
+   * Logs in and stores the player. Clears the previous player's planet.
    * @param username Player's username.
    * @returns The logged-in player.
    * @throws {ApiError} If the login fails.
    */
   async login(username: string): Promise<Player> {
-    this.player = await this.client.login(username);
-    return this.player;
+    const player = await this.client.login(username);
+    this.player = player;
+    this.currentPlanet = null;
+    this.planetRequestId++;
+    return player;
   }
 
   /**
-   * Loads a planet and stores it as currentPlanet.
+   * Loads a planet and stores it as currentPlanet, unless a newer
+   * loadPlanet call was made while this one was in flight.
    * @param planetId The planet's ID for database.
    * @returns The planet.
    * @throws {ApiError} If the planet cannot be loaded.
    */
   async loadPlanet(planetId: number): Promise<Planet> {
-    this.currentPlanet = await this.client.getPlanet(planetId);
-    return this.currentPlanet;
+    const requestId = ++this.planetRequestId;
+    const planet = await this.client.getPlanet(planetId);
+    if (requestId === this.planetRequestId) {
+      this.currentPlanet = planet;
+    }
+    return planet;
   }
 }
