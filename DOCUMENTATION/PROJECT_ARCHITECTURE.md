@@ -1,4 +1,10 @@
 # Consolidated Architecture
+Implementation note: the Question Manager uses `questions.lesson_id` and
+`question_order` instead of the older `questions.planet_id` proposal below.
+Planet ownership is resolved through lessons. See
+[Question Manager integration](QUESTION_MANAGER.md) for the implemented schema,
+shared response contracts, and progress transaction boundary.
+
 also consider changing the name of these so it's not manager manager manager
 ## FRONTEND
 #### UI
