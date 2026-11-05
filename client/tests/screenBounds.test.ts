@@ -58,7 +58,7 @@ import {
   TITLE_TEXT_WIDTH,
   TITLE_TEXT_X,
   TITLE_TEXT_Y,
-} from '../constants';
+} from '../src/UI/constants';
 
 // Helper function to check bounds of UI components within the screen
 // Ensures that the component fits within the design dimensions

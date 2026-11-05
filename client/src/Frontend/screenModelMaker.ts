@@ -1,9 +1,8 @@
 /*
-  @fileoverview Converts session cache models into the screen models the UI renders.
+  @fileoverview Converts the shared API types into the screen models the UI renders.
 */
 
-// SC models (input)
-import {Task, ReadingTask, QuestionTask} from './SessionCacheModels';
+import type {QuestionTask, ReadingTask, Task} from '@graphalaxy/shared';
 
 // screen models (output)
 import type {
@@ -15,22 +14,18 @@ import type {
   // LessonResultScreenModel
 } from '../UI/types';
 
-import type {Question} from './types';
-
 /**
  * Converts a task into the screen model for that task's type.
  * Hands reading tasks and question tasks to their own mappers.
  * @param task The current task from the planet.
  * @returns The reading or question screen model for the UI.
- * @throws {Error} If the task is not a ReadingTask or QuestionTask.
  */
 export function taskToScreen(task: Task): ScreenModel {
-  if (task instanceof QuestionTask) {
-    return questionTaskToQuestionScreen(task);
-  } else if (task instanceof ReadingTask) {
-    return readingTaskToScreen(task);
-  } else {
-    throw new Error(`Unknown task type: ${task.taskType}`);
+  switch (task.type) {
+    case 'Question':
+      return questionTaskToQuestionScreen(task);
+    case 'Reading':
+      return readingTaskToScreen(task);
   }
 }
 
@@ -46,37 +41,31 @@ export function readingTaskToScreen(
 }
 
 /**
- * Converts a question task into a question screen model.
- * The correct answer is left out so the UI never receives it.
- * Missing options are filled with empty strings and options past the fourth are ignored.
+ * Converts a question task into a question screen model: the prompt and the
+ * option texts in order. The UI reports the chosen option by its index, and
+ * GameManager maps that index back to an optionId.
  * @param questionTask The question task to display.
  * @returns The question screen model for the UI.
  */
 export function questionTaskToQuestionScreen(
   questionTask: QuestionTask,
 ): QuestionScreenModel {
-  const question: Question = {
-    type: 'Question',
-    prompt: questionTask.prompt,
-    options: questionTask.options,
-    correct: questionTask.correct,
+  const {prompt, options} = questionTask.question;
+  return {
+    type: 'question',
+    question: {prompt, options: options.map(option => option.text)},
   };
-
-  return {type: 'question', question: question};
 }
 
 /**
  * Creates the question result screen model shown after the player answers.
- * @param correct Whether the player's answer was correct.
+ * @param correct Whether the server graded the answer as correct.
  * @returns The question result screen model for the UI.
  */
 export function makeQuestionResultScreen(
   correct: boolean,
 ): QuestionResultScreenModel {
-  let result: string;
-  if (correct) result = 'Correct';
-  else result = 'Wrong';
-  return {type: 'questionResult', result: result};
+  return {type: 'questionResult', result: correct ? 'Correct' : 'Wrong'};
 }
 
 /**
