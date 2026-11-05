@@ -4,7 +4,7 @@ import {
   type PlanetContent,
   type PlanetQuestion,
 } from '../question-manager/QuestionManager';
-//MOCK 4 DEMO. TEST IN SPRINT 2.
+//MOCK 4 DEMO. REDO IN SPRINT 2.
 
 /** A player in the shape the client's `Player` model parses. */
 export interface PlayerPayload {

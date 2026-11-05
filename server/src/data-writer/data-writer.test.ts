@@ -113,7 +113,7 @@ describe('users', () => {
       sfxVolume: 0.5,
     });
     expect(user.userId).toBeGreaterThan(0);
-    expect(user.createdAt).toBeTruthy();
+    expect(user.createdAt).toBeTruthy(); //nonempty string
   });
 
   it('finds users by id and username, and returns undefined for unknown ones', () => {
