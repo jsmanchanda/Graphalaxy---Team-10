@@ -1,16 +1,16 @@
 import {describe, it, expect, beforeEach} from 'vitest';
 import type {Database} from 'better-sqlite3';
-import {openDb} from '../db/connection';
-import {migrate} from '../db/migrate';
-import {seed} from '../db/seed';
-import {createDataWriter, type DataWriter, type User} from '.';
+import {openDb} from '../src/db/connection';
+import {migrate} from '../src/db/migrate';
+import {seed} from '../src/db/seed';
+import {createDataWriter, type DataWriter, type User} from '../src/data-writer';
 import {
   SqliteAnswerRep,
   SqliteContentRep,
   SqliteHintRep,
   SqliteProgressRep,
   SqliteUserRep,
-} from './repository-impl';
+} from '../src/data-writer/repository-impl';
 
 /**
  * unwraps a value that the test expects to exist, with a readable failure.

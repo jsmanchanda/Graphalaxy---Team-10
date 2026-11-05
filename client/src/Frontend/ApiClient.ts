@@ -1,6 +1,17 @@
+import type {
+  AnswerRequest,
+  AnswerResult,
+  LoginRequest,
+  Planet,
+  Player,
+  Settings,
+} from '@graphalaxy/shared';
 import {ApiError} from './ApiError';
-import {Planet, Player} from './SessionCacheModels';
-import type {Settings} from './SessionCacheModels';
+import {
+  parseAnswerResult,
+  parsePlanet,
+  parsePlayer,
+} from './SessionCacheModels';
 
 type Method = 'GET' | 'POST' | 'PATCH';
 
@@ -11,6 +22,7 @@ export interface ServerGateway {
   login(username: string): Promise<Player>;
   getPlanet(planetId: number): Promise<Planet>;
   saveSettings(settings: Settings): Promise<Player>;
+  submitAnswer(questionId: number, optionId: number): Promise<AnswerResult>;
 }
 
 const DEFAULT_OPTIONS = {baseUrl: '/api', timeoutMs: 5000, retries: 2};
@@ -38,8 +50,9 @@ export class ApiClient implements ServerGateway {
    * @throws {ApiError} An error if the request or parsing fails.
    */
   async login(username: string): Promise<Player> {
-    const text = await this.request('POST', '/users', {username});
-    const player = parseWith(() => Player.createFromJson(text));
+    const body: LoginRequest = {username};
+    const text = await this.request('POST', '/users', body);
+    const player = parseWith(text, parsePlayer);
     this.userId = player.userId;
     return player;
   }
@@ -55,7 +68,7 @@ export class ApiClient implements ServerGateway {
       'GET',
       this.userPath(`/planets/${planetId}`),
     );
-    return parseWith(() => Planet.createFromJson(text));
+    return parseWith(text, parsePlanet);
   }
 
   /**
@@ -70,7 +83,28 @@ export class ApiClient implements ServerGateway {
       this.userPath('/settings'),
       settings,
     );
-    return parseWith(() => Player.createFromJson(text));
+    return parseWith(text, parsePlayer);
+  }
+
+  /**
+   * Submits an answer for the server to grade and record. Never retried, since
+   * every attempt is recorded.
+   * @param questionId The question's ID.
+   * @param optionId The ID of the chosen option.
+   * @returns Whether it was correct, and the correct option.
+   * @throws {ApiError} An error if the request or parsing fails.
+   */
+  async submitAnswer(
+    questionId: number,
+    optionId: number,
+  ): Promise<AnswerResult> {
+    const body: AnswerRequest = {optionId};
+    const text = await this.request(
+      'POST',
+      this.userPath(`/questions/${questionId}/answer`),
+      body,
+    );
+    return parseWith(text, parseAnswerResult);
   }
 
   /**
@@ -180,14 +214,16 @@ function isRetryable(error: unknown): boolean {
 }
 
 /**
- * Runs a parser, reporting any failure as a `parse` error.
- * @param parse The function that parses the response.
+ * Parses a response body as JSON once, then checks its shape, reporting any
+ * failure as a `parse` error.
+ * @param text The response body.
+ * @param parse The function that checks the parsed JSON.
  * @returns The parsed value.
- * @throws {ApiError} An error of kind `parse` if the parser throws.
+ * @throws {ApiError} An error of kind `parse` if the JSON or its shape is invalid.
  */
-function parseWith<T>(parse: () => T): T {
+function parseWith<T>(text: string, parse: (json: unknown) => T): T {
   try {
-    return parse();
+    return parse(JSON.parse(text));
   } catch (error) {
     throw new ApiError('parse', `Invalid server response: ${error}`);
   }

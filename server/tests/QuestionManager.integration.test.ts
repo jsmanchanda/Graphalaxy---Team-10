@@ -1,11 +1,11 @@
 import type {Database} from 'better-sqlite3';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {QuestionManager} from './QuestionManager';
-import type {AnswerProgress} from './AnswerProgress';
-import {createDataWriter, type DataWriter} from '../data-writer';
-import {openDb} from '../db/connection';
-import {migrate} from '../db/migrate';
-import {seed} from '../db/seed';
+import {QuestionManager} from '../src/question-manager/QuestionManager';
+import type {AnswerProgress} from '../src/question-manager/AnswerProgress';
+import {createDataWriter, type DataWriter} from '../src/data-writer';
+import {openDb} from '../src/db/connection';
+import {migrate} from '../src/db/migrate';
+import {seed} from '../src/db/seed';
 
 describe('QuestionManager with the official migration and Data Writer', () => {
   let db: Database;
@@ -83,12 +83,12 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     expect(manager.nextQuestion(1, 3)).toBeNull();
   });
 
-  it('returns label-ordered safe options, qtype mapped to type, and unchanged graph JSON text', () => {
+  it('returns label-ordered safe options, qtype mapped to type, and parsed graph JSON', () => {
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
     expect(manager.nextQuestion(1, 1)).toEqual({
       questionId: 2,
       prompt: 'Slope?',
-      graph: '{"fn":"2*x+1"}',
+      graph: {fn: '2*x+1'},
       type: 'mcq',
       options: [
         {optionId: 21, label: 'a', text: '2'},
@@ -98,6 +98,40 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     expect(JSON.stringify(manager.nextQuestion(1, 1))).not.toMatch(
       /is_correct|isCorrect|correctOption|"correct"/,
     );
+  });
+
+  it('loads a planet as ordered readings then questions, with solved flags and no answer keys', () => {
+    const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
+    const planet = manager.getPlanet(1, 1);
+    expect(planet).toMatchObject({planetId: 1, name: 'Lines'});
+    expect(planet.tasks.map(task => task.type)).toEqual([
+      'Reading',
+      'Reading',
+      'Question',
+      'Question',
+      'Question',
+    ]);
+    expect(planet.tasks.slice(0, 2)).toEqual([
+      {type: 'Reading', text: 'Slopes'},
+      {type: 'Reading', text: 'Intercepts'},
+    ]);
+    expect(JSON.stringify(planet)).not.toMatch(
+      /is_correct|isCorrect|correctOption|"correct"/,
+    );
+    manager.submit(1, 3, 31);
+    expect(
+      manager
+        .getPlanet(1, 1)
+        .tasks.flatMap(task =>
+          task.type === 'Question'
+            ? [[task.question.questionId, task.solved]]
+            : [],
+        ),
+    ).toEqual([
+      [2, false],
+      [3, true],
+      [7, false],
+    ]);
   });
 
   it('records selected option IDs and official attempt metadata for wrong and correct answers', () => {

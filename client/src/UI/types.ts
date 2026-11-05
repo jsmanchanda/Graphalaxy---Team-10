@@ -1,5 +1,4 @@
 import type {Group} from 'konva/lib/Group';
-import {Question} from '../Frontend/types';
 
 /**
  * Data being displayed
@@ -46,11 +45,20 @@ export interface ReadingScreenModel {
 }
 
 /**
+ * What the question screen shows. It holds no answer key: grading happens on
+ * the server.
+ */
+export interface QuestionDisplay {
+  prompt: string;
+  options: string[];
+}
+
+/**
  * Question Screen Data
  */
 export interface QuestionScreenModel {
   type: 'question';
-  question: Question;
+  question: QuestionDisplay;
 }
 
 /**

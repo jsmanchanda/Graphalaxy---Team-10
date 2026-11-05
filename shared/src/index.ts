@@ -1,8 +1,16 @@
 export type {
   AnswerOption,
+  AnswerRequest,
   AnswerResult,
+  ApiErrorBody,
+  GraphSpec,
   Lesson,
+  LoginRequest,
+  Planet,
+  Player,
   Question,
   QuestionTask,
   ReadingTask,
+  Settings,
+  Task,
 } from './api';

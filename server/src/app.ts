@@ -1,7 +1,7 @@
 import express from 'express';
 import type {ErrorRequestHandler} from 'express';
+import type {AnswerResult, Planet, Player, Settings} from '@graphalaxy/shared';
 import type {DataWriter, User} from './data-writer';
-import {toPlanetPayload, toPlayerPayload} from './api/payloads';
 import {
   QuestionManagerError,
   type QuestionErrorCode,
@@ -30,7 +30,7 @@ const MAX_USERNAME_LENGTH = 32;
 
 /** What the HTTP layer needs. Narrow types keep tests easy to fake. */
 export interface AppDeps {
-  questions: Pick<QuestionManager, 'submit' | 'getPlanetContent'>;
+  questions: Pick<QuestionManager, 'submit' | 'getPlanet'>;
   dataWriter: Pick<DataWriter, 'users'>;
 }
 
@@ -69,9 +69,19 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     .json({error: {code: 'INTERNAL', message: 'Something went wrong.'}});
 };
 
-/** Throws INVALID_INPUT unless the value is a positive safe integer. */
+/**
+ * Throws INVALID_INPUT unless the value is a positive safe integer. Every ID in
+ * a URL or body is parsed here, once; QuestionManager trusts what it is given.
+ * Accepts a number, or a string of digits (URL params are always strings), so
+ * values like true, [5], '1e3' or ' 5' are rejected.
+ */
 function parseId(value: unknown, name: string): number {
-  const id = Number(value);
+  const id =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && /^\d+$/.test(value)
+        ? Number(value)
+        : NaN;
   if (!Number.isSafeInteger(id) || id <= 0) {
     throw new QuestionManagerError(
       'INVALID_INPUT',
@@ -94,10 +104,7 @@ function parseUsername(value: unknown): string {
 }
 
 /** Returns valid audio settings (each from 0 to 1), or throws INVALID_INPUT. */
-function parseSettings(body: unknown): {
-  musicVolume: number;
-  sfxVolume: number;
-} {
+function parseSettings(body: unknown): Settings {
   const {musicVolume, sfxVolume} = (body ?? {}) as Record<string, unknown>;
   for (const [name, value] of [
     ['musicVolume', musicVolume],
@@ -114,14 +121,23 @@ function parseSettings(body: unknown): {
 }
 
 /**
- * Builds the HTTP API the client's ApiClient talks to. Errors are returned as
- * {error: {code, message}}.
- *
- *   POST  /api/users                                    {username}  -> Player
- *   GET   /api/users/:userId/planets/:planetId                      -> Planet
- *   PATCH /api/users/:userId/settings   {musicVolume, sfxVolume}    -> Player
- *   POST  /api/users/:userId/questions/:questionId/answer
- *                                       {optionId}              -> AnswerResult
+ * Converts a stored user to the API's Player.
+ * @param user the stored user
+ * @returns the player
+ */
+export function toPlayer(user: User): Player {
+  return {
+    userId: user.userId,
+    name: user.username,
+    hintQuota: user.hintQuota,
+    settings: {musicVolume: user.musicVolume, sfxVolume: user.sfxVolume},
+  };
+}
+
+/**
+ * Builds the HTTP API the client's ApiClient talks to. The routes and their
+ * request and response bodies are listed in shared's api.ts.
+ * Errors are returned as ApiErrorBody: {error: {code, message}}.
  * @param deps the services the routes use (or fakes in tests)
  * @param deps.questions loads planets and records and grades answers
  * @param deps.dataWriter reads and writes users
@@ -150,37 +166,36 @@ export function createApp({questions, dataWriter}: AppDeps): express.Express {
     const user =
       dataWriter.users.findByUsername(username) ??
       dataWriter.users.create(username);
-    res.json(toPlayerPayload(user));
+    const body: Player = toPlayer(user);
+    res.json(body);
   });
 
   app.get('/api/users/:userId/planets/:planetId', (req, res) => {
     const user = requireUser(req.params.userId);
-    // QuestionManager validates planetId and throws INVALID_INPUT / NOT_FOUND.
-    const planet = questions.getPlanetContent(
-      user.userId,
-      Number(req.params.planetId),
-    );
-    res.json(toPlanetPayload(planet));
+    const planetId = parseId(req.params.planetId, 'planetId');
+    const body: Planet = questions.getPlanet(user.userId, planetId);
+    res.json(body);
   });
 
   app.patch('/api/users/:userId/settings', (req, res) => {
     const user = requireUser(req.params.userId);
     const settings = parseSettings(req.body);
     dataWriter.users.saveSettings(user.userId, settings);
-    res.json(toPlayerPayload({...user, ...settings}));
+    const body: Player = toPlayer({...user, ...settings});
+    res.json(body);
   });
 
-  // Records an attempt. The client does not call this yet, so `solved` stays
-  // false until it does.
+  // Grades and records an attempt. This is the only place answers are checked.
   app.post('/api/users/:userId/questions/:questionId/answer', (req, res) => {
     const user = requireUser(req.params.userId);
-    res.json(
-      questions.submit(
-        user.userId,
-        Number(req.params.questionId),
-        Number(req.body?.optionId),
-      ),
+    const questionId = parseId(req.params.questionId, 'questionId');
+    const optionId = parseId(req.body?.optionId, 'optionId');
+    const body: AnswerResult = questions.submit(
+      user.userId,
+      questionId,
+      optionId,
     );
+    res.json(body);
   });
 
   app.use(errorHandler);

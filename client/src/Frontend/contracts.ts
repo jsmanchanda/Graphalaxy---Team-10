@@ -1,6 +1,6 @@
 import type {ScreenModel} from '../UI/types';
 
-import type {Planet} from './SessionCacheModels';
+import type {Planet} from '@graphalaxy/shared';
 
 /**
  * something that shows a screen

@@ -1,3 +1,5 @@
+import type {Planet, QuestionTask, Task} from '@graphalaxy/shared';
+
 // --- view stuff ---
 import {ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
@@ -5,10 +7,6 @@ import {SessionCache} from './SessionCache';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
-
-// --- SessionCacheModels ---
-// import {Planet, Task, QuestionTask} from './SessionCacheModels';
-import {Task, QuestionTask} from './SessionCacheModels';
 
 // for MVP
 const DEMO_USERNAME = 'demo';
@@ -23,6 +21,8 @@ export class GameManager {
 
   private session: SessionCache;
   private taskIndex: number;
+  // True while an answer is with the server, so a double click sends one.
+  private answerPending = false;
 
   /**
    * Creates a new GameManager instance.
@@ -72,13 +72,10 @@ export class GameManager {
       }
       case 'answer': {
         const task = planet.tasks[this.taskIndex];
-        if (!(task instanceof QuestionTask)) {
+        if (task?.type !== 'Question' || this.answerPending) {
           return;
         }
-        const screenModel = screenModelMaker.makeQuestionResultScreen(
-          action.option === task.correct,
-        );
-        this.ui.displayScreen(screenModel);
+        void this.submitAnswer(planet, task, action.option);
         break;
       }
       case 'next': {
@@ -111,6 +108,52 @@ export class GameManager {
         }
         break;
       }
+    }
+  }
+
+  /**
+   * Sends the chosen option to the server, which grades it, then shows the
+   * result. Drops the result if the player has moved to another slide or
+   * planet in the meantime.
+   * @param planet the planet the question is on
+   * @param task the question being answered
+   * @param optionIndex the index of the clicked option button
+   */
+  private async submitAnswer(
+    planet: Planet,
+    task: QuestionTask,
+    optionIndex: number,
+  ): Promise<void> {
+    const option = task.question.options[optionIndex];
+    if (!option) {
+      return;
+    }
+    const taskIndex = this.taskIndex;
+    const stillHere = () =>
+      this.session.currentPlanet === planet && this.taskIndex === taskIndex;
+    this.answerPending = true;
+    try {
+      const result = await this.session.submitAnswer(
+        task.question.questionId,
+        option.optionId,
+      );
+      if (stillHere()) {
+        this.ui.displayScreen(
+          screenModelMaker.makeQuestionResultScreen(result.correct),
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      if (stillHere()) {
+        this.ui.displayScreen({
+          type: 'questionResult',
+          // The result screen only has a Next button, so say plainly that
+          // this answer was not recorded.
+          result: "Couldn't reach the server, so this answer wasn't checked.",
+        });
+      }
+    } finally {
+      this.answerPending = false;
     }
   }
 }
