@@ -86,7 +86,8 @@ export class GameManager {
         if (this.taskIndex >= planet.tasks.length) {
           this.ui.displayScreen({
             type: 'title',
-            title: 'this is not actually a title screen',
+            title:
+              'OOPS! Youve reached the end of the planet and we havent coded anything else :(!!',
           });
         } else {
           const task: Task = planet.tasks[this.taskIndex];
