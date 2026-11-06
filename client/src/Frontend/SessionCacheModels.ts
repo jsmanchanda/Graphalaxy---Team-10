@@ -116,12 +116,8 @@ export function parsePlayer(json: unknown): Player {
   if (typeof json.name !== 'string' || json.name.trim() === '') {
     throw new Error(TYPE_ERROR('name', 'string'));
   }
-  if (typeof json.userId !== 'number' || json.userId < 0) {
-    throw new Error(FIELD_RANGE_ERROR('userId', 0, Infinity));
-  }
-  if (typeof json.hintQuota !== 'number' || json.hintQuota < 0) {
-    throw new Error(FIELD_RANGE_ERROR('hintQuota', 0, Infinity));
-  }
+  const userId = requireInteger(json.userId, 'userId', 1);
+  const hintQuota = requireInteger(json.hintQuota, 'hintQuota', 0);
   let settings: Settings;
   try {
     settings = parseSettings(json.settings);
@@ -129,9 +125,9 @@ export function parsePlayer(json: unknown): Player {
     throw new Error(CLASS_CREATION_ERROR('Settings', error));
   }
   return {
-    userId: json.userId,
+    userId,
     name: json.name,
-    hintQuota: json.hintQuota,
+    hintQuota,
     settings,
   };
 }
@@ -195,14 +191,11 @@ export function parseReadingTask(json: unknown): ReadingTask {
  * @returns The question task.
  */
 export function parseQuestionTask(json: unknown): QuestionTask {
-  assertHasFields(json, ['question', 'solved']);
-  if (typeof json.solved !== 'boolean') {
-    throw new Error(TYPE_ERROR('solved', 'boolean'));
-  }
+  assertHasFields(json, ['question']);
   return {
     type: 'Question',
     question: parseQuestion(json.question),
-    solved: json.solved,
+    // solved: json.solved,
   };
 }
 

@@ -102,13 +102,22 @@ describe('parsePlayer', () => {
     'throws an error when %s is not a number',
     field => {
       expect(() => parsePlayer({...VALID_PLAYER, [field]: '1'})).toThrowError(
-        FIELD_RANGE_ERROR(field, 0, Infinity),
+        TYPE_ERROR(field, 'number'),
       );
     },
   );
-  it('throws an error when hintQuota is negative', () => {
-    expect(() => parsePlayer({...VALID_PLAYER, hintQuota: -1})).toThrowError(
-      FIELD_RANGE_ERROR('hintQuota', 0, Infinity),
+  it.each([
+    ['userId', 0, 1],
+    ['userId', 1.5, 1],
+    ['hintQuota', -1, 0],
+    ['hintQuota', 1.5, 0],
+  ])('throws an error when %s is %s', (field, value, min) => {
+    expect(() => parsePlayer({...VALID_PLAYER, [field]: value})).toThrowError(
+      FIELD_RANGE_ERROR(
+        field as string,
+        min as number,
+        Number.MAX_SAFE_INTEGER,
+      ),
     );
   });
   it.each(['   ', 456])('throws an error when name is %s', name => {
@@ -142,7 +151,7 @@ const VALID_READING = {type: 'Reading', text: 'The slope is m.'};
 const VALID_QUESTION_TASK = {
   type: 'Question',
   question: VALID_QUESTION,
-  solved: false,
+  // solved: false,
 };
 
 describe('parseAnswerOption', () => {
@@ -241,14 +250,14 @@ describe('parseQuestionTask', () => {
   });
   it('throws an error listing all missing fields', () => {
     expect(() => parseQuestionTask({})).toThrowError(
-      MISSING_FIELDS_ERROR(['question', 'solved']),
+      MISSING_FIELDS_ERROR(['question']),
     );
   });
-  it('throws an error when solved is not a boolean', () => {
-    expect(() =>
-      parseQuestionTask({...VALID_QUESTION_TASK, solved: 'no'}),
-    ).toThrowError(TYPE_ERROR('solved', 'boolean'));
-  });
+  // it('throws an error when solved is not a boolean', () => {
+  //   expect(() =>
+  //     parseQuestionTask({...VALID_QUESTION_TASK, solved: 'no'}),
+  //   ).toThrowError(TYPE_ERROR('solved', 'boolean'));
+  // });
 });
 
 const VALID_PLANET = {
@@ -381,7 +390,7 @@ describe.each([
   {
     model: 'QuestionTask',
     parse: parseQuestionTask,
-    nonObjectError: MISSING_FIELDS_ERROR(['question', 'solved']),
+    nonObjectError: MISSING_FIELDS_ERROR(['question']),
   },
   {
     model: 'Planet',
