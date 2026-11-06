@@ -1,33 +1,48 @@
 import {describe, expect, it, vi} from 'vitest';
-import type {ServerGateway} from './ApiClient';
-import {ApiError} from './ApiError';
-import {SessionCache} from './SessionCache';
-import {Planet, Player} from './SessionCacheModels';
+import type {AnswerResult, Planet, Player} from '@graphalaxy/shared';
+import type {ServerGateway} from '../src/Frontend/ApiClient';
+import {ApiError} from '../src/Frontend/ApiError';
+import {SessionCache} from '../src/Frontend/SessionCache';
 
-const PLAYER_JSON = {
+const PLAYER: Player = {
   userId: 7,
   name: 'alice',
   hintQuota: 3,
   settings: {musicVolume: 0.5, sfxVolume: 0.5},
 };
-const PLAYER = Player.createFromJson(JSON.stringify(PLAYER_JSON));
 
-const PLANET_JSON = {
-  planetId: 1,
-  name: 'Linear Land',
-  introText: 'A hostile world of straight lines.',
-  graphOrder: 0,
-  tasks: [
-    {type: 'Reading', text: 'A linear function has the form y = mx + b.'},
-    {
-      type: 'Question',
-      prompt: 'What is the slope of y = 2x + 3?',
-      options: ['2', '3', '4', 'undefined'],
-      correct: 0,
-    },
-  ],
-};
-const PLANET = Planet.createFromJson(JSON.stringify(PLANET_JSON));
+/** Builds a fresh planet. */
+function makePlanet(planetId = 1): Planet {
+  return {
+    planetId,
+    name: 'Linear Land',
+    introText: 'A hostile world of straight lines.',
+    graphOrder: 0,
+    tasks: [
+      {type: 'Reading', text: 'A linear function has the form y = mx + b.'},
+      ...[1, 2].map(questionId => ({
+        type: 'Question' as const,
+        question: {
+          questionId,
+          prompt: `Question ${questionId}`,
+          type: 'mcq' as const,
+          options: [
+            {optionId: questionId * 10 + 1, label: 'a', text: '2'},
+            {optionId: questionId * 10 + 2, label: 'b', text: '3'},
+          ],
+        },
+        // solved: false,
+      })),
+    ],
+  };
+}
+const PLANET = makePlanet();
+
+// /** The solved flag of each question on a planet. */
+// const solvedFlags = (planet: Planet | null) =>
+//   planet?.tasks.flatMap(task =>
+//     task.type === 'Question' ? [task.solved] : [],
+//   );
 
 /**
  * Builds a fake gateway that returns PLAYER and PLANET.
@@ -37,8 +52,16 @@ function fakeGateway() {
     login: vi.fn<ServerGateway['login']>().mockResolvedValue(PLAYER),
     getPlanet: vi.fn<ServerGateway['getPlanet']>().mockResolvedValue(PLANET),
     saveSettings: vi.fn<ServerGateway['saveSettings']>(),
+    submitAnswer: vi.fn<ServerGateway['submitAnswer']>(),
   };
 }
+
+/** The server's verdict on an answer to question 1. */
+const result = (correct: boolean): AnswerResult => ({
+  questionId: 1,
+  correct,
+  correctOption: {optionId: 11, label: 'a', text: '2'},
+});
 
 describe('SessionCache', () => {
   it('starts with no player or planet', () => {
@@ -94,13 +117,10 @@ describe('SessionCache', () => {
   it('keeps the latest requested planet when responses arrive out of order', async () => {
     const gateway = fakeGateway();
     const cache = new SessionCache(gateway);
-    const OTHER_PLANET = Planet.createFromJson(
-      JSON.stringify({
-        ...PLANET_JSON,
-        planetId: 2,
-        name: 'Polynomial Perry the Platypus :D',
-      }),
-    );
+    const OTHER_PLANET: Planet = {
+      ...makePlanet(2),
+      name: 'Polynomial Perry the Platypus :D',
+    };
     let resolveFirst!: (planet: Planet) => void;
     gateway.getPlanet
       .mockReturnValueOnce(new Promise(resolve => (resolveFirst = resolve)))
@@ -118,5 +138,22 @@ describe('SessionCache', () => {
     await cache.loadPlanet(1);
     await cache.login(PLAYER.name);
     expect(cache.currentPlanet).toBeNull();
+  });
+
+  it('sends answers to the server and returns its verdict', async () => {
+    const gateway = fakeGateway();
+    gateway.submitAnswer.mockResolvedValue(result(true));
+    const cache = new SessionCache(gateway);
+    await expect(cache.submitAnswer(1, 11)).resolves.toEqual(result(true));
+    expect(gateway.submitAnswer).toHaveBeenCalledWith(1, 11);
+  });
+
+  it('passes on a failed submission', async () => {
+    const gateway = fakeGateway();
+    gateway.submitAnswer.mockRejectedValue(new ApiError('timeout', 'slow'));
+    const cache = new SessionCache(gateway);
+    await expect(cache.submitAnswer(1, 11)).rejects.toMatchObject({
+      kind: 'timeout',
+    });
   });
 });

@@ -1,11 +1,16 @@
 import type {Database} from 'better-sqlite3';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
-import {QuestionManager} from './QuestionManager';
-import type {AnswerProgress} from './AnswerProgress';
-import {createDataWriter, type DataWriter} from '../data-writer';
-import {openDb} from '../db/connection';
-import {migrate} from '../db/migrate';
-import {seed} from '../db/seed';
+import {QuestionManager} from '../src/question-manager/QuestionManager';
+import type {AnswerProgress} from '../src/question-manager/AnswerProgress';
+import {createDataWriter, type DataWriter} from '../src/data-writer';
+import {openDb} from '../src/db/connection';
+import {migrate} from '../src/db/migrate';
+import {seed} from '../src/db/seed';
+
+/** The number of reading slides on a planet. */
+const readingCount = (manager: QuestionManager, planetId: number) =>
+  manager.getPlanet(1, planetId).tasks.filter(task => task.type === 'Reading')
+    .length;
 
 describe('QuestionManager with the official migration and Data Writer', () => {
   let db: Database;
@@ -35,22 +40,7 @@ describe('QuestionManager with the official migration and Data Writer', () => {
 
   afterEach(() => db.close());
 
-  it('reads official readings in order without adding a lesson table or question relationship', () => {
-    const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
-    expect(manager.getLessons(1)).toEqual([
-      {
-        lessonId: 10,
-        lessonNumber: 1,
-        lessonName: 'Reading 1',
-        tasks: [{type: 'Reading', text: 'Slopes'}],
-      },
-      {
-        lessonId: 20,
-        lessonNumber: 2,
-        lessonName: 'Reading 2',
-        tasks: [{type: 'Reading', text: 'Intercepts'}],
-      },
-    ]);
+  it('has no lesson table or question-to-reading relationship', () => {
     const tables = db
       .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
       .pluck()
@@ -77,18 +67,18 @@ describe('QuestionManager with the official migration and Data Writer', () => {
 
   it('keeps questions available on a planet without readings and handles empty planets', () => {
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
-    expect(manager.getLessons(2)).toEqual([]);
+    expect(readingCount(manager, 2)).toBe(0);
     expect(manager.nextQuestion(1, 2)?.questionId).toBe(4);
-    expect(manager.getLessons(3)).toEqual([]);
+    expect(manager.getPlanet(1, 3).tasks).toEqual([]);
     expect(manager.nextQuestion(1, 3)).toBeNull();
   });
 
-  it('returns label-ordered safe options, qtype mapped to type, and unchanged graph JSON text', () => {
+  it('returns label-ordered safe options, qtype mapped to type, and parsed graph JSON', () => {
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
     expect(manager.nextQuestion(1, 1)).toEqual({
       questionId: 2,
       prompt: 'Slope?',
-      graph: '{"fn":"2*x+1"}',
+      graph: {fn: '2*x+1'},
       type: 'mcq',
       options: [
         {optionId: 21, label: 'a', text: '2'},
@@ -98,6 +88,40 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     expect(JSON.stringify(manager.nextQuestion(1, 1))).not.toMatch(
       /is_correct|isCorrect|correctOption|"correct"/,
     );
+  });
+
+  it('loads a planet as ordered readings then questions, no answer keys', () => {
+    const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
+    const planet = manager.getPlanet(1, 1);
+    expect(planet).toMatchObject({planetId: 1, name: 'Lines'});
+    expect(planet.tasks.map(task => task.type)).toEqual([
+      'Reading',
+      'Reading',
+      'Question',
+      'Question',
+      'Question',
+    ]);
+    expect(planet.tasks.slice(0, 2)).toEqual([
+      {type: 'Reading', text: 'Slopes'},
+      {type: 'Reading', text: 'Intercepts'},
+    ]);
+    expect(JSON.stringify(planet)).not.toMatch(
+      /is_correct|isCorrect|correctOption|"correct"/,
+    );
+    // manager.submit(1, 3, 31);
+    // expect(
+    //   manager
+    //     .getPlanet(1, 1)
+    //     .tasks.flatMap(task =>
+    //       task.type === 'Question'
+    //         ? [[task.question.questionId, task.solved]]
+    //         : [],
+    //     ),
+    // ).toEqual([
+    //   [2, false],
+    //   [3, true],
+    //   [7, false],
+    // ]);
   });
 
   it('records selected option IDs and official attempt metadata for wrong and correct answers', () => {
@@ -174,7 +198,7 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     expect(() => manager.submit(1, 999, 21)).toThrow(
       expect.objectContaining({code: 'NOT_FOUND'}),
     );
-    expect(() => manager.getLessons(999)).toThrow(
+    expect(() => manager.getPlanet(1, 999)).toThrow(
       expect.objectContaining({code: 'NOT_FOUND'}),
     );
     expect(() => manager.nextQuestion(1, 999)).toThrow(
@@ -207,7 +231,7 @@ describe('QuestionManager with the official migration and Data Writer', () => {
       "UPDATE questions SET qtype = 'free_response' WHERE question_id = 2",
     ).run();
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
-    expect(manager.getLessons(1)).toHaveLength(2);
+    expect(readingCount(manager, 1)).toBe(2);
     expect(() => manager.nextQuestion(1, 1)).toThrow(
       expect.objectContaining({code: 'INVALID_CONTENT'}),
     );
@@ -277,7 +301,7 @@ describe('QuestionManager with the official migration and Data Writer', () => {
           seededWriter.progress.incrementCorrect(event.userId, event.planetId);
         },
       });
-      expect(manager.getLessons(1)).toHaveLength(2);
+      expect(readingCount(manager, 1)).toBe(2);
       for (const question of seededWriter.content.getQuestions(1)) {
         expect(manager.nextQuestion(user.userId, 1)?.questionId).toBe(
           question.questionId,

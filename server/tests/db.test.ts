@@ -3,9 +3,9 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type {Database} from 'better-sqlite3';
-import {openDb} from './connection';
-import {migrate} from './migrate';
-import {seed} from './seed';
+import {openDb} from '../src/db/connection';
+import {migrate} from '../src/db/migrate';
+import {seed} from '../src/db/seed';
 
 describe('openDb', () => {
   it('enables foreign keys', () => {

@@ -1,28 +1,18 @@
+import type {Planet, QuestionTask, Task} from '@graphalaxy/shared';
+
 // --- view stuff ---
 import {ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
+import {SessionCache} from './SessionCache';
+import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
 
-// --- SessionCacheModels ---
-import {Planet, Task, QuestionTask} from './SessionCacheModels';
-
 // for MVP
-const VALID_READING = {type: 'Reading', text: 'The slope is m.'};
-const VALID_QUESTION = {
-  type: 'Question',
-  prompt: 'What is the slope of y = 2x + 3?',
-  options: ['1', '101', '2', '3'],
-  correct: 0,
-};
-const VALID_PLANET = {
-  planetId: 1,
-  name: 'Linear Land',
-  introText: 'A hostile world of straight lines.',
-  graphOrder: 0,
-  tasks: [VALID_READING, VALID_QUESTION],
-};
+const DEMO_USERNAME = 'demo';
+const DEMO_PLANET_ID = 1;
+const INTRO_INDEX = -1;
 
 /**
  * GameManager - coordinates game logic between SessionCache and UiManager
@@ -31,20 +21,42 @@ const VALID_PLANET = {
 export class GameManager {
   private ui: UiManager;
 
-  private planet: Planet;
+  private session: SessionCache;
   private taskIndex: number;
+  // True while an answer is with the server, so a double click sends one.
+  private answerPending = false;
 
-  constructor() {
+  /**
+   * Creates a new GameManager instance.
+   * @param session the SessionCache instance to use for game data
+   */
+  constructor(session: SessionCache = new SessionCache()) {
     this.ui = new UiManager('container', action => this.handleAction(action));
-
-    this.planet = Planet.createFromJson(JSON.stringify(VALID_PLANET));
-    this.taskIndex = 0;
+    this.session = session;
+    this.taskIndex = INTRO_INDEX;
   }
 
   /**
-   * Start the session
+   * Starts the game by logging in the demo user and loading the demo planet.
+   * @returns a promise that resolves when the game has started or failed to start
    */
-  start(): void {
+  async start(): Promise<void> {
+    try {
+      await this.session.login(DEMO_USERNAME);
+      await this.session.loadPlanet(DEMO_PLANET_ID);
+    } catch (error) {
+      console.error(error);
+      const offline =
+        error instanceof ApiError &&
+        (error.kind === 'network' || error.kind === 'timeout');
+      this.ui.displayScreen({
+        type: 'title',
+        title: offline
+          ? 'Server offline. Press Start to retry.'
+          : "Couldn't load the game. Press Start to retry.",
+      });
+      return;
+    }
     this.ui.displayScreen({type: 'title', title: 'Graphalaxy'});
   }
 
@@ -54,56 +66,106 @@ export class GameManager {
    */
   private handleAction(action: UiAction): void {
     // update view (UIManager)
+    const planet = this.session.currentPlanet;
+    if (!planet) {
+      if (action.type === 'start') {
+        void this.start();
+      }
+      return;
+    }
     switch (action.type) {
       case 'start': {
-        this.taskIndex = 0;
+        this.taskIndex = INTRO_INDEX;
         const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
-          this.planet.name,
-          this.planet.introText,
+          planet.name,
+          planet.introText,
         );
         this.ui.displayScreen(screenModel);
         break;
       }
       case 'answer': {
-        const task = this.planet.tasks[this.taskIndex];
-        if (!(task instanceof QuestionTask)) {
+        const task = planet.tasks[this.taskIndex];
+        if (task?.type !== 'Question' || this.answerPending) {
           return;
         }
-        const screenModel = screenModelMaker.makeQuestionResultScreen(
-          action.option === task.correct,
-        );
-        this.ui.displayScreen(screenModel);
+        void this.submitAnswer(planet, task, action.option);
         break;
       }
       case 'next': {
         this.taskIndex++;
-        if (this.taskIndex >= this.planet.tasks.length) {
+        if (this.taskIndex >= planet.tasks.length) {
           this.ui.displayScreen({
             type: 'title',
-            title: 'this is not actually a title screen',
+            title:
+              'OOPS! Youve reached the end of the planet and we havent coded anything else :(!!',
           });
         } else {
-          const task: Task = this.planet.tasks[this.taskIndex];
+          const task: Task = planet.tasks[this.taskIndex];
           const screenModel: ScreenModel = screenModelMaker.taskToScreen(task);
           this.ui.displayScreen(screenModel);
         }
         break;
       }
       case 'back': {
-        this.taskIndex--;
-        if (this.taskIndex <= 0) {
+        this.taskIndex = Math.max(this.taskIndex - 1, INTRO_INDEX);
+        if (this.taskIndex === INTRO_INDEX) {
           const screenModel = screenModelMaker.makeLessonIntroScreen(
-            this.planet.name,
-            this.planet.introText,
+            planet.name,
+            planet.introText,
           );
           this.ui.displayScreen(screenModel);
         } else {
-          const task: Task = this.planet.tasks[this.taskIndex];
+          const task: Task = planet.tasks[this.taskIndex];
           const screenModel: ScreenModel = screenModelMaker.taskToScreen(task);
           this.ui.displayScreen(screenModel);
         }
         break;
       }
+    }
+  }
+
+  /**
+   * Sends the chosen option to the server, which grades it, then shows the
+   * result. Drops the result if the player has moved to another slide or
+   * planet in the meantime.
+   * @param planet the planet the question is on
+   * @param task the question being answered
+   * @param optionIndex the index of the clicked option button
+   */
+  private async submitAnswer(
+    planet: Planet,
+    task: QuestionTask,
+    optionIndex: number,
+  ): Promise<void> {
+    const option = task.question.options[optionIndex];
+    if (!option) {
+      return;
+    }
+    const taskIndex = this.taskIndex;
+    const stillHere = () =>
+      this.session.currentPlanet === planet && this.taskIndex === taskIndex;
+    this.answerPending = true;
+    try {
+      const result = await this.session.submitAnswer(
+        task.question.questionId,
+        option.optionId,
+      );
+      if (stillHere()) {
+        this.ui.displayScreen(
+          screenModelMaker.makeQuestionResultScreen(result.correct),
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      if (stillHere()) {
+        this.ui.displayScreen({
+          type: 'questionResult',
+          // TODO: show a different message for each ApiError kind.
+          result: "We couldn't confirm your answer.",
+        });
+      }
+    } finally {
+      this.answerPending = false;
     }
   }
 }

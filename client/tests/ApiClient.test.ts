@@ -1,6 +1,6 @@
 import {describe, expect, it, vi} from 'vitest';
-import {ApiClient} from './ApiClient';
-import {ApiError} from './ApiError';
+import {ApiClient} from '../src/Frontend/ApiClient';
+import {ApiError} from '../src/Frontend/ApiError';
 
 const OPTIONS = {baseUrl: '/api', timeoutMs: 20, retries: 2};
 const PLAYER = {
@@ -18,14 +18,24 @@ const PLANET = {
     {type: 'Reading', text: 'A linear function has the form y = mx + b.'},
     {
       type: 'Question',
-      questionId: 1,
-      prompt: 'What is the slope of y = 2x + 3?',
-      graph: {fn: '2*x+3'},
-      options: ['2', '3', '4', 'undefined'],
-      correct: 0,
-      solved: false,
+      question: {
+        questionId: 1,
+        prompt: 'What is the slope of y = 2x + 3?',
+        graph: {fn: '2*x+3'},
+        type: 'mcq',
+        options: [
+          {optionId: 11, label: 'a', text: '2'},
+          {optionId: 12, label: 'b', text: '3'},
+        ],
+      },
+      // solved: false,
     },
   ],
+};
+const RESULT = {
+  questionId: 1,
+  correct: true,
+  correctOption: {optionId: 11, label: 'a', text: '2'},
 };
 
 /**
@@ -64,6 +74,21 @@ describe('ApiClient requests', () => {
     expect(init?.headers).toEqual({'Content-Type': 'application/json'});
   });
 
+  it('gets a planet for the logged-in user and parses it', async () => {
+    const {client, http} = await loggedIn(json(PLANET));
+    await expect(client.getPlanet(1)).resolves.toEqual(PLANET);
+    expect(http.mock.calls[1][0]).toBe('/api/users/7/planets/1');
+  });
+
+  it('submits an answer as a JSON POST and parses the result', async () => {
+    const {client, http} = await loggedIn(json(RESULT));
+    await expect(client.submitAnswer(1, 11)).resolves.toEqual(RESULT);
+    const [url, init] = http.mock.calls[1];
+    expect(url).toBe('/api/users/7/questions/1/answer');
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe(JSON.stringify({optionId: 11}));
+  });
+
   it('rejects user requests before login without calling http', async () => {
     const http = fakeHttp();
     await expect(new ApiClient(http, OPTIONS).getPlanet(1)).rejects.toThrow();
@@ -80,6 +105,14 @@ describe('ApiClient errors', () => {
     expect(error).toBeInstanceOf(ApiError);
     expect(error).toMatchObject({kind: 'http', status: 404});
   });
+
+  it.each(['{bad', JSON.stringify({planetId: 1})])(
+    'reports an invalid body %s as a parse error',
+    async body => {
+      const {client} = await loggedIn(new Response(body));
+      await expect(client.getPlanet(1)).rejects.toMatchObject({kind: 'parse'});
+    },
+  );
 
   it('times out a request that never answers', async () => {
     const hang: typeof fetch = (url, init) =>
@@ -119,5 +152,15 @@ describe('ApiClient retries', () => {
       status: 500,
     });
     expect(http).toHaveBeenCalledTimes(1);
+  });
+
+  it('never retries an answer submission', async () => {
+    const {client, http} = await loggedIn(json({}, 500));
+    await expect(client.submitAnswer(1, 11)).rejects.toMatchObject({
+      kind: 'http',
+      status: 500,
+    });
+    // login + 1 try
+    expect(http).toHaveBeenCalledTimes(2);
   });
 });

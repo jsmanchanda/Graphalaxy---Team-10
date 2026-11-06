@@ -1,6 +1,22 @@
 /*
-  @fileoverview Defines the models that store the parsed data from backend's JSON strings.
+  @fileoverview Checks that JSON from the backend matches the shared API
+  types. Each parser takes an already-parsed JSON value (ApiClient calls
+  JSON.parse once) and returns it typed, or throws an Error saying what is
+  wrong. The types themselves live in @graphalaxy/shared.
 */
+
+import type {
+  AnswerOption,
+  AnswerResult,
+  GraphSpec,
+  Planet,
+  Player,
+  Question,
+  QuestionTask,
+  ReadingTask,
+  Settings,
+  Task,
+} from '@graphalaxy/shared';
 
 import {
   MISSING_FIELDS_ERROR,
@@ -8,13 +24,6 @@ import {
   FIELD_RANGE_ERROR,
   TYPE_ERROR,
 } from './ErrorMessages';
-
-import type {
-  Planet as PlanetType,
-  Task as TaskType,
-  Reading as ReadingTaskType,
-  Question as QuestionTaskType,
-} from './types';
 
 /**
  * Checks whether a value is a JSON object (not null and not an array).
@@ -26,6 +35,12 @@ function isObject(x: unknown): x is Record<string, unknown> {
   return typeof x === 'object' && x !== null && !Array.isArray(x);
 }
 
+/**
+ * Checks that a value is an object with all the given fields.
+ * @param json The value to check.
+ * @param fields The field names that must be present.
+ * @throws {Error} Listing every missing field, or all of them for a non-object.
+ */
 function assertHasFields(
   json: unknown,
   fields: string[],
@@ -40,358 +55,209 @@ function assertHasFields(
 }
 
 /**
- * Stores user-specific gameplay settings.
- * @param musicVolume The volume level for music.
- * @param sfxVolume The volume level for sound effects.
+ * Checks that a value is a whole number of at least `min`.
+ * @param value The value to check.
+ * @param field The field name, for the error message.
+ * @param min The smallest allowed value.
+ * @returns The value as a number.
  */
-export class Settings {
-  musicVolume: number;
-  sfxVolume: number;
-  private constructor(musicVolume: number, sfxVolume: number) {
-    this.musicVolume = musicVolume;
-    this.sfxVolume = sfxVolume;
+function requireInteger(value: unknown, field: string, min: number): number {
+  if (typeof value !== 'number') {
+    throw new Error(TYPE_ERROR(field, 'number'));
   }
+  if (!Number.isSafeInteger(value) || value < min) {
+    throw new Error(FIELD_RANGE_ERROR(field, min, Number.MAX_SAFE_INTEGER));
+  }
+  return value;
+}
 
-  private static validateJson(
-    json: unknown,
-  ): asserts json is {musicVolume: number; sfxVolume: number} {
-    assertHasFields(json, ['musicVolume', 'sfxVolume']);
-    const settings = json;
+/**
+ * Checks that a value is a string.
+ * @param value The value to check.
+ * @param field The field name, for the error message.
+ * @returns The value as a string.
+ */
+function requireString(value: unknown, field: string): string {
+  if (typeof value !== 'string') {
+    throw new Error(TYPE_ERROR(field, 'string'));
+  }
+  return value;
+}
 
-    if (
-      typeof settings.musicVolume !== 'number' ||
-      settings.musicVolume < 0 ||
-      settings.musicVolume > 1
-    ) {
-      throw new Error(FIELD_RANGE_ERROR('musicVolume', 0, 1));
-    }
-    if (
-      typeof settings.sfxVolume !== 'number' ||
-      settings.sfxVolume < 0 ||
-      settings.sfxVolume > 1
-    ) {
-      throw new Error(FIELD_RANGE_ERROR('sfxVolume', 0, 1));
+/**
+ * Parses audio settings.
+ * @param json The parsed JSON value.
+ * @returns The settings.
+ * @throws {Error} If a field is missing or a volume is not between 0 and 1.
+ */
+export function parseSettings(json: unknown): Settings {
+  assertHasFields(json, ['musicVolume', 'sfxVolume']);
+  for (const field of ['musicVolume', 'sfxVolume'] as const) {
+    const volume = json[field];
+    if (typeof volume !== 'number' || !(volume >= 0 && volume <= 1)) {
+      throw new Error(FIELD_RANGE_ERROR(field, 0, 1));
     }
   }
-  /**
-   * Creates a Settings instance from a JSON string.
-   * @param jsonString The JSON string representing the settings.
-   * @returns A Settings instance.
-   * @throws {Error} An error if required fields are missing.
-   */
-  static createFromJson(jsonString: string): Settings {
-    const json = JSON.parse(jsonString);
-    // check the fields
-    Settings.validateJson(json);
-    const settings = new Settings(json.musicVolume, json.sfxVolume);
-    return settings;
+  return {
+    musicVolume: json.musicVolume as number,
+    sfxVolume: json.sfxVolume as number,
+  };
+}
+
+/**
+ * Parses a player and their nested settings.
+ * @param json The parsed JSON value.
+ * @returns The player.
+ * @throws {Error} If a field is missing or invalid. Settings errors are wrapped
+ * with CLASS_CREATION_ERROR('Settings', ...).
+ */
+export function parsePlayer(json: unknown): Player {
+  assertHasFields(json, ['userId', 'name', 'hintQuota', 'settings']);
+  if (typeof json.name !== 'string' || json.name.trim() === '') {
+    throw new Error(TYPE_ERROR('name', 'string'));
+  }
+  const userId = requireInteger(json.userId, 'userId', 1);
+  const hintQuota = requireInteger(json.hintQuota, 'hintQuota', 0);
+  let settings: Settings;
+  try {
+    settings = parseSettings(json.settings);
+  } catch (error) {
+    throw new Error(CLASS_CREATION_ERROR('Settings', error));
+  }
+  return {
+    userId,
+    name: json.name,
+    hintQuota,
+    settings,
+  };
+}
+
+/**
+ * Parses an answer option.
+ * @param json The parsed JSON value.
+ * @returns The option.
+ */
+export function parseAnswerOption(json: unknown): AnswerOption {
+  assertHasFields(json, ['optionId', 'label', 'text']);
+  return {
+    optionId: requireInteger(json.optionId, 'optionId', 1),
+    label: requireString(json.label, 'label'),
+    text: requireString(json.text, 'text'),
+  };
+}
+
+/**
+ * Parses a multiple-choice question. It carries no answer key.
+ * @param json The parsed JSON value.
+ * @returns The question.
+ */
+export function parseQuestion(json: unknown): Question {
+  assertHasFields(json, ['questionId', 'prompt', 'type', 'options']);
+  if (json.type !== 'mcq') {
+    throw new Error(`Unknown question type: ${json.type}`);
+  }
+  if (!Array.isArray(json.options) || json.options.length === 0) {
+    throw new Error(TYPE_ERROR('options', 'non-empty array'));
+  }
+  if ('graph' in json && !isObject(json.graph)) {
+    throw new Error(TYPE_ERROR('graph', 'object'));
+  }
+  return {
+    questionId: requireInteger(json.questionId, 'questionId', 1),
+    prompt: requireString(json.prompt, 'prompt'),
+    ...('graph' in json ? {graph: json.graph as GraphSpec} : {}),
+    type: 'mcq',
+    options: json.options.map(parseAnswerOption),
+  };
+}
+
+/**
+ * Parses a reading slide.
+ * @param json The parsed JSON value.
+ * @returns The reading task.
+ */
+export function parseReadingTask(json: unknown): ReadingTask {
+  assertHasFields(json, ['text']);
+  const text = requireString(json.text, 'text');
+  if (text.trim() === '') {
+    throw new Error('text cannot be empty');
+  }
+  return {type: 'Reading', text};
+}
+
+/**
+ * Parses a question slide.
+ * @param json The parsed JSON value.
+ * @returns The question task.
+ */
+export function parseQuestionTask(json: unknown): QuestionTask {
+  assertHasFields(json, ['question']);
+  return {
+    type: 'Question',
+    question: parseQuestion(json.question),
+    // solved: json.solved,
+  };
+}
+
+/**
+ * Parses one slide, choosing the parser by its `type`.
+ * @param json The parsed JSON value.
+ * @returns The task.
+ */
+export function parseTask(json: unknown): Task {
+  assertHasFields(json, ['type']);
+  switch (json.type) {
+    case 'Reading':
+      return parseReadingTask(json);
+    case 'Question':
+      return parseQuestionTask(json);
+    default:
+      throw new Error(`Unknown task type: ${json.type}`);
   }
 }
 
 /**
- * Stores a player's information.
- * @param userId The unique numeric identifier for the player.
- * @param hintQuota The number of hints available to the player.
- * @param settings The player's gameplay settings.
- * @param name The player's display name.
+ * Parses a planet and its ordered slides.
+ * @param json The parsed JSON value.
+ * @returns The planet.
  */
-export class Player {
-  userId: number;
-  hintQuota: number;
-  settings: Settings;
-  name: string;
-
-  /**
-   * Validates the JSON object for required fields.
-   * @param json The JSON object representing the player.
-   * @throws {Error} An error if required fields are missing.
-   */
-  private static validateJson(json: unknown): asserts json is {
-    userId: number;
-    name: string;
-    hintQuota: number;
-  } {
-    if (!isObject(json)) {
-      throw new Error(MISSING_FIELDS_ERROR(['userId', 'name', 'hintQuota']));
-    }
-    const player = json;
-    assertHasFields(player, ['userId', 'name', 'hintQuota']);
-
-    if (typeof player.name !== 'string' || player.name.trim() === '') {
-      throw new Error(TYPE_ERROR('name', 'string'));
-    }
-    if (typeof player.userId !== 'number' || player.userId < 0) {
-      throw new Error(FIELD_RANGE_ERROR('userId', 0, Infinity));
-    }
-    if (typeof player.hintQuota !== 'number' || player.hintQuota < 0) {
-      throw new Error(FIELD_RANGE_ERROR('hintQuota', 0, Infinity));
-    }
+export function parsePlanet(json: unknown): Planet {
+  assertHasFields(json, [
+    'planetId',
+    'name',
+    'introText',
+    'graphOrder',
+    'tasks',
+  ]);
+  const planetId = requireInteger(json.planetId, 'planetId', 1);
+  const name = requireString(json.name, 'name');
+  const introText = requireString(json.introText, 'introText');
+  const graphOrder = requireInteger(json.graphOrder, 'graphOrder', 0);
+  if (!Array.isArray(json.tasks)) {
+    throw new Error(TYPE_ERROR('tasks', 'array'));
   }
-
-  /**
-   * Creates a Player instance from a JSON string.
-   * @param jsonString The JSON string representing the player.
-   * @returns A Player instance.
-   * @throws {Error} An error if required fields are missing or if settings creation fails.
-   */
-  static createFromJson(jsonString: string): Player {
-    const json = JSON.parse(jsonString);
-    let settings;
-    try {
-      if (!isObject(json) || !('settings' in json)) {
-        throw new Error(MISSING_FIELDS_ERROR(['settings']));
-      }
-      settings = Settings.createFromJson(JSON.stringify(json.settings));
-    } catch (error) {
-      throw new Error(CLASS_CREATION_ERROR('Settings', error));
-    }
-
-    Player.validateJson(json);
-
-    const player = new Player(json.userId, json.name, json.hintQuota, settings);
-    return player;
-  }
-  private constructor(
-    userId: number,
-    name: string,
-    hintQuota: number,
-    settings: Settings,
-  ) {
-    this.userId = userId;
-    this.name = name;
-    this.hintQuota = hintQuota;
-    this.settings = settings;
-  }
+  return {
+    planetId,
+    name,
+    introText,
+    graphOrder,
+    tasks: json.tasks.map(parseTask),
+  };
 }
 
 /**
- * Planets represent a topic on the game map.
- * Each planet contains an introductory text and an ordered list of tasks.
+ * Parses the feedback for a submitted answer.
+ * @param json The parsed JSON value.
+ * @returns The answer result.
  */
-export class Planet {
-  planetId: number;
-  name: string;
-  introText: string;
-  graphOrder: number;
-  tasks: Task[];
-
-  /**
-   * Creates a new Planet instance.
-   * @param planetId Planet unique identifier.
-   * @param name Planet name.
-   * @param introText Introductory text for the planet.
-   * @param graphOrder Planet order in the game map.
-   * @param tasks The ordered list of reading and question tasks.
-   */
-  private constructor(
-    planetId: number,
-    name: string,
-    introText: string,
-    graphOrder: number,
-    tasks: Task[],
-  ) {
-    this.planetId = planetId;
-    this.name = name;
-    this.introText = introText;
-    this.graphOrder = graphOrder;
-    this.tasks = tasks;
+export function parseAnswerResult(json: unknown): AnswerResult {
+  assertHasFields(json, ['questionId', 'correct', 'correctOption']);
+  if (typeof json.correct !== 'boolean') {
+    throw new Error(TYPE_ERROR('correct', 'boolean'));
   }
-
-  /**
-   * Creates a new Planet instance from a JSON string.
-   * @param json The JSON string representing a Planet.
-   * @returns A Planet instance.
-   */
-  static createFromJson(json: string): Planet {
-    const obj: unknown = JSON.parse(json);
-    assertHasFields(obj, [
-      'planetId',
-      'name',
-      'introText',
-      'graphOrder',
-      'tasks',
-    ]);
-    if (typeof obj.planetId !== 'number') {
-      throw new Error(TYPE_ERROR('planetId', 'number'));
-    }
-    if (obj.planetId < 1 || !Number.isInteger(obj.planetId)) {
-      throw new Error(
-        FIELD_RANGE_ERROR('planetId', 1, Number.MAX_SAFE_INTEGER),
-      );
-    }
-    if (typeof obj.name !== 'string') {
-      throw new Error(TYPE_ERROR('name', 'string'));
-    }
-    if (typeof obj.introText !== 'string') {
-      throw new Error(TYPE_ERROR('introText', 'string'));
-    }
-    if (typeof obj.graphOrder !== 'number') {
-      throw new Error(TYPE_ERROR('graphOrder', 'number'));
-    }
-    if (obj.graphOrder < 0 || !Number.isInteger(obj.graphOrder)) {
-      throw new Error(
-        FIELD_RANGE_ERROR('graphOrder', 0, Number.MAX_SAFE_INTEGER),
-      );
-    }
-    if (!Array.isArray(obj.tasks)) {
-      throw new Error(TYPE_ERROR('tasks', 'array'));
-    }
-    const parsedTasks = obj.tasks.map((taskJson: unknown) => {
-      if (!isObject(taskJson) || !('type' in taskJson)) {
-        throw new Error(MISSING_FIELDS_ERROR(['type']));
-      }
-      switch (taskJson.type) {
-        case 'Reading':
-          return ReadingTask.createFromJson(JSON.stringify(taskJson));
-        case 'Question':
-          return QuestionTask.createFromJson(JSON.stringify(taskJson));
-        default:
-          throw new Error(`Unknown task type: ${taskJson.type}`);
-      }
-    });
-
-    return new Planet(
-      obj.planetId,
-      obj.name,
-      obj.introText,
-      obj.graphOrder,
-      parsedTasks,
-    );
-  }
-  /**
-   * Converts the Planet instance to its corresponding type representation.
-   * @returns A PlanetType object.
-   */
-  toType(): PlanetType {
-    return {
-      planetId: this.planetId,
-      name: this.name,
-      introText: this.introText,
-      graphOrder: this.graphOrder,
-      tasks: this.tasks.map(task => task.toType()),
-    };
-  }
-}
-
-/**
- * Generic task on a planet.
- */
-export abstract class Task {
-  abstract readonly taskType: 'Reading' | 'Question';
-  abstract toType(): TaskType;
-}
-
-/**
- * Reading task
- */
-export class ReadingTask extends Task {
-  readonly taskType = 'Reading' as const;
-  text: string;
-  /**
-   * Creates a new ReadingTask instance with the specified text.
-   * @param text The text content of the reading task.
-   */
-  private constructor(text: string) {
-    super();
-    this.text = text;
-  }
-  /**
-   * Creates a new ReadingTask instance from a JSON string.
-   * @param json The JSON string representing a ReadingTask.
-   * @returns A ReadingTask instance.
-   */
-  static createFromJson(json: string): ReadingTask {
-    const obj = JSON.parse(json);
-    assertHasFields(obj, ['text']);
-    if (typeof obj.text !== 'string') {
-      throw new Error(TYPE_ERROR('text', 'string'));
-    }
-    if (obj.text.trim() === '') {
-      throw new Error('text cannot be empty');
-    }
-    return new ReadingTask(obj.text);
-  }
-  /**
-   * Converts the ReadingTask instance to its corresponding type representation.
-   * @returns A ReadingTaskType object.
-   */
-  toType(): ReadingTaskType {
-    return {
-      type: this.taskType,
-      text: this.text,
-    };
-  }
-}
-
-/**
- * Question task
- */
-export class QuestionTask extends Task {
-  readonly taskType = 'Question' as const;
-  prompt: string;
-  options: string[];
-  correct: number;
-  /**
-   * Creates a new QuestionTask instance.
-   * @param prompt The question prompt.
-   * @param options The list of answer options.
-   * @param correct The index of the correct answer.
-   */
-  private constructor(prompt: string, options: string[], correct: number) {
-    super();
-    this.prompt = prompt;
-    this.options = options;
-    this.correct = correct;
-  }
-
-  /**
-   * Creates a new QuestionTask instance from a JSON string.
-   * @param json The JSON string representing a QuestionTask.
-   * @returns A QuestionTask instance.
-   */
-  static createFromJson(json: string): QuestionTask {
-    const obj: unknown = JSON.parse(json);
-    assertHasFields(obj, ['prompt', 'options', 'correct']);
-    if (typeof obj.prompt !== 'string') {
-      throw new Error(TYPE_ERROR('prompt', 'string'));
-    }
-    if (
-      !Array.isArray(obj.options) ||
-      !obj.options.every(option => typeof option === 'string')
-    ) {
-      throw new Error(TYPE_ERROR('options', 'string[]'));
-    }
-
-    if (
-      typeof obj.correct !== 'number' ||
-      !Number.isInteger(obj.correct) ||
-      obj.correct < 0 ||
-      obj.correct >= obj.options.length
-    ) {
-      if (obj.options.length === 0) {
-        throw new Error(
-          'options cannot be empty when specifying the correct answer index',
-        );
-      } else {
-        throw new Error(
-          FIELD_RANGE_ERROR('correct', 0, obj.options.length - 1),
-        );
-      }
-    }
-
-    return new QuestionTask(obj.prompt, obj.options, obj.correct);
-  }
-
-  /**
-   * Converts the QuestionTask instance to its corresponding type representation.
-   * @returns A QuestionTaskType object.
-   */
-  toType(): QuestionTaskType {
-    return {
-      type: this.taskType,
-      prompt: this.prompt,
-      options: this.options,
-      correct: this.correct,
-    };
-  }
+  return {
+    questionId: requireInteger(json.questionId, 'questionId', 1),
+    correct: json.correct,
+    correctOption: parseAnswerOption(json.correctOption),
+  };
 }

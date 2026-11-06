@@ -1,5 +1,5 @@
+import type {AnswerResult, Planet, Player} from '@graphalaxy/shared';
 import {ApiClient, type ServerGateway} from './ApiClient';
-import type {Planet, Player} from './SessionCacheModels';
 
 /**
  * Holds the player's session data and loads data from the backend.
@@ -44,5 +44,31 @@ export class SessionCache {
       this.currentPlanet = planet;
     }
     return planet;
+  }
+
+  /**
+   * Sends an answer to the server, which grades it. On a correct answer.
+   * @param questionId The question's ID.
+   * @param optionId The ID of the chosen option.
+   * @returns The server's verdict.
+   * @throws {ApiError} If the answer cannot be submitted.
+   */
+  async submitAnswer(
+    questionId: number,
+    optionId: number,
+  ): Promise<AnswerResult> {
+    // const result = await this.client.submitAnswer(questionId, optionId);
+    // if (result.correct) {
+    //   for (const task of this.currentPlanet?.tasks ?? []) {
+    //     if (
+    //       task.type === 'Question' &&
+    //       task.question.questionId === questionId
+    //     ) {
+    //       task.solved = true;
+    //     }
+    //   }
+    // }
+    // return result;
+    return this.client.submitAnswer(questionId, optionId);
   }
 }

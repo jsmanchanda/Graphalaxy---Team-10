@@ -1,9 +1,9 @@
 import {describe, expect, it, vi} from 'vitest';
 import Konva from 'konva';
-import {QuestionScreenModel} from '../types';
+import {QuestionScreenModel} from '../src/UI/types';
 
 // Create mock components for testing
-vi.mock('../components', () => {
+vi.mock('../src/UI/components', () => {
   class ButtonComponent {
     protected group: Konva.Group;
 
@@ -62,15 +62,13 @@ vi.mock('../components', () => {
   };
 });
 
-import {QuestionScreenView} from './QuestionScreenView';
+import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
 
 const questionModel: QuestionScreenModel = {
   type: 'question',
   question: {
-    type: 'Question',
     prompt: 'What is the answer?',
     options: ['Answer 1', 'Answer 2', 'Answer 3', 'Answer 4'],
-    correct: 0,
   },
 };
 
