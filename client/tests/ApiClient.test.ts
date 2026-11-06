@@ -28,7 +28,7 @@ const PLANET = {
           {optionId: 12, label: 'b', text: '3'},
         ],
       },
-      solved: false,
+      // solved: false,
     },
   ],
 };

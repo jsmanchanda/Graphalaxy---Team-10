@@ -2,7 +2,6 @@ import type {
   AnswerOption,
   AnswerResult,
   GraphSpec,
-  Lesson,
   Planet,
   Question,
   QuestionTask,
@@ -55,24 +54,8 @@ export class QuestionManager {
   ) {}
 
   /**
-   * Maps readings to legacy lesson pages, in reading-number order.
-   * Questions belong to planets, so these pages contain reading tasks only.
-   */
-  getLessons(planetId: number): Lesson[] {
-    return this.withStorageError('Unable to load lessons.', () => {
-      this.requirePlanet(planetId);
-      return this.dataWriter.content.getReadings(planetId).map(reading => ({
-        lessonId: reading.readingId,
-        lessonNumber: reading.readingNumber,
-        lessonName: `Reading ${reading.readingNumber}`,
-        tasks: [{type: 'Reading', text: reading.text}],
-      }));
-    });
-  }
-
-  /**
    * Returns a planet as the client displays it: its readings, then its
-   * questions with whether this user has solved each one. Answer keys are not
+   * questions. Answer keys are not
    * included; the client finds out through submit().
    */
   getPlanet(userId: number, planetId: number): Planet {
@@ -87,10 +70,10 @@ export class QuestionManager {
         .map(question => ({
           type: 'Question',
           question: this.toQuestion(question),
-          solved: this.dataWriter.answers.hasSolved(
-            userId,
-            question.questionId,
-          ),
+          // solved: this.dataWriter.answers.hasSolved(
+          //   userId,
+          //   question.questionId,
+          // ),
         }));
       return {
         planetId: planet.planetId,

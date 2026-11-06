@@ -4,7 +4,6 @@ export type {
   AnswerResult,
   ApiErrorBody,
   GraphSpec,
-  Lesson,
   LoginRequest,
   Planet,
   Player,

@@ -4,6 +4,7 @@ import type {Planet, QuestionTask, Task} from '@graphalaxy/shared';
 import {ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
 import {SessionCache} from './SessionCache';
+import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
@@ -11,6 +12,7 @@ import * as screenModelMaker from './screenModelMaker';
 // for MVP
 const DEMO_USERNAME = 'demo';
 const DEMO_PLANET_ID = 1;
+const INTRO_INDEX = -1;
 
 /**
  * GameManager - coordinates game logic between SessionCache and UiManager
@@ -31,7 +33,7 @@ export class GameManager {
   constructor(session: SessionCache = new SessionCache()) {
     this.ui = new UiManager('container', action => this.handleAction(action));
     this.session = session;
-    this.taskIndex = 0;
+    this.taskIndex = INTRO_INDEX;
   }
 
   /**
@@ -44,7 +46,15 @@ export class GameManager {
       await this.session.loadPlanet(DEMO_PLANET_ID);
     } catch (error) {
       console.error(error);
-      this.ui.displayScreen({type: 'title', title: 'Server offline'});
+      const offline =
+        error instanceof ApiError &&
+        (error.kind === 'network' || error.kind === 'timeout');
+      this.ui.displayScreen({
+        type: 'title',
+        title: offline
+          ? 'Server offline. Press Start to retry.'
+          : "Couldn't load the game. Press Start to retry.",
+      });
       return;
     }
     this.ui.displayScreen({type: 'title', title: 'Graphalaxy'});
@@ -58,11 +68,14 @@ export class GameManager {
     // update view (UIManager)
     const planet = this.session.currentPlanet;
     if (!planet) {
+      if (action.type === 'start') {
+        void this.start();
+      }
       return;
     }
     switch (action.type) {
       case 'start': {
-        this.taskIndex = 0;
+        this.taskIndex = INTRO_INDEX;
         const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
           planet.name,
           planet.introText,
@@ -94,8 +107,8 @@ export class GameManager {
         break;
       }
       case 'back': {
-        this.taskIndex--;
-        if (this.taskIndex < 0) {
+        this.taskIndex = Math.max(this.taskIndex - 1, INTRO_INDEX);
+        if (this.taskIndex === INTRO_INDEX) {
           const screenModel = screenModelMaker.makeLessonIntroScreen(
             planet.name,
             planet.introText,
@@ -147,9 +160,8 @@ export class GameManager {
       if (stillHere()) {
         this.ui.displayScreen({
           type: 'questionResult',
-          // The result screen only has a Next button, so say plainly that
-          // this answer was not recorded.
-          result: "Couldn't reach the server, so this answer wasn't checked.",
+          // TODO: show a different message for each ApiError kind.
+          result: "We couldn't confirm your answer.",
         });
       }
     } finally {

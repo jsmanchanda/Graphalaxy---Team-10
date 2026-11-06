@@ -53,7 +53,7 @@ export interface ReadingTask {
 export interface QuestionTask {
   type: 'Question';
   question: Question;
-  solved: boolean;
+  // solved: boolean;
 }
 
 /** One slide on a planet. */
@@ -65,14 +65,6 @@ export interface Planet {
   name: string;
   introText: string;
   graphOrder: number;
-  tasks: Task[];
-}
-
-/** A lesson's reading and question slides in display order. */
-export interface Lesson {
-  lessonId: number;
-  lessonNumber: number;
-  lessonName: string;
   tasks: Task[];
 }
 

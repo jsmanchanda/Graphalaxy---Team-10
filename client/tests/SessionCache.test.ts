@@ -11,7 +11,7 @@ const PLAYER: Player = {
   settings: {musicVolume: 0.5, sfxVolume: 0.5},
 };
 
-/** Builds a fresh planet, so tests that mark questions solved don't leak. */
+/** Builds a fresh planet. */
 function makePlanet(planetId = 1): Planet {
   return {
     planetId,
@@ -31,18 +31,18 @@ function makePlanet(planetId = 1): Planet {
             {optionId: questionId * 10 + 2, label: 'b', text: '3'},
           ],
         },
-        solved: false,
+        // solved: false,
       })),
     ],
   };
 }
 const PLANET = makePlanet();
 
-/** The solved flag of each question on a planet. */
-const solvedFlags = (planet: Planet | null) =>
-  planet?.tasks.flatMap(task =>
-    task.type === 'Question' ? [task.solved] : [],
-  );
+// /** The solved flag of each question on a planet. */
+// const solvedFlags = (planet: Planet | null) =>
+//   planet?.tasks.flatMap(task =>
+//     task.type === 'Question' ? [task.solved] : [],
+//   );
 
 /**
  * Builds a fake gateway that returns PLAYER and PLANET.
@@ -140,25 +140,12 @@ describe('SessionCache', () => {
     expect(cache.currentPlanet).toBeNull();
   });
 
-  it('sends answers to the server and marks a correct one solved', async () => {
+  it('sends answers to the server and returns its verdict', async () => {
     const gateway = fakeGateway();
-    gateway.getPlanet.mockResolvedValue(makePlanet());
     gateway.submitAnswer.mockResolvedValue(result(true));
     const cache = new SessionCache(gateway);
-    await cache.loadPlanet(1);
     await expect(cache.submitAnswer(1, 11)).resolves.toEqual(result(true));
     expect(gateway.submitAnswer).toHaveBeenCalledWith(1, 11);
-    expect(solvedFlags(cache.currentPlanet)).toEqual([true, false]);
-  });
-
-  it('leaves a question unsolved after a wrong answer', async () => {
-    const gateway = fakeGateway();
-    gateway.getPlanet.mockResolvedValue(makePlanet());
-    gateway.submitAnswer.mockResolvedValue(result(false));
-    const cache = new SessionCache(gateway);
-    await cache.loadPlanet(1);
-    await cache.submitAnswer(1, 12);
-    expect(solvedFlags(cache.currentPlanet)).toEqual([false, false]);
   });
 
   it('passes on a failed submission', async () => {

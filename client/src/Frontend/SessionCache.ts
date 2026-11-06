@@ -47,8 +47,7 @@ export class SessionCache {
   }
 
   /**
-   * Sends an answer to the server, which grades it. On a correct answer, marks
-   * the question solved in currentPlanet so the cache matches the server.
+   * Sends an answer to the server, which grades it. On a correct answer.
    * @param questionId The question's ID.
    * @param optionId The ID of the chosen option.
    * @returns The server's verdict.
@@ -58,17 +57,18 @@ export class SessionCache {
     questionId: number,
     optionId: number,
   ): Promise<AnswerResult> {
-    const result = await this.client.submitAnswer(questionId, optionId);
-    if (result.correct) {
-      for (const task of this.currentPlanet?.tasks ?? []) {
-        if (
-          task.type === 'Question' &&
-          task.question.questionId === questionId
-        ) {
-          task.solved = true;
-        }
-      }
-    }
-    return result;
+    // const result = await this.client.submitAnswer(questionId, optionId);
+    // if (result.correct) {
+    //   for (const task of this.currentPlanet?.tasks ?? []) {
+    //     if (
+    //       task.type === 'Question' &&
+    //       task.question.questionId === questionId
+    //     ) {
+    //       task.solved = true;
+    //     }
+    //   }
+    // }
+    // return result;
+    return this.client.submitAnswer(questionId, optionId);
   }
 }
