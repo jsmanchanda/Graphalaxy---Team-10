@@ -10,6 +10,8 @@
  * Errors are sent as ApiErrorBody with a 4xx or 5xx status.
  */
 
+import {MathFunction} from '../../client/src/Graphing/functions';
+
 /** A player's audio settings. Both volumes are between 0 and 1. */
 export interface Settings {
   musicVolume: number;
@@ -56,8 +58,17 @@ export interface QuestionTask {
   // solved: boolean;
 }
 
+/**
+ * Reading with a graph
+ */
+export interface VisualReadingTask {
+  type: 'VisualReading';
+  text: string;
+  mathFunction: MathFunction;
+}
+
 /** One slide on a planet. */
-export type Task = ReadingTask | QuestionTask;
+export type Task = ReadingTask | QuestionTask | VisualReadingTask;
 
 /** A planet with its slides in display order: readings, then questions. */
 export interface Planet {
