@@ -1,5 +1,6 @@
 import type {Group} from 'konva/lib/Group';
 import {MathFunction} from '../Graphing/functions';
+import {PlanetDisplay} from '../demos/NavigationDemo';
 
 /**
  * Data being displayed
@@ -17,7 +18,8 @@ export type UiAction =
   | {type: 'answer'; option: number}
   | {type: 'next'}
   | {type: 'back'}
-  | {type: 'retryLesson'};
+  | {type: 'retryLesson'}
+  | {type: 'enterPlanet'; planetId: number};
 
 // ================== Screens Models ===================
 /**
@@ -88,6 +90,15 @@ export interface VisualReadingScreenModel {
 }
 
 /**
+ * Data for navigation screen
+ */
+export interface NavigationScreenModel {
+  type: 'navigation';
+  planets: PlanetDisplay[];
+  overallStatus: string;
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -97,4 +108,5 @@ export type ScreenModel =
   | QuestionScreenModel
   | QuestionResultScreenModel
   | LessonResultScreenModel
-  | VisualReadingScreenModel;
+  | VisualReadingScreenModel
+  | NavigationScreenModel;

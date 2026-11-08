@@ -129,6 +129,7 @@ export class ImageComponent extends Component {
     width: number,
     height: number,
     url: string,
+    isGrayscale: boolean = false,
   ) {
     super(x, y);
 
@@ -136,7 +137,29 @@ export class ImageComponent extends Component {
       image.width(width);
       image.height(height);
       this.group.add(image);
+
+      if (isGrayscale) {
+        image.filters([Konva.Filters.Grayscale]);
+        image.cache();
+      }
+
       this.group.getLayer()?.batchDraw();
     });
+  }
+
+  /**
+   * Sets opacity of image
+   */
+  setOpacity(o: number): this {
+    this.group.opacity(o);
+    this.group.getLayer()?.batchDraw();
+    return this;
+  }
+
+  /**
+   * Forward event listeners directly to the hitbox so image can be interactive
+   */
+  on(evtStr: string, handler: (e: Konva.KonvaEventObject<MouseEvent>) => void) {
+    this.group.on(evtStr, handler);
   }
 }

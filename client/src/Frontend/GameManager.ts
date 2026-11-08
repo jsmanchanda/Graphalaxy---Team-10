@@ -1,6 +1,6 @@
 import type {Planet, QuestionTask, Task} from '@graphalaxy/shared';
 
-// --- view stuff ---
+// --- View Objects ---
 import {ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
 import {SessionCache} from './SessionCache';
