@@ -1,9 +1,8 @@
-/// <reference lib="dom" />
-
 import Konva from 'konva';
 import {TitleScreenView} from './screens/TitleScreenView';
 import {ReadingScreenView} from './screens/ReadingScreenView';
 import {QuestionScreenView} from './screens/QuestionScreenView';
+import {VisualReadingScreenView} from './screens/VisualReadingView';
 import {QuestionResultScreenView} from './screens/QuestionResultView';
 import {LessonIntroScreenView} from './screens/LessonIntroScreenView';
 import {LessonResultScreenView} from './screens/LessonResultScreenView';
@@ -34,7 +33,7 @@ export class UiManager {
       0,
       DESIGN_WIDTH,
       DESIGN_HEIGHT,
-      'assets/background.jpeg',
+      '/assets/background.jpeg',
     );
     this.layer = new Konva.Layer();
     this.layer.add(background.getGroup());
@@ -81,6 +80,9 @@ export class UiManager {
         break;
       case 'reading':
         this.currentView = new ReadingScreenView(this.onAction, model);
+        break;
+      case 'visualReading':
+        this.currentView = new VisualReadingScreenView(this.onAction, model);
         break;
       case 'question':
         this.currentView = new QuestionScreenView(this.onAction, model);

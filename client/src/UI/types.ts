@@ -1,4 +1,5 @@
 import type {Group} from 'konva/lib/Group';
+import {MathFunction} from '../Graphing/functions';
 
 /**
  * Data being displayed
@@ -78,6 +79,15 @@ export interface LessonResultScreenModel {
 }
 
 /**
+ * Reading with Graph
+ */
+export interface VisualReadingScreenModel {
+  type: 'visualReading';
+  readingText: string;
+  mathFunction: MathFunction;
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -86,4 +96,5 @@ export type ScreenModel =
   | ReadingScreenModel
   | QuestionScreenModel
   | QuestionResultScreenModel
-  | LessonResultScreenModel;
+  | LessonResultScreenModel
+  | VisualReadingScreenModel;
