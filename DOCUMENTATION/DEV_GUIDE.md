@@ -1,4 +1,4 @@
-# START HERE: Running, testing, and changing code in the Graphalaxy repo. 
+# START HERE: Running, testing, and changing code in the Graphalaxy repo.
 
 Commands assume you are in the repo root unless stated otherwise. Checked against the repository on November 2, 2026. See [Project architecture](PROJECT_ARCHITECTURE.md) for current implementation status.
 
@@ -11,11 +11,11 @@ Graphalaxy is one Git repository containing several packages managed by **npm wo
 ├─ client/              # frontend
 ├─ server/              # backend
 ├─ shared/              # shared workspace
-├─ DOCUMENTATION/       
+├─ DOCUMENTATION/
 ├─ .husky/              # git hooks: pre-commit, commit-msg
 ├─ .vscode/             # shared editor settings
 ├─ package.json         # root: workspaces list, scripts, shared dev tooling
-├─ package-lock.json    
+├─ package-lock.json
 ├─ tsconfig.json        # TypeScript config, extends the gts base config
 ├─ eslint.config.js     # lint rules
 └─ eslint.ignores.js, .prettierrc.js, .editorconfig, .nvmrc
@@ -90,17 +90,17 @@ Use VS Code. `.vscode/settings.json` formats on save with Prettier and applies E
 
 These are the root `devDependencies`. Version ranges are as of this writing, so check `package.json` for the current ones.
 
-| Package | Purpose |
-| --- | --- |
-| `typescript` | The compiler and type checker |
-| `gts` | Google TypeScript Style: lint and format presets, base tsconfig, and the `gts lint`, `gts fix`, `gts clean` commands |
-| `eslint` | Linter |
-| `eslint-plugin-jsdoc` | Requires doc comments on exported code |
-| `husky` | Runs git hooks |
-| `lint-staged` | Runs `eslint --fix` on the files you are committing |
-| `@commitlint/cli`, `@commitlint/config-conventional` | Enforces the commit message format |
-| `@types/node` | Type definitions for Node |
-| `vite` | Browser development and test tooling; also declared by the client workspace |
+| Package                                              | Purpose                                                                                                              |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `typescript`                                         | The compiler and type checker                                                                                        |
+| `gts`                                                | Google TypeScript Style: lint and format presets, base tsconfig, and the `gts lint`, `gts fix`, `gts clean` commands |
+| `eslint`                                             | Linter                                                                                                               |
+| `eslint-plugin-jsdoc`                                | Requires doc comments on exported code                                                                               |
+| `husky`                                              | Runs git hooks                                                                                                       |
+| `lint-staged`                                        | Runs `eslint --fix` on the files you are committing                                                                  |
+| `@commitlint/cli`, `@commitlint/config-conventional` | Enforces the commit message format                                                                                   |
+| `@types/node`                                        | Type definitions for Node                                                                                            |
+| `vite`                                               | Browser development and test tooling; also declared by the client workspace                                          |
 
 The root `package.json` also has an `overrides` entry that forces `tmp` to `^0.2.6`. Leave it unless you know why you are changing it.
 
@@ -108,11 +108,11 @@ The root `package.json` also has an `overrides` entry that forces `tmp` to `^0.2
 
 Installed with `npm ci`.
 
-| Workspace | Runtime | Dev |
-| --- | --- | --- |
-| `server` | `@graphalaxy/shared`, `express` (v5), `better-sqlite3` | `tsx`, `vitest`, `supertest`, `@types/express`, `@types/better-sqlite3`, `@types/supertest` |
-| `client` | `@graphalaxy/shared`, `konva` | `vite`, `vitest` |
-| `shared` | none (TypeScript response interfaces) | none |
+| Workspace | Runtime                                                | Dev                                                                                         |
+| --------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| `server`  | `@graphalaxy/shared`, `express` (v5), `better-sqlite3` | `tsx`, `vitest`, `supertest`, `@types/express`, `@types/better-sqlite3`, `@types/supertest` |
+| `client`  | `@graphalaxy/shared`, `konva`                          | `vite`, `vitest`                                                                            |
+| `shared`  | none (TypeScript response interfaces)                  | none                                                                                        |
 
 No graph-expression parser or `zod` dependency is currently declared.
 
@@ -128,14 +128,14 @@ No graph-expression parser or `zod` dependency is currently declared.
 
 ### 4.1 Root scripts
 
-| Command | What it does |
-| --- | --- |
-| `npm run lint` | `gts lint`: checks style and lint rules across the repo |
-| `npm run fix` | `gts fix`: auto-fixes lint and formatting problems |
-| `npm run compile` | `tsc`: type-checks and compiles to `build/` |
-| `npm run clean` | `gts clean`: deletes the `build/` output |
-| `npm test` | Compiles (`pretest`), lints and runs workspace tests (`test`), then lints again (`posttest`) |
-| `npm run prepare` | Runs `husky`. It runs automatically after install, so you never run it by hand |
+| Command           | What it does                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| `npm run lint`    | `gts lint`: checks style and lint rules across the repo                                      |
+| `npm run fix`     | `gts fix`: auto-fixes lint and formatting problems                                           |
+| `npm run compile` | `tsc`: type-checks and compiles to `build/`                                                  |
+| `npm run clean`   | `gts clean`: deletes the `build/` output                                                     |
+| `npm test`        | Compiles (`pretest`), lints and runs workspace tests (`test`), then lints again (`posttest`) |
+| `npm run prepare` | Runs `husky`. It runs automatically after install, so you never run it by hand               |
 
 ### 4.2 Run a script in one workspace
 
@@ -163,7 +163,7 @@ npm run dev -w client    # Vite, default port 5173; demo is at /demo.html
 
 `client/vite.config.ts` already proxies `/api` to `http://localhost:3000`. If you override the backend `PORT`, update the proxy target to match. There is no root `dev` script that starts both processes. `npm run start -w server` runs the backend without watch mode.
 
-**UI demo.** To run the client against the mock lesson data in `client/src/UI/test/UIDemo.ts` instead of `main.ts`:
+**UI demo.** To run the client against the mock lesson data in `client/src/demos/UIDemo.ts` instead of `main.ts`:
 
 ```bash
 npm run dev:demo -w client    # starts Vite and opens http://localhost:5173/demo.html
@@ -171,7 +171,11 @@ npm run dev:demo -w client    # starts Vite and opens http://localhost:5173/demo
 
 `client/demo.html` is a copy of `index.html` that loads `UIDemo.ts`. If the regular dev server is already running, you can also just open `/demo.html` in the browser.
 
-`client/src/main.ts` is currently empty, so the normal `/` page does not initialize the game. The UI demo uses fixed mock data and does not issue API requests; setting up the proxy does not connect it to the backend. The backend can be run separately to exercise its demo HTTP routes.
+**Graph demo.** To run the client against the mock graph data in `client/src/demos/GraphDemo.ts` instead of `main.ts`:
+
+```bash
+npm run dev:graph -w client    # starts Vite and opens http://localhost:5173/graph.html
+```
 
 ### 4.4 Local database and secrets
 
@@ -211,10 +215,10 @@ Vitest is installed and configured in both workspaces. The current suites contai
 
 The existing workspace scripts are:
 
-| Script | Client | Server |
-| --- | --- | --- |
-| `test` | `vitest run` | `vitest run` |
-| `test:watch` | `vitest` | `vitest watch` |
+| Script       | Client       | Server         |
+| ------------ | ------------ | -------------- |
+| `test`       | `vitest run` | `vitest run`   |
+| `test:watch` | `vitest`     | `vitest watch` |
 
 `supertest` and its types are already server development dependencies for future HTTP tests. Install the locked dependencies with `npm ci`; no separate Vitest setup is needed.
 
@@ -354,12 +358,12 @@ Each workspace has its own `package.json` so that it declares only the dependenc
 
 npm has no switch command. You choose a workspace either with a flag or by changing directory.
 
-| Goal | How |
-| --- | --- |
-| Run a script in one workspace | `npm run <script> -w <name>` from the root (preferred) |
-| Add or remove a dependency | `npm install <pkg> -w <name>` from the root |
-| Work in a workspace folder | `cd client` is fine for running scripts and editing files, but go back to the root to install |
-| Run a tool installed in a workspace | `npm exec -w client -- vite --version` |
+| Goal                                | How                                                                                           |
+| ----------------------------------- | --------------------------------------------------------------------------------------------- |
+| Run a script in one workspace       | `npm run <script> -w <name>` from the root (preferred)                                        |
+| Add or remove a dependency          | `npm install <pkg> -w <name>` from the root                                                   |
+| Work in a workspace folder          | `cd client` is fine for running scripts and editing files, but go back to the root to install |
+| Run a tool installed in a workspace | `npm exec -w client -- vite --version`                                                        |
 
 ### 7.3 Commands across all workspaces
 
@@ -410,19 +414,19 @@ import type {AnswerResult, Question} from '@graphalaxy/shared';
 
 The lint rules come from `gts` plus extra rules based on the Google TypeScript Style Guide (`eslint.config.js`). Formatting is automatic: Prettier runs on save and `npm run fix` handles the rest. These are the rules that most often trip up new contributors.
 
-| Rule | Do | Don't |
-| --- | --- | --- |
-| Exports | `export const x`, `export class Foo` | `export default ...` |
-| Doc comments | A `/** ... */` with a real description on every exported function, class, method, interface, type, and enum | Exported code with no comment, or an empty `/** */` |
-| Names | `camelCase` for variables, functions, properties; `PascalCase` for classes, types, interfaces; `UPPER_CASE` for enum members and constants | `snake_case`, leading or trailing underscores, `IUser` |
-| Acronyms | `loadHttpUrl` | `loadHTTPURL` |
-| Object shapes | `interface Foo {...}` | `type Foo = {...}` |
-| Types | `string[]`, `unknown`, `x as Foo` | `any`, `<Foo>x`, `Array<string>` |
-| Class members | `private` keyword, no `public` | `public` keyword, `#private` fields |
-| Exported bindings | `export const` | Exported `let` or `var` |
-| Enums | Plain `enum` | `const enum` |
-| Equality | `===` | `==` (comparing with `null` is allowed) |
-| Non-null assertion | Avoid it | `value!` (this is a warning) |
+| Rule               | Do                                                                                                                                         | Don't                                                  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------ |
+| Exports            | `export const x`, `export class Foo`                                                                                                       | `export default ...`                                   |
+| Doc comments       | A `/** ... */` with a real description on every exported function, class, method, interface, type, and enum                                | Exported code with no comment, or an empty `/** */`    |
+| Names              | `camelCase` for variables, functions, properties; `PascalCase` for classes, types, interfaces; `UPPER_CASE` for enum members and constants | `snake_case`, leading or trailing underscores, `IUser` |
+| Acronyms           | `loadHttpUrl`                                                                                                                              | `loadHTTPURL`                                          |
+| Object shapes      | `interface Foo {...}`                                                                                                                      | `type Foo = {...}`                                     |
+| Types              | `string[]`, `unknown`, `x as Foo`                                                                                                          | `any`, `<Foo>x`, `Array<string>`                       |
+| Class members      | `private` keyword, no `public`                                                                                                             | `public` keyword, `#private` fields                    |
+| Exported bindings  | `export const`                                                                                                                             | Exported `let` or `var`                                |
+| Enums              | Plain `enum`                                                                                                                               | `const enum`                                           |
+| Equality           | `===`                                                                                                                                      | `==` (comparing with `null` is allowed)                |
+| Non-null assertion | Avoid it                                                                                                                                   | `value!` (this is a warning)                           |
 
 Example that passes lint:
 
@@ -493,40 +497,40 @@ If a hook fails, the commit did not happen. Read the output, fix the problem, an
 
 ## 10. Troubleshooting
 
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| `EBADENGINE` warning, or odd syntax errors | Wrong Node version | `nvm install` then `nvm use`, check `node -v` |
-| `nvm: command not found` | Terminal not reloaded, or the shell profile lacks the nvm lines | Reopen the terminal, check `~/.zshrc` or `~/.bashrc` |
-| Git hooks never run | No `.git` folder (zip download) or husky not set up | Clone with git, run `npm ci` |
-| Commit rejected by commitlint | Message format | Use `feat: ...` style (section 9.2) |
-| `Cannot find module '@graphalaxy/shared'` | Workspace not linked | `npm install` at the root, check `ls node_modules/@graphalaxy` |
-| `npm ci` says lockfile is out of sync | Dependency changed without the lockfile | `npm install`, commit `package-lock.json` |
-| `TS18003: No inputs were found` | No `.ts` files yet | Add a `.ts` file under `client/`, `server/`, or `shared/` |
-| `better-sqlite3` fails to install | No prebuilt binary and no compiler | Windows: Visual Studio Build Tools, workload "Desktop development with C++". macOS: `xcode-select --install`. Linux: `sudo apt install build-essential python3`. Then `npm rebuild better-sqlite3` |
-| `better-sqlite3` errors after switching Node versions | Native module built for the old Node | `npm rebuild better-sqlite3` |
-| `No workspaces found` | Wrong `-w` name | `npm ls --workspaces --depth=0` |
-| `EADDRINUSE` (port in use) | Another process on that port | Stop it, or set a different `PORT` |
-| Naming-convention lint errors on DB fields | `snake_case` identifiers | Alias in SQL (section 8) |
-| Strange dependency state | Corrupted install | `rm -rf node_modules && npm ci` (on Windows, delete the folder in Explorer first) |
+| Symptom                                               | Likely cause                                                    | Fix                                                                                                                                                                                                |
+| ----------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `EBADENGINE` warning, or odd syntax errors            | Wrong Node version                                              | `nvm install` then `nvm use`, check `node -v`                                                                                                                                                      |
+| `nvm: command not found`                              | Terminal not reloaded, or the shell profile lacks the nvm lines | Reopen the terminal, check `~/.zshrc` or `~/.bashrc`                                                                                                                                               |
+| Git hooks never run                                   | No `.git` folder (zip download) or husky not set up             | Clone with git, run `npm ci`                                                                                                                                                                       |
+| Commit rejected by commitlint                         | Message format                                                  | Use `feat: ...` style (section 9.2)                                                                                                                                                                |
+| `Cannot find module '@graphalaxy/shared'`             | Workspace not linked                                            | `npm install` at the root, check `ls node_modules/@graphalaxy`                                                                                                                                     |
+| `npm ci` says lockfile is out of sync                 | Dependency changed without the lockfile                         | `npm install`, commit `package-lock.json`                                                                                                                                                          |
+| `TS18003: No inputs were found`                       | No `.ts` files yet                                              | Add a `.ts` file under `client/`, `server/`, or `shared/`                                                                                                                                          |
+| `better-sqlite3` fails to install                     | No prebuilt binary and no compiler                              | Windows: Visual Studio Build Tools, workload "Desktop development with C++". macOS: `xcode-select --install`. Linux: `sudo apt install build-essential python3`. Then `npm rebuild better-sqlite3` |
+| `better-sqlite3` errors after switching Node versions | Native module built for the old Node                            | `npm rebuild better-sqlite3`                                                                                                                                                                       |
+| `No workspaces found`                                 | Wrong `-w` name                                                 | `npm ls --workspaces --depth=0`                                                                                                                                                                    |
+| `EADDRINUSE` (port in use)                            | Another process on that port                                    | Stop it, or set a different `PORT`                                                                                                                                                                 |
+| Naming-convention lint errors on DB fields            | `snake_case` identifiers                                        | Alias in SQL (section 8)                                                                                                                                                                           |
+| Strange dependency state                              | Corrupted install                                               | `rm -rf node_modules && npm ci` (on Windows, delete the folder in Explorer first)                                                                                                                  |
 
 ## 11. Cheat sheet
 
-| Task | Command |
-| --- | --- |
-| Select Node version | `nvm use` |
-| Install everything | `npm ci` |
-| Lint | `npm run lint` |
-| Auto-fix lint and format | `npm run fix` |
-| Type-check and compile | `npm run compile` |
-| Run all checks | `npm test` |
-| Run the UI demo | `npm run dev:demo -w client` |
-| Remove build output | `npm run clean` |
-| Add a dependency | `npm install <pkg> -w <workspace>` |
-| Add a dev dependency | `npm install -D <pkg> -w <workspace>` |
-| Add root tooling | `npm install -D <pkg>` |
-| Remove a dependency | `npm uninstall <pkg> -w <workspace>` |
-| Run a script in one workspace | `npm run <script> -w <workspace>` |
-| Run a script in all workspaces | `npm run <script> -ws --if-present` |
-| List workspaces | `npm ls --workspaces --depth=0` |
-| See outdated packages | `npm outdated` |
-| Add a workspace | `npm init -w ./<folder> -y`, then `npm install` |
+| Task                           | Command                                         |
+| ------------------------------ | ----------------------------------------------- |
+| Select Node version            | `nvm use`                                       |
+| Install everything             | `npm ci`                                        |
+| Lint                           | `npm run lint`                                  |
+| Auto-fix lint and format       | `npm run fix`                                   |
+| Type-check and compile         | `npm run compile`                               |
+| Run all checks                 | `npm test`                                      |
+| Run the UI demo                | `npm run dev:demo -w client`                    |
+| Remove build output            | `npm run clean`                                 |
+| Add a dependency               | `npm install <pkg> -w <workspace>`              |
+| Add a dev dependency           | `npm install -D <pkg> -w <workspace>`           |
+| Add root tooling               | `npm install -D <pkg>`                          |
+| Remove a dependency            | `npm uninstall <pkg> -w <workspace>`            |
+| Run a script in one workspace  | `npm run <script> -w <workspace>`               |
+| Run a script in all workspaces | `npm run <script> -ws --if-present`             |
+| List workspaces                | `npm ls --workspaces --depth=0`                 |
+| See outdated packages          | `npm outdated`                                  |
+| Add a workspace                | `npm init -w ./<folder> -y`, then `npm install` |
