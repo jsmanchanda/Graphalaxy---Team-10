@@ -17,10 +17,10 @@ import {UiManager} from '../UI/UIManager';
  * Represents plants status
  */
 export enum PlanetStatus {
-  COMPLETE,
-  IN_PROGRESS,
-  REACHABLE,
-  UNREACHABLE,
+  COMPLETE = 'green',
+  IN_PROGRESS = 'orange',
+  REACHABLE = 'yellow',
+  UNREACHABLE = 'grey',
 }
 
 /**
@@ -33,6 +33,11 @@ export interface PlanetDisplay {
 }
 
 const displayPlanets: PlanetDisplay[] = [
+  {
+    name: 'Home',
+    status: PlanetStatus.COMPLETE,
+    position: 0,
+  },
   {
     name: 'planet1',
     status: PlanetStatus.COMPLETE,

@@ -94,6 +94,14 @@ export class TextBoxComponent extends Component {
     this.label.fontSize(fontSize);
     return this;
   }
+
+  /**
+   * sets font color
+   */
+  setTextColor(color: string): this {
+    this.label.fill(color);
+    return this;
+  }
 }
 
 /**
