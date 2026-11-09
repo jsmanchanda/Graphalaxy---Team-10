@@ -8,6 +8,7 @@ import type {
   VisualReadingTask,
   Task,
 } from '@graphalaxy/shared';
+import {PlanetSummary} from '../demos/NavigationDemo'; // TODO: build this in Session Cache
 
 // screen models (output)
 import type {
@@ -17,6 +18,7 @@ import type {
   QuestionResultScreenModel,
   LessonIntroScreenModel,
   VisualReadingScreenModel,
+  NavigationScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
 
@@ -99,6 +101,25 @@ export function visualReadingTaskToScreen(
     type: 'visualReading',
     readingText: task.text,
     mathFunction: task.mathFunction,
+  };
+}
+
+/**
+ * Makes model for UI nav screen
+ */
+export function makeNavScreen(
+  allPlanets: PlanetSummary[],
+): NavigationScreenModel {
+  // Compute total planet completion
+  let totalProgress = 0;
+  const totalPlanets = allPlanets.length - 1; // home planet doesnt count
+  for (let i = 1; i < allPlanets.length; ++i) {
+    totalProgress += allPlanets[i].completionPct;
+  }
+  return {
+    type: 'navigation',
+    planets: allPlanets,
+    overallStatus: totalProgress / totalPlanets,
   };
 }
 
