@@ -2,68 +2,71 @@ import {FONT_CONTHRAX, FONT_PLANET_KOSMOS} from '../UI/constants';
 import {NavigationScreenModel} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
 
-// export interface NavigationScreenModel {
-//   type: 'navigation';
-// }
-
-// /**
-//  *
-//  */
-// export interface PlanetProgress {
-//   progress: number;
-// }
-
-/**
- * Represents plants status
- */
-export enum PlanetStatus {
-  COMPLETE = 'green',
-  IN_PROGRESS = 'orange',
-  REACHABLE = 'yellow',
-  UNREACHABLE = 'grey',
-}
-
 /**
  * Planet display data
  */
-export interface PlanetDisplay {
+export interface PlanetSummary {
+  planetId: number;
   name: string;
-  status: PlanetStatus;
-  position: number;
+  graphOrder: number;
+  prereqIds: number[] | null; // Planet id (OR relation)
+  unlocked: boolean; // true if any prereq is unlocked
+  status: 'friendly' | 'hostile';
+  completionPct: number; // percentage 0-1
 }
 
-const displayPlanets: PlanetDisplay[] = [
+export const allPlanets: PlanetSummary[] = [
   {
+    planetId: 0,
     name: 'Home',
-    status: PlanetStatus.COMPLETE,
-    position: 0,
+    graphOrder: 0,
+    prereqIds: null,
+    unlocked: true,
+    status: 'friendly',
+    completionPct: 1,
   },
   {
-    name: 'planet1',
-    status: PlanetStatus.COMPLETE,
-    position: 1,
+    planetId: 1,
+    name: 'PLanet A',
+    graphOrder: 1,
+    prereqIds: [0],
+    unlocked: true,
+    status: 'friendly',
+    completionPct: 1,
   },
   {
-    name: 'planet2',
-    status: PlanetStatus.IN_PROGRESS,
-    position: 2,
+    planetId: 2,
+    name: 'Planet B',
+    graphOrder: 2,
+    prereqIds: [1],
+    unlocked: true,
+    status: 'friendly',
+    completionPct: 0.2,
   },
   {
-    name: 'planet3',
-    status: PlanetStatus.REACHABLE,
-    position: 3,
+    planetId: 3,
+    name: 'Planet C',
+    graphOrder: 2,
+    prereqIds: [1],
+    unlocked: true,
+    status: 'friendly',
+    completionPct: 0.7,
   },
   {
-    name: 'planet4',
-    status: PlanetStatus.UNREACHABLE,
-    position: 4,
+    planetId: 4,
+    name: 'PLANET D',
+    graphOrder: 3,
+    prereqIds: [2, 3],
+    unlocked: false,
+    status: 'hostile',
+    completionPct: 0,
   },
 ];
 
 const model: NavigationScreenModel = {
   type: 'navigation',
-  planets: displayPlanets,
-  overallStatus: '90',
+  planets: allPlanets,
+  overallStatus: 0.2,
 };
 
 const fonts = [

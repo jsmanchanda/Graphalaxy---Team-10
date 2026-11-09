@@ -8,11 +8,13 @@ import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
+import {allPlanets, PlanetSummary} from '../demos/NavigationDemo';
 
 // for MVP
 const DEMO_USERNAME = 'demo';
 const DEMO_PLANET_ID = 1;
 const INTRO_INDEX = -1;
+const DEMO_ALL_PLANETS: PlanetSummary[] = allPlanets;
 
 /**
  * GameManager - coordinates game logic between SessionCache and UiManager
@@ -20,11 +22,13 @@ const INTRO_INDEX = -1;
  */
 export class GameManager {
   private ui: UiManager;
-
   private session: SessionCache;
+
+  private currentPlanetId: number;
+  private allPlanets: PlanetSummary[];
   private taskIndex: number;
-  // True while an answer is with the server, so a double click sends one.
-  private answerPending = false;
+
+  private answerPending = false; // True while an answer is with the server, so a double click sends one.
 
   /**
    * Creates a new GameManager instance.
@@ -33,7 +37,11 @@ export class GameManager {
   constructor(session: SessionCache = new SessionCache()) {
     this.ui = new UiManager('container', action => this.handleAction(action));
     this.session = session;
+    this.currentPlanetId = 0;
     this.taskIndex = INTRO_INDEX;
+
+    // TODO: put this in start() and call session manager for it
+    this.allPlanets = DEMO_ALL_PLANETS;
   }
 
   /**
@@ -66,6 +74,7 @@ export class GameManager {
    */
   private handleAction(action: UiAction): void {
     // update view (UIManager)
+    console.log(action);
     const planet = this.session.currentPlanet;
     if (!planet) {
       if (action.type === 'start') {
@@ -75,7 +84,23 @@ export class GameManager {
     }
     switch (action.type) {
       case 'start': {
-        this.taskIndex = INTRO_INDEX;
+        const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
+          this.allPlanets,
+        );
+        this.ui.displayScreen(screenModel);
+        break;
+      }
+      case 'navigate': {
+        const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
+          this.allPlanets,
+        );
+        this.ui.displayScreen(screenModel);
+        break;
+      }
+      case 'enterPlanet': {
+        this.currentPlanetId = action.planetId;
+        this.currentPlanetId = DEMO_PLANET_ID; // DEMO, need to remove
+        // await this.session.loadPlanet(this.currentPlanetId);
         const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
           planet.name,
           planet.introText,
@@ -94,11 +119,11 @@ export class GameManager {
       case 'next': {
         this.taskIndex++;
         if (this.taskIndex >= planet.tasks.length) {
-          this.ui.displayScreen({
-            type: 'title',
-            title:
-              'OOPS! Youve reached the end of the planet and we havent coded anything else :(!!',
-          });
+          this.taskIndex = -1;
+          const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
+            this.allPlanets,
+          );
+          this.ui.displayScreen(screenModel);
         } else {
           const task: Task = planet.tasks[this.taskIndex];
           const screenModel: ScreenModel = screenModelMaker.taskToScreen(task);
@@ -107,14 +132,21 @@ export class GameManager {
         break;
       }
       case 'back': {
-        this.taskIndex = Math.max(this.taskIndex - 1, INTRO_INDEX);
         if (this.taskIndex === INTRO_INDEX) {
-          const screenModel = screenModelMaker.makeLessonIntroScreen(
-            planet.name,
-            planet.introText,
+          const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
+            this.allPlanets,
           );
           this.ui.displayScreen(screenModel);
+        } else if (this.taskIndex === 0) {
+          this.taskIndex--;
+          const screenModel: ScreenModel =
+            screenModelMaker.makeLessonIntroScreen(
+              planet.name,
+              planet.introText,
+            );
+          this.ui.displayScreen(screenModel);
         } else {
+          this.taskIndex--;
           const task: Task = planet.tasks[this.taskIndex];
           const screenModel: ScreenModel = screenModelMaker.taskToScreen(task);
           this.ui.displayScreen(screenModel);
