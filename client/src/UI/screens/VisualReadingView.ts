@@ -70,7 +70,6 @@ export class VisualReadingScreenView implements View {
       VISUAL_READING_GRAPH_Y,
       VISUAL_READING_GRAPH_WIDTH,
       VISUAL_READING_GRAPH_HEIGHT,
-      model.mathFunction,
     );
 
     this.group.add(nextButton.getGroup());

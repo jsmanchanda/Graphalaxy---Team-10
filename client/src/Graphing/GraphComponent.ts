@@ -1,10 +1,13 @@
 import Konva from 'konva';
 import {TEXT_BOX_BORDER_COLOR, TEXT_BOX_FILL_COLOR} from '../UI/constants';
 import {Component} from '../UI/components';
-import {MathFunction} from './functions';
+import {Interval} from './functions';
 
 const NUMBER_OF_X_LINES = 10;
 const NUMBER_OF_Y_LINES = 10;
+
+const DEFAULT_INTERVAL_X = new Interval(-10, 10);
+const DEFAULT_INTERVAL_Y = new Interval(-10, 10);
 
 /**
  * Renders graph in the screen
@@ -14,7 +17,8 @@ export class GraphComponent extends Component {
   protected pixelHeight: number;
   protected unitWidth: number;
   protected unitHeight: number;
-  protected mathFunction: MathFunction;
+  protected xInterval: Interval;
+  protected yInterval: Interval;
 
   /**
    * Builds the button.
@@ -24,14 +28,17 @@ export class GraphComponent extends Component {
     y: number,
     width: number,
     height: number,
-    mathFunction: MathFunction,
+    xInterval: Interval = DEFAULT_INTERVAL_X,
+    yInterval: Interval = DEFAULT_INTERVAL_Y,
+    equation?: string,
   ) {
     super(x, y);
-    this.mathFunction = mathFunction;
-    this.unitWidth = mathFunction.xInterval.getLength();
-    this.unitHeight = mathFunction.yInterval.getLength();
+    this.unitWidth = xInterval.getLength();
+    this.unitHeight = yInterval.getLength();
     this.pixelWidth = width;
     this.pixelHeight = height;
+    this.xInterval = xInterval = DEFAULT_INTERVAL_X;
+    this.yInterval = yInterval = DEFAULT_INTERVAL_Y;
 
     // Graph background
     const box = new Konva.Rect({
@@ -50,14 +57,13 @@ export class GraphComponent extends Component {
 
     // Graph lines and labels
     for (
-      let i = mathFunction.xInterval.start;
-      i <= mathFunction.xInterval.finish;
+      let i = xInterval.start;
+      i <= xInterval.finish;
       i += this.unitWidth / NUMBER_OF_X_LINES
     )
     // i += (this.unitWidth / width) * pixelGapBetweenLines
     {
-      const linePositionX =
-        Math.abs(i - mathFunction.xInterval.start) * pixelsPerUnitWidth;
+      const linePositionX = Math.abs(i - xInterval.start) * pixelsPerUnitWidth;
       const xLine = new Konva.Line({
         points: [linePositionX, 0, linePositionX, height],
         stroke: '#ffffff',
@@ -69,7 +75,7 @@ export class GraphComponent extends Component {
         continue;
       }
       const lineLabel = new Konva.Text({
-        x: Math.abs(i - mathFunction.xInterval.start) * pixelsPerUnitWidth + 3,
+        x: Math.abs(i - xInterval.start) * pixelsPerUnitWidth + 3,
         y: height / 2,
         text: String(Math.round(i * 100) / 100),
         fontSize: 8,
@@ -80,15 +86,14 @@ export class GraphComponent extends Component {
       this.group.add(lineLabel);
     }
     for (
-      let i = mathFunction.yInterval.start;
-      i <= mathFunction.yInterval.finish;
+      let i = yInterval.start;
+      i <= yInterval.finish;
       i += this.unitHeight / NUMBER_OF_Y_LINES
     )
     // i += (this.unitHeight / this.pixelHeight) * pixelGapBetweenLines
     {
       const linePositionY =
-        this.pixelHeight -
-        Math.abs(i - mathFunction.yInterval.start) * pixelsPerUnitHeight;
+        this.pixelHeight - Math.abs(i - yInterval.start) * pixelsPerUnitHeight;
       const yLine = new Konva.Line({
         points: [0, linePositionY, width, linePositionY],
         stroke: '#d9d9e3',
@@ -111,8 +116,9 @@ export class GraphComponent extends Component {
       });
       this.group.add(lineLabel);
     }
-
-    this.drawFunction(mathFunction.toFunction());
+    if (equation) {
+      this.drawFunction(this.stringToMathFunction(equation));
+    }
   }
 
   /**
@@ -120,7 +126,7 @@ export class GraphComponent extends Component {
    */
   convertToPixelsX(x: number) {
     const pixelsPerUnitWidth = this.pixelWidth / this.unitWidth;
-    return (x - this.mathFunction.xInterval.start) * pixelsPerUnitWidth;
+    return (x - this.xInterval.start) * pixelsPerUnitWidth;
   }
 
   /**
@@ -128,10 +134,50 @@ export class GraphComponent extends Component {
    */
   convertToPixelsY(y: number) {
     const pixelsPerUnitHeight = this.pixelHeight / this.unitHeight;
-    return (
-      this.pixelHeight -
-      (y - this.mathFunction.yInterval.start) * pixelsPerUnitHeight
-    );
+    return this.pixelHeight - (y - this.yInterval.start) * pixelsPerUnitHeight;
+  }
+
+  /**
+   * draws lines
+   */
+  drawFunction(onCompute: (x: number) => number): void {
+    const allFunctions = this.group.find('.displayFunction');
+    allFunctions.forEach(func => {
+      func.destroy();
+    });
+    const pixelPoints: number[] = []; // [x1, y1 ,x2, y2,...]
+    for (let i = this.xInterval.start; i < this.xInterval.finish; i += 0.001) {
+      let x = i;
+      let y = onCompute(i);
+      x = this.convertToPixelsX(x);
+      y = this.convertToPixelsY(y);
+      if (y >= 0 && y <= this.pixelHeight) {
+        pixelPoints.push(x);
+        pixelPoints.push(y);
+      }
+    }
+
+    const functionCurve = new Konva.Line({
+      name: 'displayFunction',
+      points: pixelPoints,
+      stroke: 'green',
+      strokeWidth: 2.5,
+      lineCap: 'round',
+      lineJoin: 'round',
+    });
+    this.group.add(functionCurve);
+  }
+
+  /**
+   * Converts a string to the function it corresponds to
+   */
+  stringToMathFunction(equation: string): (x: number) => number {
+    const functionBody = `return ${equation};`;
+    console.log(functionBody);
+    const dynamicMathFunc = new Function('x', functionBody) as (
+      x: number,
+    ) => number;
+    return dynamicMathFunc;
   }
 
   /**
@@ -146,35 +192,5 @@ export class GraphComponent extends Component {
       fill: 'red', // Fill color
     });
     this.group.add(debugPoint);
-  }
-
-  /**
-   * draws lines
-   */
-  drawFunction(onCompute: (x: number) => number): void {
-    const pixelPoints: number[] = []; // [x1, y1 ,x2, y2,...]
-    for (
-      let i = this.mathFunction.xInterval.start;
-      i < this.mathFunction.xInterval.finish;
-      i += 0.001
-    ) {
-      let x = i;
-      let y = onCompute(i);
-      x = this.convertToPixelsX(x);
-      y = this.convertToPixelsY(y);
-      if (y >= 0 && y <= this.pixelHeight) {
-        pixelPoints.push(x);
-        pixelPoints.push(y);
-      }
-    }
-
-    const functionCurve = new Konva.Line({
-      points: pixelPoints,
-      stroke: 'green',
-      strokeWidth: 2.5,
-      lineCap: 'round',
-      lineJoin: 'round',
-    });
-    this.group.add(functionCurve);
   }
 }

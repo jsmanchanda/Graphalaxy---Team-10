@@ -28,19 +28,10 @@ export class Interval {
   }
 }
 
-const DEFAULT_INTERVAL_X = new Interval(-10, 10);
-const DEFAULT_INTERVAL_Y = new Interval(-10, 10);
 /**
  * Generic Function
  */
 export abstract class MathFunction {
-  xInterval: Interval = new Interval(-10, 10);
-  yInterval: Interval = new Interval(-10, 10);
-
-  constructor() {
-    this.xInterval = DEFAULT_INTERVAL_X;
-    this.yInterval = DEFAULT_INTERVAL_Y;
-  }
   /**
    * arbitrary function of number to number
    */
