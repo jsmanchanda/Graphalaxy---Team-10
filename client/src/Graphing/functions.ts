@@ -4,13 +4,22 @@
 export class Interval {
   start: number;
   finish: number;
+  distanceBetweenTicks: number;
+  isPi: boolean;
 
   /**
    * defines bounds of the interval
    */
-  constructor(start: number, finish: number) {
+  constructor(
+    start: number,
+    finish: number,
+    distanceBetweenTicks: number,
+    isPi: boolean = false,
+  ) {
     this.start = start;
     this.finish = finish;
+    this.distanceBetweenTicks = distanceBetweenTicks;
+    this.isPi = isPi;
   }
 
   /**

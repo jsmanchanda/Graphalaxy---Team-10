@@ -3,12 +3,11 @@ import {TEXT_BOX_BORDER_COLOR, TEXT_BOX_FILL_COLOR} from '../UI/constants';
 import {Component} from '../UI/components';
 import {Interval} from './functions';
 
-const NUMBER_OF_X_LINES = 10;
-const NUMBER_OF_Y_LINES = 10;
+const DEFAULT_INTERVAL_X = new Interval(-10, 10, 1);
+const DEFAULT_INTERVAL_Y = new Interval(-10, 10, 1);
 
-const DEFAULT_INTERVAL_X = new Interval(-10, 10);
-const DEFAULT_INTERVAL_Y = new Interval(-10, 10);
-
+// const MAX_DISTANCE_BETWEEN_LINES_PIXELS = 20;
+const LABEL_FONTSIZE = 8;
 /**
  * Renders graph in the screen
  */
@@ -46,8 +45,8 @@ export class GraphComponent extends Component {
     this.unitHeight = yInterval.getLength();
     this.pixelWidth = width;
     this.pixelHeight = height;
-    this.xInterval = xInterval = DEFAULT_INTERVAL_X;
-    this.yInterval = yInterval = DEFAULT_INTERVAL_Y;
+    this.xInterval = xInterval;
+    this.yInterval = yInterval;
 
     // Graph background
     const box = new Konva.Rect({
@@ -60,71 +59,101 @@ export class GraphComponent extends Component {
 
     this.group.add(box);
 
-    const pixelsPerUnitWidth = this.pixelWidth / this.unitWidth;
-    const pixelsPerUnitHeight = this.pixelHeight / this.unitHeight;
-    const pixelGapBetweenLines = 40;
-
-    // Graph lines and labels
+    // Draw horizontal lines and labels
     for (
-      let i = xInterval.start;
-      i <= xInterval.finish;
-      i += this.unitWidth / NUMBER_OF_X_LINES
-    )
-    // i += (this.unitWidth / width) * pixelGapBetweenLines
-    {
-      const linePositionX = Math.abs(i - xInterval.start) * pixelsPerUnitWidth;
-      const xLine = new Konva.Line({
-        points: [linePositionX, 0, linePositionX, height],
+      let i = xInterval.getCenter(), j = xInterval.getCenter();
+      i <= xInterval.finish || j >= xInterval.start;
+      i += xInterval.distanceBetweenTicks, j -= xInterval.distanceBetweenTicks
+    ) {
+      const rightLinePositionX = this.convertToPixelsX(i);
+      const leftLinePositionX = this.convertToPixelsX(j);
+      const rightLineX = new Konva.Line({
+        points: [rightLinePositionX, 0, rightLinePositionX, height],
         stroke: '#ffffff',
         strokeWidth: 1,
       });
-      this.group.add(xLine);
+      this.group.add(rightLineX);
+      const leftLineX = new Konva.Line({
+        points: [leftLinePositionX, 0, leftLinePositionX, height],
+        stroke: '#ffffff',
+        strokeWidth: 1,
+      });
+      this.group.add(leftLineX);
 
-      if (linePositionX >= width || linePositionX <= 0) {
-        continue;
-      }
-      const lineLabel = new Konva.Text({
-        x: Math.abs(i - xInterval.start) * pixelsPerUnitWidth + 3,
-        y: height / 2,
-        text: String(Math.round(i * 100) / 100),
-        fontSize: 8,
+      const labelOffsetPerChar = 4;
+      const leftLabel = this.valueToLabel(i, xInterval.isPi);
+      const rightLineLabel = new Konva.Text({
+        name: 'lineLabel',
+        x: rightLinePositionX + labelOffsetPerChar,
+        y: height / 2 + 1,
+        text: leftLabel,
+        fontSize: LABEL_FONTSIZE,
         fontFamily: 'Calibri',
         fill: 'white',
         draggable: true,
       });
-      this.group.add(lineLabel);
+      const rightLabel = this.valueToLabel(j, xInterval.isPi);
+      const leftLineLabel = new Konva.Text({
+        name: 'lineLabel',
+        x: leftLinePositionX + labelOffsetPerChar,
+        y: height / 2 + 1,
+        text: rightLabel,
+        fontSize: LABEL_FONTSIZE,
+        fontFamily: 'Calibri',
+        fill: 'white',
+        draggable: true,
+      });
+      this.group.add(rightLineLabel);
+      this.group.add(leftLineLabel);
     }
+
+    // Draw the vertical lines and labels
     for (
-      let i = yInterval.start;
-      i <= yInterval.finish;
-      i += this.unitHeight / NUMBER_OF_Y_LINES
-    )
-    // i += (this.unitHeight / this.pixelHeight) * pixelGapBetweenLines
-    {
-      const linePositionY =
-        this.pixelHeight - Math.abs(i - yInterval.start) * pixelsPerUnitHeight;
-      const yLine = new Konva.Line({
-        points: [0, linePositionY, width, linePositionY],
+      let i = yInterval.getCenter(), j = yInterval.getCenter();
+      i <= yInterval.finish && j >= yInterval.start;
+      i += yInterval.distanceBetweenTicks, j -= yInterval.distanceBetweenTicks
+    ) {
+      const rightLinePositionY = this.convertToPixelsY(i);
+      const leftLinePositionY = this.convertToPixelsY(j);
+      const rightLineY = new Konva.Line({
+        points: [0, rightLinePositionY, width, rightLinePositionY],
         stroke: '#d9d9e3',
         strokeWidth: 1,
       });
-      this.group.add(yLine);
-      if (linePositionY >= height || linePositionY <= 0) {
-        continue;
-      }
-      const roundedLabel = Math.round(i * 100) / 100;
-      const labelOffset = 8;
-      const lineLabel = new Konva.Text({
-        x: width / 2 - labelOffset,
-        y: linePositionY,
-        text: String(roundedLabel),
-        fontSize: pixelGapBetweenLines / 5,
+      this.group.add(rightLineY);
+
+      const leftLineY = new Konva.Line({
+        points: [0, leftLinePositionY, width, leftLinePositionY],
+        stroke: '#d9d9e3',
+        strokeWidth: 1,
+      });
+      this.group.add(leftLineY);
+
+      const rightLineLabel = new Konva.Text({
+        name: 'lineLabel',
+        x: width / 2 + 4,
+        y: rightLinePositionY + 1,
+        text: this.valueToLabel(i, yInterval.isPi),
+        fontSize: LABEL_FONTSIZE,
         fontFamily: 'Calibri',
         fill: 'white',
         draggable: true,
       });
-      this.group.add(lineLabel);
+      const leftLineLabel = new Konva.Text({
+        name: 'lineLabel',
+        x: width / 2 + 4,
+        y: leftLinePositionY + 1,
+        text: this.valueToLabel(j, yInterval.isPi),
+        fontSize: LABEL_FONTSIZE,
+        fontFamily: 'Calibri',
+        fill: 'white',
+        draggable: true,
+      });
+      this.group.add(rightLineLabel);
+      this.group.add(leftLineLabel);
     }
+
+    // if constructed with an equation, draw it
     if (equation) {
       this.addFunction(equation);
     }
@@ -137,6 +166,13 @@ export class GraphComponent extends Component {
    */
   addFunction(equation: string, id?: string) {
     this.renderFunction(this.stringToMathFunction(equation), id);
+
+    // move labels to the top every function
+    const allLabels = this.group.find('.lineLabel');
+    allLabels.forEach(label => {
+      label.moveToTop();
+    });
+    this.group.getLayer()?.batchDraw();
   }
 
   /**
@@ -199,6 +235,21 @@ export class GraphComponent extends Component {
   }
 
   /**
+   * Calculates axis labels and turns into strings
+   */
+  valueToLabel(value: number, isPi: boolean): string {
+    // π based labels supports fractions of the form k/24
+    console.log(`${value}, ${(value * 2) % Math.PI}`);
+    console.log(`${this.convertToPixelsX(value)}\n\n`);
+    if (isPi) {
+      return String(value / Math.PI) + 'π';
+    }
+
+    // round to nearest hundredth place
+    return String(Math.round(value * 100) / 100);
+  }
+
+  /**
    * convert interval point to pixel value
    */
   convertToPixelsX(x: number) {
@@ -215,15 +266,20 @@ export class GraphComponent extends Component {
   }
 
   /**
-   * debug
+   * debug point in terms of the graph units
    */
-  debugPoint(x: number, y: number) {
-    console.log(`x: ${x}\ny: ${y}`);
+  debugPoint(x: number, y: number, unit: boolean) {
+    console.log(` Unit: (${x}, ${y})`);
+    const pixelX = this.convertToPixelsX(x);
+    const pixelY = this.convertToPixelsY(y);
+    console.log(`Pixel: (${pixelX}, ${pixelY})`);
+
     const debugPoint = new Konva.Circle({
-      x: x, // X coordinate of the center
-      y: y, // Y coordinate of the center
-      radius: 5, // Circle radius
+      x: unit ? x : pixelX, // X coordinate of the center
+      y: unit ? y : pixelY, // Y coordinate of the center
+      radius: 2.5, // Circle radius
       fill: 'red', // Fill color
+      draggable: true,
     });
     this.group.add(debugPoint);
   }
