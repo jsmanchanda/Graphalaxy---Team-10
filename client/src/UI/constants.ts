@@ -64,7 +64,7 @@ export const READING_TEXT_Y = 100;
 
 // Multiple choice option dimensions
 export const MULTIPLE_CHOICE_OPTION_WIDTH = DESIGN_WIDTH / 2;
-export const MULTIPLE_CHOICE_OPTION_HEIGHT = 50;
+export const MULTIPLE_CHOICE_OPTION_HEIGHT = 30;
 
 // Multiple choice option locations
 export const MULTIPLE_CHOICE_OPTION_LEFT_X =
@@ -93,16 +93,17 @@ export const MULTIPLE_CHOICE_PROMPT_Y =
     0.5 -
   20;
 
-export const CONFIRM_BUTTON_WIDTH = 200;
+export const CONFIRM_BUTTON_WIDTH = 250;
 export const CONFIRM_BUTTON_HEIGHT = 40;
-export const CONFIRM_BUTTON_X = (DESIGN_WIDTH - CONFIRM_BUTTON_WIDTH) * 0.5;
+export const CONFIRM_BUTTON_X = DESIGN_WIDTH - CONFIRM_BUTTON_WIDTH;
 export const CONFIRM_BUTTON_Y =
   MULTIPLE_CHOICE_OPTION_TOP_Y - CONFIRM_BUTTON_HEIGHT;
 
-export const QUESTION_BACK_BUTTON_WIDTH = 130;
-export const QUESTION_BACK_BUTTON_HEIGHT = 80;
+export const QUESTION_BACK_BUTTON_WIDTH = 250;
+export const QUESTION_BACK_BUTTON_HEIGHT = 40;
 export const QUESTION_BACK_BUTTON_X = 0;
-export const QUESTION_BACK_BUTTON_Y = 0;
+export const QUESTION_BACK_BUTTON_Y =
+  MULTIPLE_CHOICE_OPTION_TOP_Y - CONFIRM_BUTTON_HEIGHT;
 
 // ============== Question Result Screen + Lesson Result Screen ==============
 export const RESULT_TEXT_WIDTH = 600;

@@ -1,3 +1,4 @@
+import {GraphComponent} from '../../Graphing/GraphComponent';
 import {ButtonComponent, ImageComponent, TextBoxComponent} from '../components';
 import {
   MULTIPLE_CHOICE_OPTION_RIGHT_X,
@@ -25,6 +26,15 @@ import {
 import {QuestionScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
 
+const VISUAL_READING_TEXT_X = 15;
+const VISUAL_READING_TEXT_Y = 25;
+const VISUAL_READING_TEXT_WIDTH = 375;
+const VISUAL_READING_TEXT_HEIGHT = 375;
+const QUESTION_GRAPH_X = 410;
+const QUESTION_GRAPH_Y = 25;
+const QUESTION_GRAPH_WIDTH = 375;
+const QUESTION_GRAPH_HEIGHT = 375;
+
 /**
  * Question screen view
  */
@@ -42,14 +52,6 @@ export class QuestionScreenView implements View {
 
     // Track the selected option, null by default (no option selected)
     let selectedOption: number | null = null;
-
-    const prompt = new TextBoxComponent(
-      MULTIPLE_CHOICE_PROMPT_X,
-      MULTIPLE_CHOICE_PROMPT_Y,
-      MULTIPLE_CHOICE_PROMPT_WIDTH,
-      MULTIPLE_CHOICE_PROMPT_HEIGHT,
-      model.question.prompt,
-    );
 
     const option0 = new ButtonComponent(
       MULTIPLE_CHOICE_OPTION_LEFT_X,
@@ -127,6 +129,34 @@ export class QuestionScreenView implements View {
       'Back To Lesson',
       () => onAction({type: 'back'}),
     );
+    let prompt: TextBoxComponent;
+    // if question wants to display a graph
+    if (model.graphFunction) {
+      const graphComponent = new GraphComponent(
+        QUESTION_GRAPH_X,
+        QUESTION_GRAPH_Y,
+        QUESTION_GRAPH_WIDTH,
+        QUESTION_GRAPH_HEIGHT,
+      );
+      prompt = new TextBoxComponent(
+        VISUAL_READING_TEXT_X,
+        VISUAL_READING_TEXT_Y,
+        VISUAL_READING_TEXT_WIDTH,
+        VISUAL_READING_TEXT_HEIGHT,
+        model.question.prompt,
+      );
+      console.log(model);
+      graphComponent.drawFunction(model.graphFunction);
+      this.group.add(graphComponent.getGroup());
+    } else {
+      prompt = new TextBoxComponent(
+        MULTIPLE_CHOICE_PROMPT_X,
+        MULTIPLE_CHOICE_PROMPT_Y,
+        MULTIPLE_CHOICE_PROMPT_WIDTH,
+        MULTIPLE_CHOICE_PROMPT_HEIGHT,
+        model.question.prompt,
+      );
+    }
 
     this.group.add(backButton.getGroup());
     this.group.add(alienCat.getGroup());
@@ -136,6 +166,7 @@ export class QuestionScreenView implements View {
     this.group.add(option1.getGroup());
     this.group.add(option2.getGroup());
     this.group.add(option3.getGroup());
+    this.group.add();
   }
 
   /**
