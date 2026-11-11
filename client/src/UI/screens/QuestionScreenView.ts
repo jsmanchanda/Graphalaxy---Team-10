@@ -131,7 +131,7 @@ export class QuestionScreenView implements View {
     );
     let prompt: TextBoxComponent;
     // if question wants to display a graph
-    if (model.graphFunction) {
+    if (model.equation) {
       const graphComponent = new GraphComponent(
         QUESTION_GRAPH_X,
         QUESTION_GRAPH_Y,
@@ -146,7 +146,7 @@ export class QuestionScreenView implements View {
         model.question.prompt,
       );
       console.log(model);
-      graphComponent.drawFunction(model.graphFunction);
+      graphComponent.addFunction(model.equation);
       this.group.add(graphComponent.getGroup());
     } else {
       prompt = new TextBoxComponent(

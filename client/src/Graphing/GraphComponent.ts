@@ -33,6 +33,15 @@ export class GraphComponent extends Component {
     equation?: string,
   ) {
     super(x, y);
+
+    // clip graph component so graphs dont show outside the component
+    this.group.setAttrs({
+      clipX: 0,
+      clipY: 0,
+      clipWidth: width,
+      clipHeight: height,
+    });
+
     this.unitWidth = xInterval.getLength();
     this.unitHeight = yInterval.getLength();
     this.pixelWidth = width;
@@ -117,8 +126,76 @@ export class GraphComponent extends Component {
       this.group.add(lineLabel);
     }
     if (equation) {
-      this.drawFunction(this.stringToMathFunction(equation));
+      this.addFunction(equation);
     }
+  }
+
+  /**
+   * Adds Function to the graph given in string form
+   * @param equation the equation form of the string
+   * @param id the html element attribute
+   */
+  addFunction(equation: string, id?: string) {
+    this.renderFunction(this.stringToMathFunction(equation), id);
+  }
+
+  /**
+   * Converts a string to the function it corresponds to
+   * TODO: make parse sin and cos to Math.sin and Math.cos
+   */
+  stringToMathFunction(equation: string): (x: number) => number {
+    const functionBody = `return ${equation};`;
+    const dynamicMathFunc = new Function('x', functionBody) as (
+      x: number,
+    ) => number;
+    return dynamicMathFunc;
+  }
+
+  /**
+   * draws lines
+   */
+  renderFunction(onCompute: (x: number) => number, id?: string): void {
+    const pixelPoints: number[] = []; // [x1, y1 ,x2, y2,...]
+    for (let i = this.xInterval.start; i < this.xInterval.finish; i += 0.001) {
+      let x = i;
+      let y = onCompute(i);
+      x = this.convertToPixelsX(x);
+      y = this.convertToPixelsY(y);
+      pixelPoints.push(x);
+      pixelPoints.push(y);
+    }
+
+    const functionCurve = new Konva.Line({
+      id: id,
+      name: 'displayFunction', // class name
+      points: pixelPoints,
+      stroke: 'green',
+      strokeWidth: 2.5,
+      lineCap: 'round',
+      lineJoin: 'round',
+    });
+    this.group.add(functionCurve);
+  }
+
+  /**
+   * Clears the functions on the screen, if no id specified, clears all;
+   * @param id tag id of the function to remove.
+   */
+  clearFunction(id?: string): void {
+    if (id) {
+      const targetNode = this.group.findOne('#' + id);
+      if (targetNode) {
+        targetNode.destroy();
+      }
+      // throw error if no id found
+    } else {
+      const allFunctions = this.group.find('.displayFunction');
+      allFunctions.forEach(func => {
+        func.destroy();
+      });
+    }
+
+    this.group.getLayer()?.batchDraw();
   }
 
   /**
@@ -135,49 +212,6 @@ export class GraphComponent extends Component {
   convertToPixelsY(y: number) {
     const pixelsPerUnitHeight = this.pixelHeight / this.unitHeight;
     return this.pixelHeight - (y - this.yInterval.start) * pixelsPerUnitHeight;
-  }
-
-  /**
-   * draws lines
-   */
-  drawFunction(onCompute: (x: number) => number): void {
-    const allFunctions = this.group.find('.displayFunction');
-    allFunctions.forEach(func => {
-      func.destroy();
-    });
-    const pixelPoints: number[] = []; // [x1, y1 ,x2, y2,...]
-    for (let i = this.xInterval.start; i < this.xInterval.finish; i += 0.001) {
-      let x = i;
-      let y = onCompute(i);
-      x = this.convertToPixelsX(x);
-      y = this.convertToPixelsY(y);
-      if (y >= 0 && y <= this.pixelHeight) {
-        pixelPoints.push(x);
-        pixelPoints.push(y);
-      }
-    }
-
-    const functionCurve = new Konva.Line({
-      name: 'displayFunction',
-      points: pixelPoints,
-      stroke: 'green',
-      strokeWidth: 2.5,
-      lineCap: 'round',
-      lineJoin: 'round',
-    });
-    this.group.add(functionCurve);
-  }
-
-  /**
-   * Converts a string to the function it corresponds to
-   */
-  stringToMathFunction(equation: string): (x: number) => number {
-    const functionBody = `return ${equation};`;
-    console.log(functionBody);
-    const dynamicMathFunc = new Function('x', functionBody) as (
-      x: number,
-    ) => number;
-    return dynamicMathFunc;
   }
 
   /**
