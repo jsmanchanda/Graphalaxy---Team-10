@@ -60,6 +60,7 @@ export interface QuestionDisplay {
 export interface QuestionScreenModel {
   type: 'question';
   question: QuestionDisplay;
+  equation?: string;
 }
 
 /**

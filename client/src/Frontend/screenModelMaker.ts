@@ -59,10 +59,16 @@ export function questionTaskToQuestionScreen(
   questionTask: QuestionTask,
 ): QuestionScreenModel {
   const {prompt, options} = questionTask.question;
-  return {
+  const model: QuestionScreenModel = {
     type: 'question',
     question: {prompt, options: options.map(option => option.text)},
   };
+
+  // If question has a graph component add it to the model
+  if (questionTask.question.graph) {
+    model.equation = questionTask.question.graph['fn'];
+  }
+  return model;
 }
 
 /**
