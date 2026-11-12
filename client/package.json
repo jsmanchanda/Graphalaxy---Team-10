@@ -7,6 +7,7 @@
     "dev": "vite",
     "dev:demo": "vite --open /src/demos/demo.html",
     "dev:graph": "vite --open /src/demos/graph.html",
+    "dev:radio-wave": "vite --open /src/demos/radio-wave.html",
     "test": "vitest run",
     "test:watch": "vitest"
   },

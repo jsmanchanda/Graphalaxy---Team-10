@@ -89,6 +89,13 @@ export interface VisualReadingScreenModel {
 }
 
 /**
+ * Radio-wave minigame screen data.
+ */
+export interface RadioWaveMinigameScreenModel {
+  type: 'radioWaveMinigame';
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -98,4 +105,5 @@ export type ScreenModel =
   | QuestionScreenModel
   | QuestionResultScreenModel
   | LessonResultScreenModel
-  | VisualReadingScreenModel;
+  | VisualReadingScreenModel
+  | RadioWaveMinigameScreenModel;
