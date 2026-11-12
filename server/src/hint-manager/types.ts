@@ -10,6 +10,10 @@ export interface HintUnlockResult {
   hintQuota: number;
 }
 
+/** Expected failures callers can handle without inspecting error messages. */
+export type HintErrorCode =
+  'INVALID_INPUT' | 'NOT_FOUND' | 'NO_HINTS_LEFT' | 'STORAGE_ERROR';
+
 /** Basic operations provided by the Hint Manager. */
 export interface HintManagerService {
   /** Returns only hints this player has already unlocked on the planet. */
