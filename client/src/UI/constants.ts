@@ -116,6 +116,20 @@ export const QUESTION_BACK_BUTTON_X = 0;
 export const QUESTION_BACK_BUTTON_Y =
   MULTIPLE_CHOICE_OPTION_TOP_Y - CONFIRM_BUTTON_HEIGHT;
 
+// Question with graph
+
+// prompt
+export const VISUAL_QUESTION_PROMPT_X = 15;
+export const VISUAL_QUESTION_PROMPT_Y = 25;
+export const VISUAL_QUESTION_PROMPT_WIDTH = 375;
+export const VISUAL_QUESTION_PROMPT_HEIGHT = 375;
+
+// graph
+export const QUESTION_GRAPH_X = 410;
+export const QUESTION_GRAPH_Y = 25;
+export const QUESTION_GRAPH_WIDTH = 375;
+export const QUESTION_GRAPH_HEIGHT = 375;
+
 // ============== Question Result Screen + Lesson Result Screen ==============
 export const RESULT_TEXT_WIDTH = 600;
 export const RESULT_TEXT_HEIGHT = 300;

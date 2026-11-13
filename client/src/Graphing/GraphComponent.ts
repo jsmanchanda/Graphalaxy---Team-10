@@ -6,7 +6,6 @@ import {Interval} from './functions';
 const DEFAULT_INTERVAL_X = new Interval(-10, 10, 1);
 const DEFAULT_INTERVAL_Y = new Interval(-10, 10, 1);
 
-// const MAX_DISTANCE_BETWEEN_LINES_PIXELS = 20;
 const LABEL_FONTSIZE = 8;
 /**
  * Renders graph in the screen
