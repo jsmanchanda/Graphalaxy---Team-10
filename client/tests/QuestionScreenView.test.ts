@@ -4,9 +4,20 @@ import {QuestionScreenModel} from '../src/UI/types';
 
 // Create mock components for testing
 vi.mock('../src/UI/components', () => {
-  class ButtonComponent {
+  // GraphComponent extends Component, so the mock must provide it too
+  class Component {
     protected group: Konva.Group;
 
+    constructor(x: number, y: number) {
+      this.group = new Konva.Group({x, y});
+    }
+
+    getGroup(): Konva.Group {
+      return this.group;
+    }
+  }
+
+  class ButtonComponent extends Component {
     constructor(
       x: number,
       y: number,
@@ -15,16 +26,12 @@ vi.mock('../src/UI/components', () => {
       text: string,
       onClick?: () => void,
     ) {
-      this.group = new Konva.Group({x, y});
+      super(x, y);
       this.group.add(new Konva.Rect({width, height}));
       void text;
       if (onClick) {
         this.group.on('click tap', onClick);
       }
-    }
-
-    getGroup(): Konva.Group {
-      return this.group;
     }
   }
 
@@ -53,6 +60,8 @@ vi.mock('../src/UI/components', () => {
   class TextBoxComponent extends ButtonComponent {}
 
   return {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    Component,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     ButtonComponent,
     // eslint-disable-next-line @typescript-eslint/naming-convention

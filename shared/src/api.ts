@@ -32,7 +32,7 @@ export interface AnswerOption {
 }
 
 /** The graph drawn with a question, e.g. {fn: '2*x+3'}. */
-export type GraphSpec = Record<string, unknown>;
+export type GraphSpec = Record<string, string>;
 
 /** A multiple-choice question; answer keys remain on the server. */
 export interface Question {
@@ -47,6 +47,7 @@ export interface Question {
 export interface ReadingTask {
   type: 'Reading';
   text: string;
+  graph?: GraphSpec;
 }
 
 /** A question slide in a lesson, and whether this player has solved it. */
