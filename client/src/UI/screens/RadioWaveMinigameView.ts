@@ -17,6 +17,8 @@ const CHECK_BUTTON_Y = 405;
 
 const DEFAULT_AMPLITUDE = 1;
 const DEFAULT_FREQUENCY = 2;
+const DEFAULT_HORIZONTAL_SHIFT = 0;
+const DEFAULT_VERTICAL_SHIFT = 0;
 
 /**
  * Displays the visual foundation for the radio-wave minigame.
@@ -52,11 +54,21 @@ export class RadioWaveMinigameView implements View {
       new Interval(-5, 5, 1),
     );
     graph.addFunction(
-      this.playerEquation(model.question.amplitude, model.question.frequency),
+      this.playerEquation(
+        model.question.amplitude,
+        model.question.frequency,
+        model.question.horizontalShift,
+        model.question.verticalShift,
+      ),
       'target-wave',
     );
     graph.addFunction(
-      this.playerEquation(DEFAULT_AMPLITUDE, DEFAULT_FREQUENCY),
+      this.playerEquation(
+        DEFAULT_AMPLITUDE,
+        DEFAULT_FREQUENCY,
+        DEFAULT_HORIZONTAL_SHIFT,
+        DEFAULT_VERTICAL_SHIFT,
+      ),
       'player-wave',
     );
     this.setWaveColor(graph, 'target-wave', '#ffffff');
@@ -92,6 +104,14 @@ export class RadioWaveMinigameView implements View {
   private createControls(graph: GraphComponent): HTMLDivElement {
     const amplitude = this.createInput('amplitude', String(DEFAULT_AMPLITUDE));
     const frequency = this.createInput('frequency', String(DEFAULT_FREQUENCY));
+    const horizontalShift = this.createInput(
+      'horizontal-shift',
+      String(DEFAULT_HORIZONTAL_SHIFT),
+    );
+    const verticalShift = this.createInput(
+      'vertical-shift',
+      String(DEFAULT_VERTICAL_SHIFT),
+    );
     const controls = document.createElement('div');
     controls.style.position = 'fixed';
     controls.style.display = 'flex';
@@ -109,7 +129,10 @@ export class RadioWaveMinigameView implements View {
       amplitude,
       document.createTextNode('sin('),
       frequency,
-      document.createTextNode('x)'),
+      document.createTextNode('(x -'),
+      horizontalShift,
+      document.createTextNode(') +'),
+      verticalShift,
     );
     document.body.append(controls);
     const positionControls = (): void => {
@@ -128,9 +151,17 @@ export class RadioWaveMinigameView implements View {
     window.addEventListener('resize', positionControls);
 
     const updateWave = (): void =>
-      this.updatePlayerWave(graph, amplitude, frequency);
+      this.updatePlayerWave(
+        graph,
+        amplitude,
+        frequency,
+        horizontalShift,
+        verticalShift,
+      );
     amplitude.addEventListener('input', updateWave);
     frequency.addEventListener('input', updateWave);
+    horizontalShift.addEventListener('input', updateWave);
+    verticalShift.addEventListener('input', updateWave);
     this.group.on('destroy', () => {
       window.removeEventListener('resize', positionControls);
     });
@@ -164,16 +195,30 @@ export class RadioWaveMinigameView implements View {
     graph: GraphComponent,
     amplitude: HTMLInputElement,
     frequency: HTMLInputElement,
+    horizontalShift: HTMLInputElement,
+    verticalShift: HTMLInputElement,
   ): void {
     const amplitudeValue = Number(amplitude.value);
     const frequencyValue = Number(frequency.value);
-    if (!Number.isFinite(amplitudeValue) || !Number.isFinite(frequencyValue)) {
+    const horizontalShiftValue = Number(horizontalShift.value);
+    const verticalShiftValue = Number(verticalShift.value);
+    if (
+      !Number.isFinite(amplitudeValue) ||
+      !Number.isFinite(frequencyValue) ||
+      !Number.isFinite(horizontalShiftValue) ||
+      !Number.isFinite(verticalShiftValue)
+    ) {
       return;
     }
 
     graph.clearFunction('player-wave');
     graph.addFunction(
-      this.playerEquation(amplitudeValue, frequencyValue),
+      this.playerEquation(
+        amplitudeValue,
+        frequencyValue,
+        horizontalShiftValue,
+        verticalShiftValue,
+      ),
       'player-wave',
     );
     this.setWaveColor(graph, 'player-wave', '#38bdf8');
@@ -182,7 +227,12 @@ export class RadioWaveMinigameView implements View {
   /**
    * Builds the player equation from the entered values.
    */
-  private playerEquation(amplitude: number, frequency: number): string {
-    return `${amplitude} * Math.sin(${frequency} * x)`;
+  private playerEquation(
+    amplitude: number,
+    frequency: number,
+    horizontalShift: number,
+    verticalShift: number,
+  ): string {
+    return `${amplitude} * Math.sin(${frequency} * (x - ${horizontalShift})) + ${verticalShift}`;
   }
 }
