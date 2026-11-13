@@ -15,7 +15,6 @@ const CHECK_BUTTON_HEIGHT = 45;
 const CHECK_BUTTON_X = (DESIGN_WIDTH - CHECK_BUTTON_WIDTH) / 2;
 const CHECK_BUTTON_Y = 405;
 
-const TARGET_EQUATION = '2 * Math.sin(x)';
 const DEFAULT_AMPLITUDE = 1;
 const DEFAULT_FREQUENCY = 2;
 
@@ -32,7 +31,6 @@ export class RadioWaveMinigameView implements View {
     onAction: (action: UiAction) => void,
     model: RadioWaveMinigameScreenModel,
   ) {
-    void model;
     void onAction;
     this.group = new Konva.Group();
 
@@ -51,9 +49,12 @@ export class RadioWaveMinigameView implements View {
       GRAPH_WIDTH,
       GRAPH_HEIGHT,
       new Interval(-Math.PI * 2, Math.PI * 2, Math.PI, true),
-      new Interval(-3, 3, 1),
+      new Interval(-5, 5, 1),
     );
-    graph.addFunction(TARGET_EQUATION, 'target-wave');
+    graph.addFunction(
+      this.playerEquation(model.question.amplitude, model.question.frequency),
+      'target-wave',
+    );
     graph.addFunction(
       this.playerEquation(DEFAULT_AMPLITUDE, DEFAULT_FREQUENCY),
       'player-wave',

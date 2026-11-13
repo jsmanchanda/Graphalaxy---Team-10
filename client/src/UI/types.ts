@@ -89,10 +89,21 @@ export interface VisualReadingScreenModel {
 }
 
 /**
+ * Data needed to create a radio-wave minigame question.
+ */
+export interface RadioWaveQuestion {
+  amplitude: number;
+  frequency: number;
+  horizontalShift: number;
+  verticalShift: number;
+}
+
+/**
  * Radio-wave minigame screen data.
  */
 export interface RadioWaveMinigameScreenModel {
   type: 'radioWaveMinigame';
+  question: RadioWaveQuestion;
 }
 
 /**

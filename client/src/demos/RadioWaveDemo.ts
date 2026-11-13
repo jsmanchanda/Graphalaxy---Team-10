@@ -4,6 +4,12 @@ import {RadioWaveMinigameScreenModel} from '../UI/types';
 
 const model: RadioWaveMinigameScreenModel = {
   type: 'radioWaveMinigame',
+  question: {
+    amplitude: 2,
+    frequency: 1,
+    horizontalShift: 0,
+    verticalShift: 0,
+  },
 };
 
 const fonts = [
