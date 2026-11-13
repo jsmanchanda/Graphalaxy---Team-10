@@ -74,6 +74,7 @@ export class ReadingScreenView implements View {
         VISUAL_READING_TEXT_HEIGHT,
         model.readingText,
       );
+      graphComponent.addFunction(model.equation);
       this.group.add(graphComponent.getGroup());
     } else {
       readingText = new TextBoxComponent(

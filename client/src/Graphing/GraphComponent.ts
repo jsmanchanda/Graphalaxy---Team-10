@@ -238,9 +238,7 @@ export class GraphComponent extends Component {
    * Calculates axis labels and turns into strings
    */
   valueToLabel(value: number, isPi: boolean): string {
-    // π based labels supports fractions of the form k/24
-    console.log(`${value}, ${(value * 2) % Math.PI}`);
-    console.log(`${this.convertToPixelsX(value)}\n\n`);
+    // π based labels
     if (isPi) {
       return String(value / Math.PI) + 'π';
     }

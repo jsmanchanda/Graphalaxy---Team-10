@@ -145,7 +145,7 @@ export class QuestionScreenView implements View {
         VISUAL_READING_TEXT_HEIGHT,
         model.question.prompt,
       );
-      console.log(model);
+
       graphComponent.addFunction(model.equation);
       this.group.add(graphComponent.getGroup());
     } else {
