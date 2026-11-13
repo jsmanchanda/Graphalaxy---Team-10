@@ -158,7 +158,7 @@ Then run each in its own terminal:
 
 ```bash
 npm run dev -w server    # Express, default port 3000
-npm run dev -w client    # Vite, default port 5173; demo is at /demo.html
+npm run dev -w client    # Vite, default port 5173; demos are under /src/demos/
 ```
 
 `client/vite.config.ts` already proxies `/api` to `http://localhost:3000`. If you override the backend `PORT`, update the proxy target to match. There is no root `dev` script that starts both processes. `npm run start -w server` runs the backend without watch mode.
@@ -166,16 +166,18 @@ npm run dev -w client    # Vite, default port 5173; demo is at /demo.html
 **UI demo.** To run the client against the mock lesson data in `client/src/demos/UIDemo.ts` instead of `main.ts`:
 
 ```bash
-npm run dev:demo -w client    # starts Vite and opens http://localhost:5173/demo.html
+npm run dev:demo -w client    # starts Vite and opens http://localhost:5173/src/demos/demo.html
 ```
 
-`client/demo.html` is a copy of `index.html` that loads `UIDemo.ts`. If the regular dev server is already running, you can also just open `/demo.html` in the browser.
+`client/src/demos/demo.html` is a copy of `index.html` that loads `UIDemo.ts`. If the regular dev server is already running, you can also just open `/src/demos/demo.html` in the browser.
 
 **Graph demo.** To run the client against the mock graph data in `client/src/demos/GraphDemo.ts` instead of `main.ts`:
 
 ```bash
-npm run dev:graph -w client    # starts Vite and opens http://localhost:5173/graph.html
+npm run dev:graph -w client    # starts Vite and opens http://localhost:5173/src/demos/graph.html
 ```
+
+`client/src/demos/graph.html` loads `GraphDemo.ts`, which shows a reading and a question that each have a graph. Any button switches to the next screen. With the regular dev server running, you can also open `/src/demos/graph.html` directly.
 
 ### 4.4 Local database and secrets
 
@@ -209,7 +211,7 @@ The root `tsconfig.json` extends `node_modules/gts/tsconfig-google.json`, sets `
 
 ### 5.1 Where things stand
 
-Vitest is installed and configured in both workspaces. The current suites contain 200 cases: 84 client and 116 server, including 47 Question Manager tests. The server suites cover the official schema/seed, Data Writer, and Question Manager; client suites cover model parsing and screen geometry. HTTP routes and browser-to-database integration do not yet have committed test suites.
+Vitest is installed and configured in both workspaces. The current suites contain 282 cases: 169 client and 113 server, including 44 Question Manager tests. The server suites cover the official schema/seed, Data Writer, and Question Manager; client suites cover model parsing, the API client and session cache, screen layout and bounds, question selection, the graph component, and the reading and question screens with graphs. HTTP routes and browser-to-database integration do not yet have committed test suites.
 
 ### 5.2 Existing test configuration
 
