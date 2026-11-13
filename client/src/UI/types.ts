@@ -99,11 +99,20 @@ export interface RadioWaveQuestion {
 }
 
 /**
+ * Rules for a radio-wave minigame round.
+ */
+export interface RadioWaveMinigameConfig {
+  timeLimitSeconds: number;
+  correctAnswersForHint: number;
+}
+
+/**
  * Radio-wave minigame screen data.
  */
 export interface RadioWaveMinigameScreenModel {
   type: 'radioWaveMinigame';
   question: RadioWaveQuestion;
+  config: RadioWaveMinigameConfig;
 }
 
 /**

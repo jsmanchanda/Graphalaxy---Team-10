@@ -6,14 +6,16 @@ import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../constants';
 import {RadioWaveMinigameScreenModel, UiAction, View} from '../types';
 
 const GRAPH_WIDTH = 600;
-const GRAPH_HEIGHT = 330;
+const GRAPH_HEIGHT = 275;
 const GRAPH_X = (DESIGN_WIDTH - GRAPH_WIDTH) / 2;
-const GRAPH_Y = 20;
+const GRAPH_Y = 70;
+const TIMER_Y = 45;
+const TIMER_HEIGHT = 12;
 const CONTROLS_Y = GRAPH_Y + GRAPH_HEIGHT + 18;
 const CHECK_BUTTON_WIDTH = 180;
 const CHECK_BUTTON_HEIGHT = 45;
 const CHECK_BUTTON_X = (DESIGN_WIDTH - CHECK_BUTTON_WIDTH) / 2;
-const CHECK_BUTTON_Y = 405;
+const CHECK_BUTTON_Y = 430;
 
 const DEFAULT_AMPLITUDE = 1;
 const DEFAULT_FREQUENCY = 2;
@@ -36,22 +38,44 @@ export class RadioWaveMinigameView implements View {
     void onAction;
     this.group = new Konva.Group();
 
-    const checkButton = new ButtonComponent(
-      CHECK_BUTTON_X,
-      CHECK_BUTTON_Y,
-      CHECK_BUTTON_WIDTH,
-      CHECK_BUTTON_HEIGHT,
-      'Check Answer',
-      () => undefined,
-    );
+    const instructions = new Konva.Text({
+      x: GRAPH_X,
+      y: 10,
+      width: GRAPH_WIDTH,
+      text: 'Match the radio wave',
+      align: 'center',
+      fontSize: 24,
+      fill: 'white',
+    });
+    const timerTrack = new Konva.Rect({
+      x: GRAPH_X,
+      y: TIMER_Y,
+      width: GRAPH_WIDTH,
+      height: TIMER_HEIGHT,
+      fill: '#7f1d2d',
+      stroke: '#f97316',
+      strokeWidth: 3,
+      cornerRadius: TIMER_HEIGHT / 2,
+    });
+    const timerBar = new Konva.Rect({
+      x: GRAPH_X + 3,
+      y: TIMER_Y + 3,
+      width: GRAPH_WIDTH - 6,
+      height: TIMER_HEIGHT - 6,
+      fill: '#84cc16',
+      cornerRadius: (TIMER_HEIGHT - 6) / 2,
+    });
 
     const graph = new GraphComponent(
       GRAPH_X,
       GRAPH_Y,
       GRAPH_WIDTH,
       GRAPH_HEIGHT,
-      new Interval(-Math.PI * 2, Math.PI * 2, Math.PI, true),
-      new Interval(-5, 5, 1),
+      this.getXinterval(
+        model.question.frequency,
+        model.question.horizontalShift,
+      ),
+      this.getYinterval(model.question.amplitude, model.question.verticalShift),
     );
     graph.addFunction(
       this.playerEquation(
@@ -74,11 +98,26 @@ export class RadioWaveMinigameView implements View {
     this.setWaveColor(graph, 'target-wave', '#ffffff');
     this.setWaveColor(graph, 'player-wave', '#38bdf8');
 
+    this.group.add(instructions);
+    this.group.add(timerTrack);
+    this.group.add(timerBar);
     this.group.add(graph.getGroup());
-    this.group.add(checkButton.getGroup());
 
     const controls = this.createControls(graph);
     this.group.on('destroy', () => controls.remove());
+    const timer = this.startTimer(timerBar, model.config.timeLimitSeconds);
+    this.group.on('destroy', () => window.clearInterval(timer));
+
+    const checkButton = new ButtonComponent(
+      CHECK_BUTTON_X,
+      CHECK_BUTTON_Y,
+      CHECK_BUTTON_WIDTH,
+      CHECK_BUTTON_HEIGHT,
+      'SUBMIT',
+      () => undefined,
+    );
+
+    this.group.add(checkButton.getGroup());
   }
 
   /**
@@ -96,6 +135,48 @@ export class RadioWaveMinigameView implements View {
     if (wave instanceof Konva.Line) {
       wave.stroke(color);
     }
+  }
+
+  /**
+   * Shrinks the timer bar for the duration of the round.
+   */
+  private startTimer(timerBar: Konva.Rect, timeLimitSeconds: number): number {
+    const startTime = Date.now();
+    const duration = Math.max(timeLimitSeconds, 1) * 1000;
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, 1 - elapsed / duration);
+      timerBar.width((GRAPH_WIDTH - 6) * remaining);
+
+      if (remaining === 0) {
+        window.clearInterval(timer);
+      }
+    }, 100);
+    return timer;
+  }
+
+  /**
+   * Creates an x-axis range that shows the target wave clearly.
+   */
+  private getXinterval(frequency: number, horizontalShift: number): Interval {
+    const safeFrequency = Math.max(Math.abs(frequency), 0.25);
+    const halfRange = Math.max(
+      Math.PI * 2,
+      Math.abs(horizontalShift) + (Math.PI * 2) / safeFrequency,
+    );
+    return new Interval(-halfRange, halfRange, Math.PI, true);
+  }
+
+  /**
+   * Creates a y-axis range that contains the target wave.
+   */
+  private getYinterval(amplitude: number, verticalShift: number): Interval {
+    const halfRange = Math.max(5, Math.abs(amplitude) + 1);
+    return new Interval(
+      verticalShift - halfRange,
+      verticalShift + halfRange,
+      1,
+    );
   }
 
   /**
@@ -124,7 +205,6 @@ export class RadioWaveMinigameView implements View {
     controls.style.zIndex = '1';
     controls.style.transform = 'translateX(-50%)';
     controls.append(
-      document.createTextNode('Match the radio wave: '),
       document.createTextNode('y ='),
       amplitude,
       document.createTextNode('sin('),

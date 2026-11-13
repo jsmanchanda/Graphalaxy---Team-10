@@ -10,6 +10,10 @@ const model: RadioWaveMinigameScreenModel = {
     horizontalShift: 0,
     verticalShift: 0,
   },
+  config: {
+    timeLimitSeconds: 60,
+    correctAnswersForHint: 5,
+  },
 };
 
 const fonts = [
