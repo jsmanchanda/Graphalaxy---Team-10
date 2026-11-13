@@ -60,6 +60,17 @@ export const READING_TEXT_HEIGHT = 300;
 export const READING_TEXT_X = (DESIGN_WIDTH - READING_TEXT_WIDTH) * 0.5;
 export const READING_TEXT_Y = 100;
 
+// With Graph
+export const VISUAL_READING_TEXT_X = 15;
+export const VISUAL_READING_TEXT_Y = 25;
+export const VISUAL_READING_TEXT_WIDTH = 375;
+export const VISUAL_READING_TEXT_HEIGHT = 375;
+
+export const VISUAL_READING_GRAPH_X = 410;
+export const VISUAL_READING_GRAPH_Y = 25;
+export const VISUAL_READING_GRAPH_WIDTH = 375;
+export const VISUAL_READING_GRAPH_HEIGHT = 375;
+
 // ============== Multiple Choice Screen ==============
 
 // Multiple choice option dimensions

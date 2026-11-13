@@ -2,12 +2,7 @@
   @fileoverview Converts the shared API types into the screen models the UI renders.
 */
 
-import type {
-  QuestionTask,
-  ReadingTask,
-  VisualReadingTask,
-  Task,
-} from '@graphalaxy/shared';
+import type {QuestionTask, ReadingTask, Task} from '@graphalaxy/shared';
 
 // screen models (output)
 import type {
@@ -16,7 +11,6 @@ import type {
   QuestionScreenModel,
   QuestionResultScreenModel,
   LessonIntroScreenModel,
-  VisualReadingScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
 
@@ -32,8 +26,6 @@ export function taskToScreen(task: Task): ScreenModel {
       return questionTaskToQuestionScreen(task);
     case 'Reading':
       return readingTaskToScreen(task);
-    case 'VisualReading':
-      return visualReadingTaskToScreen(task);
   }
 }
 
@@ -45,7 +37,15 @@ export function taskToScreen(task: Task): ScreenModel {
 export function readingTaskToScreen(
   readingTask: ReadingTask,
 ): ReadingScreenModel {
-  return {type: 'reading', readingText: readingTask.text};
+  const model: ReadingScreenModel = {
+    type: 'reading',
+    readingText: readingTask.text,
+  };
+
+  if (readingTask.graph) {
+    model.equation = readingTask.graph['fn'];
+  }
+  return model;
 }
 
 /**
@@ -93,19 +93,6 @@ export function makeLessonIntroScreen(
   description: string,
 ): LessonIntroScreenModel {
   return {type: 'intro', title: title, description: description};
-}
-
-/**
- * Creates Screen Model For a reading with a graph
- */
-export function visualReadingTaskToScreen(
-  task: VisualReadingTask,
-): VisualReadingScreenModel {
-  return {
-    type: 'visualReading',
-    readingText: task.text,
-    mathFunction: task.mathFunction,
-  };
 }
 
 // function makeLessonResultScreen - dependent on progress tracking

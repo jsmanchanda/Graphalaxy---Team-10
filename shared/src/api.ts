@@ -10,8 +10,6 @@
  * Errors are sent as ApiErrorBody with a 4xx or 5xx status.
  */
 
-import {MathFunction} from '../../client/src/Graphing/functions';
-
 /** A player's audio settings. Both volumes are between 0 and 1. */
 export interface Settings {
   musicVolume: number;
@@ -49,6 +47,7 @@ export interface Question {
 export interface ReadingTask {
   type: 'Reading';
   text: string;
+  graph?: GraphSpec;
 }
 
 /** A question slide in a lesson, and whether this player has solved it. */
@@ -58,17 +57,8 @@ export interface QuestionTask {
   // solved: boolean;
 }
 
-/**
- * Reading with a graph
- */
-export interface VisualReadingTask {
-  type: 'VisualReading';
-  text: string;
-  mathFunction: MathFunction;
-}
-
 /** One slide on a planet. */
-export type Task = ReadingTask | QuestionTask | VisualReadingTask;
+export type Task = ReadingTask | QuestionTask;
 
 /** A planet with its slides in display order: readings, then questions. */
 export interface Planet {
