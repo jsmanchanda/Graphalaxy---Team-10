@@ -1,4 +1,9 @@
-import type {Planet, QuestionTask, Task} from '@graphalaxy/shared';
+import type {
+  Planet,
+  QuestionTask,
+  Task,
+  PlanetSummary,
+} from '@graphalaxy/shared';
 
 // --- View Objects ---
 import {ScreenModel, UiAction} from '../UI/types';
@@ -8,7 +13,7 @@ import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
-import {allPlanets, PlanetSummary} from '../demos/NavigationDemo';
+import {allPlanets} from '../demos/NavigationDemo';
 
 // for MVP
 const DEMO_USERNAME = 'demo';

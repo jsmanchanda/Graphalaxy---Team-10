@@ -1,19 +1,7 @@
 import {FONT_CONTHRAX, FONT_PLANET_KOSMOS} from '../UI/constants';
 import {NavigationScreenModel} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
-
-/**
- * Planet display data
- */
-export interface PlanetSummary {
-  planetId: number;
-  name: string;
-  graphOrder: number;
-  prereqIds: number[] | null; // Planet id (OR relation)
-  unlocked: boolean; // true if any prereq is unlocked
-  status: 'friendly' | 'hostile';
-  completionPct: number; // percentage 0-1
-}
+import {PlanetSummary} from '@graphalaxy/shared/src/api';
 
 export const allPlanets: PlanetSummary[] = [
   {

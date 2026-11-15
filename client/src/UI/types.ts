@@ -1,7 +1,6 @@
 import type {Group} from 'konva/lib/Group';
 import {MathFunction} from '../Graphing/functions';
-import {PlanetSummary} from '../demos/NavigationDemo';
-
+import {PlanetSummary} from '@graphalaxy/shared/src/api';
 /**
  * Data being displayed
  * usually collection of Konva elements
