@@ -7,8 +7,8 @@ import type {
   ReadingTask,
   VisualReadingTask,
   Task,
+  PlanetSummary,
 } from '@graphalaxy/shared';
-import {PlanetSummary} from '../demos/NavigationDemo'; // TODO: build this in Session Cache
 
 // screen models (output)
 import type {

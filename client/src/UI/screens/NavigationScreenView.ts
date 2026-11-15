@@ -3,8 +3,8 @@ import {NavigationScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
 import {Component, ImageComponent, TextBoxComponent} from '../components';
 import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../constants';
-import {PlanetSummary} from '../../demos/NavigationDemo';
 import {UiError} from '../UIError';
+import {PlanetSummary} from '@graphalaxy/shared';
 
 // Planet Path Colors
 const COLOR_COMPLETE = '#00FF19';
