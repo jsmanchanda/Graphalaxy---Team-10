@@ -3,7 +3,7 @@ import type {PlanetSummary, Question, Settings} from '@graphalaxy/shared';
 // --- view stuff ---
 import {ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
-import {SessionCache} from './SessionCache';
+import {ALREADY_ANSWERED, SessionCache} from './SessionCache';
 import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
@@ -14,20 +14,45 @@ const DEMO_PLANET_ID = 1;
 const INTRO_INDEX = -1;
 
 /**
+ * Says whether a request failed because the server could not be reached.
+ * @param error what the request threw
+ * @returns true for network errors and timeouts
+ */
+function isOffline(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.kind === 'network' || error.kind === 'timeout')
+  );
+}
+
+/**
  * Explains a failed login to the player.
  * @param error what login or loading the planet threw
  * @returns the message to show on the login screen
  */
 function loginFailureMessage(error: unknown): string {
-  if (error instanceof ApiError) {
-    if (error.kind === 'network' || error.kind === 'timeout') {
-      return 'Server offline. Try again.';
-    }
-    if (error.kind === 'http' && error.status === 400) {
-      return "That username can't be used. Try another.";
-    }
+  if (isOffline(error)) {
+    return 'Server offline. Try again.';
+  }
+  if (error instanceof ApiError && error.status === 400) {
+    return "That username can't be used. Try another.";
   }
   return "Couldn't load the game. Try again.";
+}
+
+/**
+ * Explains a failed answer to the player.
+ * @param error what submitting the answer threw
+ * @returns the message to show on the result screen
+ */
+function answerFailureMessage(error: unknown): string {
+  if (isOffline(error)) {
+    return 'Server offline. Press Ok to try again.';
+  }
+  if (error instanceof ApiError && error.code === ALREADY_ANSWERED) {
+    return 'Question has already been answered. Press Ok to continue.';
+  }
+  return "Couldn't confirm answer. Press Ok to try again.";
 }
 
 /**
@@ -102,7 +127,7 @@ export class GameManager {
     if (name === '') {
       this.show(
         'login',
-        screenModelMaker.makeLoginScreen('', 'Type a username to log in.'),
+        screenModelMaker.makeLoginScreen('', 'Enter username to log in.'),
       );
       return;
     }
@@ -295,7 +320,9 @@ export class GameManager {
         // Ok on this screen asks for the question again.
         this.show('questionResult', {
           type: 'questionResult',
-          result: "We couldn't load the next question. Press Ok to retry.",
+          result: isOffline(error)
+            ? 'Server offline. Press Ok to retry.'
+            : "Couldn't load next question. Press Ok to retry.",
         });
       }
     }
@@ -341,7 +368,7 @@ export class GameManager {
         ? screenModelMaker.makeRetryWarningScreen(progress, error)
         : {
             type: 'retryWarning',
-            message: 'Redo this planet? Your progress on it will be reset.',
+            message: 'Redo planet? Progress will be reset.',
           },
     );
   }
@@ -370,7 +397,11 @@ export class GameManager {
     } catch (error) {
       console.error(error);
       if (screenId === this.screenId) {
-        this.showRetryWarning("We couldn't reset this planet.");
+        this.showRetryWarning(
+          isOffline(error)
+            ? 'Server offline. This planet was not reset.'
+            : "Couldn't reset planet.",
+        );
       }
     } finally {
       this.resetPending = false;
@@ -403,7 +434,9 @@ export class GameManager {
           'settings',
           screenModelMaker.makeSettingsScreen(
             settings,
-            "We couldn't save your settings.",
+            isOffline(error)
+              ? 'Server offline. Settings were not saved.'
+              : "Couldn't save settings.",
           ),
         );
       }
@@ -443,8 +476,7 @@ export class GameManager {
       if (screenId === this.screenId) {
         this.show('questionResult', {
           type: 'questionResult',
-          // TODO: show a different message for each ApiError kind.
-          result: "We couldn't confirm your answer.",
+          result: answerFailureMessage(error),
         });
       }
     } finally {

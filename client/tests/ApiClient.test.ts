@@ -253,3 +253,65 @@ describe('ApiClient progress, questions and settings', () => {
     expect(http).not.toHaveBeenCalled();
   });
 });
+
+describe('ApiClient error responses', () => {
+  it("carries the server's error code and message", async () => {
+    const body = {
+      error: {
+        code: 'ALREADY_ANSWERED',
+        message: 'Question 1 has already been answered.',
+      },
+    };
+    const {client} = await loggedIn(json(body, 409));
+
+    await expect(client.submitAnswer(1, 11)).rejects.toMatchObject({
+      kind: 'http',
+      status: 409,
+      code: 'ALREADY_ANSWERED',
+      message: 'Question 1 has already been answered.',
+    });
+  });
+
+  it.each([
+    {
+      name: 'is not JSON',
+      response: new Response('<html>Bad Gateway</html>', {status: 502}),
+    },
+    {name: 'is empty', response: new Response('', {status: 404})},
+    {name: 'is JSON null', response: new Response('null', {status: 404})},
+    {name: 'has no error object', response: json({message: 'nope'}, 404)},
+    {
+      name: 'has an error that is not an object',
+      response: json({error: 'nope'}, 404),
+    },
+    {
+      name: 'has a code and message of the wrong type',
+      response: json({error: {code: 7, message: {}}}, 404),
+    },
+  ])(
+    'falls back to the status when the error body $name',
+    async ({response}) => {
+      const http = fakeHttp(response, response.clone(), response.clone());
+      const client = new ApiClient(http, OPTIONS);
+
+      const error = await client.login('amy').catch((e: unknown) => e);
+
+      expect(error).toMatchObject({
+        kind: 'http',
+        status: response.status,
+        message: `Request failed with status ${response.status}`,
+      });
+      expect((error as ApiError).code).toBeUndefined();
+    },
+  );
+
+  it('keeps a code even when the message is missing', async () => {
+    const {client} = await loggedIn(json({error: {code: 'NOT_FOUND'}}, 404));
+
+    await expect(client.getPlanet(9)).rejects.toMatchObject({
+      status: 404,
+      code: 'NOT_FOUND',
+      message: 'Request failed with status 404',
+    });
+  });
+});

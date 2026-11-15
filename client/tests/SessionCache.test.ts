@@ -384,6 +384,20 @@ describe('SessionCache questions', () => {
     expect(cache.currentQuestion).toBe(QUESTION);
   });
 
+  it('forgets the current question when the server says it was already answered', async () => {
+    const {gateway, cache} = await setup();
+    await cache.loadNextQuestion();
+    gateway.submitAnswer.mockRejectedValue(
+      new ApiError('http', 'answered', 409, 'ALREADY_ANSWERED'),
+    );
+
+    await expect(cache.submitAnswer(1, 11)).rejects.toMatchObject({
+      code: 'ALREADY_ANSWERED',
+    });
+
+    expect(cache.currentQuestion).toBeNull();
+  });
+
   it('keeps the current question when a different question is answered', async () => {
     const {gateway, cache} = await setup();
     await cache.loadNextQuestion();

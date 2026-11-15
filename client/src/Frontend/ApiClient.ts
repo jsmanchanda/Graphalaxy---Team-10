@@ -209,11 +209,12 @@ export class ApiClient implements ServerGateway {
       });
       const text = await response.text();
       if (!response.ok) {
-        // TODO(#99): Parse server error body in ApiClient instead of using generic status text
+        const {code, message} = parseErrorBody(text);
         throw new ApiError(
           'http',
-          `Request failed with status ${response.status}`,
+          message ?? `Request failed with status ${response.status}`,
           response.status,
+          code,
         );
       }
       return text;
@@ -241,6 +242,30 @@ export class ApiClient implements ServerGateway {
       throw new Error('Must log in before making this request');
     }
     return `/users/${this.userId}${path}`;
+  }
+}
+
+/**
+ * Reads the server's error code and message from an error response, which
+ * the server sends as ApiErrorBody: {error: {code, message}}.
+ * @param text The response body.
+ * @returns The code and message, each undefined if the body does not have it,
+ * e.g. when a proxy answered instead of the server.
+ */
+function parseErrorBody(text: string): {code?: string; message?: string} {
+  try {
+    const error: unknown = (JSON.parse(text) as {error?: unknown} | null)
+      ?.error;
+    if (typeof error !== 'object' || error === null) {
+      return {};
+    }
+    const {code, message} = error as Record<string, unknown>;
+    return {
+      code: typeof code === 'string' ? code : undefined,
+      message: typeof message === 'string' ? message : undefined,
+    };
+  } catch {
+    return {};
   }
 }
 

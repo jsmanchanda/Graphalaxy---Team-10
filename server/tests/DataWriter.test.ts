@@ -264,7 +264,6 @@ describe('content', () => {
     expect(dw.content.findOption(1, foreign.optionId)).toBeUndefined();
   });
 });
-
 describe('nextUnansweredQuestion', () => {
   const next = (userId = user.userId) =>
     dw.content.nextUnansweredQuestion(userId, 1)?.questionId;
@@ -315,6 +314,56 @@ describe('nextUnansweredQuestion', () => {
     expect(
       dw.content.nextUnansweredQuestion(user.userId, 9999),
     ).toBeUndefined();
+  });
+
+  it('skips questions that are not multiple choice, and does not count them', () => {
+    const planetId = addPlanet();
+    addFreeResponse(planetId);
+    expect(
+      dw.content.nextUnansweredQuestion(user.userId, planetId),
+    ).toBeUndefined();
+    expect(dw.content.countQuestions(planetId)).toBe(0);
+    expect(dw.content.getQuestions(planetId)).toHaveLength(1);
+  });
+});
+
+describe('hasAnswered', () => {
+  it('is false until the user attempts the question, right or wrong', () => {
+    expect(dw.answers.hasAnswered(user.userId, 1)).toBe(false);
+    answerWrong(1);
+    answerRight(2);
+    expect(dw.answers.hasAnswered(user.userId, 1)).toBe(true);
+    expect(dw.answers.hasAnswered(user.userId, 2)).toBe(true);
+    expect(dw.answers.hasAnswered(user.userId, 3)).toBe(false);
+  });
+
+  it('is per user, and false again after the planet is cleared', () => {
+    const other = dw.users.create('other');
+    answerWrong(1);
+    expect(dw.answers.hasAnswered(other.userId, 1)).toBe(false);
+    dw.answers.clearForPlanet(user.userId, 1);
+    expect(dw.answers.hasAnswered(user.userId, 1)).toBe(false);
+  });
+});
+
+describe('usernames', () => {
+  it('finds a user whatever the capitalisation of the name', () => {
+    const amy = dw.users.create('Amy');
+    for (const name of ['Amy', 'amy', 'AMY', 'aMy']) {
+      expect(dw.users.findByUsername(name)).toEqual(amy);
+    }
+  });
+
+  it('does not match a different name', () => {
+    dw.users.create('Amy');
+    expect(dw.users.findByUsername('Amy2')).toBeUndefined();
+    expect(dw.users.findByUsername('Am')).toBeUndefined();
+  });
+
+  it('finds the first-created user when older rows differ only by case', () => {
+    const first = dw.users.create('Kai');
+    dw.users.create('kai');
+    expect(dw.users.findByUsername('KAI')).toEqual(first);
   });
 });
 
@@ -406,6 +455,12 @@ describe('progress', () => {
   it('incrementCorrect adds one each time, creating the row if needed', () => {
     expect(dw.progress.incrementCorrect(user.userId, 1).correctCount).toBe(1);
     expect(dw.progress.incrementCorrect(user.userId, 1).correctCount).toBe(2);
+  });
+
+  it('keeps the status when no progress row exists yet', () => {
+    dw.progress.setStatus(user.userId, 1, 'peaceful');
+
+    expect(dw.progress.ensure(user.userId, 1).status).toBe('peaceful');
   });
 
   it('sets status on an existing row without touching correctCount', () => {

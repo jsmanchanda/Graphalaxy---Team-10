@@ -81,7 +81,10 @@ class FakeDataWriter implements Pick<
       this.readings
         .filter(reading => reading.planetId === planetId)
         .sort((a, b) => a.readingNumber - b.readingNumber),
-    countQuestions: planetId => this.content.getQuestions(planetId).length,
+    countQuestions: planetId =>
+      this.content
+        .getQuestions(planetId)
+        .filter(question => question.qtype === 'mcq').length,
     getQuestion: questionId =>
       this.questions.find(question => question.questionId === questionId),
     getQuestions: planetId =>
@@ -93,6 +96,7 @@ class FakeDataWriter implements Pick<
         .getQuestions(planetId)
         .find(
           question =>
+            question.qtype === 'mcq' &&
             !this.attempts.some(
               attempt =>
                 attempt.userId === userId &&
@@ -132,6 +136,11 @@ class FakeDataWriter implements Pick<
       }
       this.attempts.push({userId, questionId, optionId, correct});
     },
+    hasAnswered: (userId, questionId) =>
+      this.attempts.some(
+        attempt =>
+          attempt.userId === userId && attempt.questionId === questionId,
+      ),
     clearForPlanet: (userId, planetId) => {
       const kept = this.attempts.filter(
         attempt =>
@@ -334,11 +343,21 @@ describe('QuestionManager using Data Writer', () => {
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
   });
 
-  it('still accepts a later correct answer to a question that was answered wrong', () => {
+  it('rejects a second answer, so a wrong answer cannot be turned into a correct one', () => {
     manager.submit(1, 1, 12);
+    expect(() => manager.submit(1, 1, 11)).toThrow(
+      expect.objectContaining({code: 'ALREADY_ANSWERED'}),
+    );
+    expect(writer.attempts).toHaveLength(1);
+    expect(onAnswer).not.toHaveBeenCalled();
+    expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
+  });
+
+  it('accepts an answer again once the attempts on the planet are cleared', () => {
+    manager.submit(1, 1, 12);
+    writer.answers.clearForPlanet(1, 1);
     expect(manager.submit(1, 1, 11).correct).toBe(true);
     expect(onAnswer).toHaveBeenCalledTimes(1);
-    expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
   });
 
   it.each([21, 999])(
@@ -352,14 +371,14 @@ describe('QuestionManager using Data Writer', () => {
     },
   );
 
-  it('returns feedback for repeated correct submissions without duplicate writes or progress', () => {
+  it('rejects repeated submissions without duplicate writes or progress, per user', () => {
     manager.submit(1, 1, 11);
-    expect(
-      new QuestionManager(writer, {onAnswer}).submit(1, 1, 11).correct,
-    ).toBe(true);
-    manager.submit(1, 1, 12);
-    manager.submit(1, 1, 11);
-    expect(writer.attempts).toHaveLength(2);
+    for (const optionId of [11, 12]) {
+      expect(() =>
+        new QuestionManager(writer, {onAnswer}).submit(1, 1, optionId),
+      ).toThrow(expect.objectContaining({code: 'ALREADY_ANSWERED'}));
+    }
+    expect(writer.attempts).toHaveLength(1);
     expect(onAnswer).toHaveBeenCalledTimes(1);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
     manager.submit(2, 1, 11);
@@ -390,30 +409,37 @@ describe('QuestionManager using Data Writer', () => {
   // Options belonging to another question, duplicate option IDs and a second
   // correct option are ruled out by the queries and the schema, so they are
   // covered by the integration and data-writer tests rather than here.
-  it.each([
-    'no correct option',
-    'too few options',
-    'too many options',
-    'unsupported type',
-  ])('rejects malformed authored content: %s', scenario => {
-    if (scenario === 'no correct option') writer.options[4].isCorrect = false;
-    if (scenario === 'too few options') writer.options = [writer.options[4]];
-    if (scenario === 'too many options') {
-      writer.options.push(
-        ...[13, 14, 15].map(optionId => ({...writer.options[5], optionId})),
-      );
-    }
-    if (scenario === 'unsupported type') {
-      writer.questions[2].qtype = 'free_response';
-    }
+  it('never asks a question that is not multiple choice, and rejects answers to it', () => {
+    writer.questions[2].qtype = 'free_response';
+    expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
     expect(() => manager.submit(1, 1, 11)).toThrow(
       expect.objectContaining({code: 'INVALID_CONTENT'}),
     );
-    expect(() => manager.nextQuestion(1, 1)).toThrow(
-      expect.objectContaining({code: 'INVALID_CONTENT'}),
-    );
-    expect(writer.attempts).toEqual([]);
+    manager.submit(1, 2, 21);
+    manager.submit(1, 3, 31);
+    expect(manager.nextQuestion(1, 1)).toBeNull();
+    expect(writer.content.countQuestions(1)).toBe(2);
   });
+
+  it.each(['no correct option', 'too few options', 'too many options'])(
+    'rejects malformed authored content: %s',
+    scenario => {
+      if (scenario === 'no correct option') writer.options[4].isCorrect = false;
+      if (scenario === 'too few options') writer.options = [writer.options[4]];
+      if (scenario === 'too many options') {
+        writer.options.push(
+          ...[13, 14, 15].map(optionId => ({...writer.options[5], optionId})),
+        );
+      }
+      expect(() => manager.submit(1, 1, 11)).toThrow(
+        expect.objectContaining({code: 'INVALID_CONTENT'}),
+      );
+      expect(() => manager.nextQuestion(1, 1)).toThrow(
+        expect.objectContaining({code: 'INVALID_CONTENT'}),
+      );
+      expect(writer.attempts).toEqual([]);
+    },
+  );
 
   it('wraps dependency read failures and preserves their internal cause', () => {
     const cause = new Error('database unavailable');

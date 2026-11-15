@@ -94,7 +94,7 @@ export function makeLessonIntroScreen(
     type: 'intro',
     title: title,
     description: progress
-      ? `${description}\n\nYour progress: ${describeProgress(progress)}`
+      ? `${description}\n\nCurrent progress: ${describeProgress(progress)}`
       : description,
   };
 }
@@ -145,8 +145,8 @@ export function makeRetryWarningScreen(
       ? 'The planet turns hostile again and you answer every question from the start.'
       : 'You answer every question from the start.';
   const warning =
-    `Redo ${progress.name}? This resets your progress here. ` +
-    `Right now: ${describeProgress(progress)}. ${consequence}`;
+    `Redo ${progress.name}?` +
+    `Current progress: ${describeProgress(progress)}. This resets all progress here. ${consequence}`;
   return {
     type: 'retryWarning',
     message: error ? `${error}\n\n${warning}` : warning,

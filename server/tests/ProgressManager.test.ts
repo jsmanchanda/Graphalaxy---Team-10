@@ -119,11 +119,15 @@ describe('ProgressManager subscribed to QuestionManager', () => {
       });
     });
 
-    it('does not count wrong answers or repeated correct answers', () => {
+    it('does not count wrong answers, or a second answer to the same question', () => {
       answer(1, false);
-      answer(1);
-      answer(1);
-      answer(2, false);
+      expect(() => answer(1)).toThrow(
+        expect.objectContaining({code: 'ALREADY_ANSWERED'}),
+      );
+      answer(2);
+      expect(() => answer(2)).toThrow(
+        expect.objectContaining({code: 'ALREADY_ANSWERED'}),
+      );
       expect(progress.getPlanetSummary(userId, PLANET_ID).correctCount).toBe(1);
     });
 
@@ -173,6 +177,25 @@ describe('ProgressManager subscribed to QuestionManager', () => {
     });
   });
 
+  describe('questions that are not multiple choice', () => {
+    it('leaves them out of the total, so the planet can still be completed', () => {
+      db.prepare(
+        "INSERT INTO questions (planet_id, prompt, qtype) VALUES (?, 'Why?', 'free_response')",
+      ).run(PLANET_ID);
+
+      expect(progress.getPlanetSummary(userId, PLANET_ID).questionCount).toBe(
+        5,
+      );
+      QUESTION_IDS.forEach(questionId => answer(questionId));
+
+      expect(questions.nextQuestion(userId, PLANET_ID)).toBeNull();
+      expect(progress.getPlanetSummary(userId, PLANET_ID)).toMatchObject({
+        status: 'peaceful',
+        completionPct: 1,
+      });
+    });
+  });
+
   describe('redoing a planet', () => {
     it('resets progress and makes every question unanswered again', () => {
       QUESTION_IDS.forEach(questionId => answer(questionId));
@@ -196,7 +219,6 @@ describe('ProgressManager subscribed to QuestionManager', () => {
       QUESTION_IDS.forEach(questionId => answer(questionId));
       progress.resetPlanet(userId, PLANET_ID);
 
-      answer(1, false);
       QUESTION_IDS.forEach(questionId => answer(questionId));
 
       expect(progress.getPlanetSummary(userId, PLANET_ID)).toMatchObject({

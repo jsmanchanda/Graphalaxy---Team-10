@@ -177,6 +177,36 @@ describe('progress and question routes', () => {
     expect(planets.body[0]).toMatchObject({status: 'hostile', correctCount: 0});
   });
 
+  it('answers 409 to a second answer and keeps the first', async () => {
+    const first = await answerNext(false);
+    const questionId: number = first.body.questionId;
+    const right = writer.content.getCorrectOption(questionId)?.optionId;
+
+    const second = await request(app)
+      .post(`${user}/questions/${questionId}/answer`)
+      .send({optionId: right});
+
+    expect(second.status).toBe(409);
+    expect(second.body.error).toEqual({
+      code: 'ALREADY_ANSWERED',
+      message: `Question ${questionId} has already been answered.`,
+    });
+    const planets = await request(app).get(`${user}/planets`);
+    expect(planets.body[0].correctCount).toBe(0);
+  });
+
+  it('logs the same player in whatever the capitalisation of the name', async () => {
+    await request(app)
+      .patch(`${user}/settings`)
+      .send({musicVolume: 0.8, sfxVolume: 0.1});
+
+    const login = await request(app).post('/api/users').send({username: 'AMY'});
+
+    expect(`/api/users/${login.body.userId}`).toBe(user);
+    expect(login.body.name).toBe('amy');
+    expect(login.body.settings).toEqual({musicVolume: 0.8, sfxVolume: 0.1});
+  });
+
   it("returns the player's saved settings when they log in again", async () => {
     const saved = await request(app)
       .patch(`${user}/settings`)

@@ -7,6 +7,10 @@ import type {
   Settings,
 } from '@graphalaxy/shared';
 import {ApiClient, type ServerGateway} from './ApiClient';
+import {ApiError} from './ApiError';
+
+/** The server's error code for a second answer to the same question. */
+export const ALREADY_ANSWERED = 'ALREADY_ANSWERED';
 
 /**
  * Holds the player's session data and loads data from the backend.
@@ -139,7 +143,9 @@ export class SessionCache {
 
   /**
    * Sends an answer to the server, which grades it. Once currentQuestion is
-   * graded, right or wrong, forgets it: each question is answered once.
+   * graded, right or wrong, forgets it: each question is answered once. Also
+   * forgets it if the server says it was answered before, which happens when
+   * an earlier answer was recorded but its reply never arrived.
    * @param questionId The question's ID.
    * @param optionId The ID of the chosen option.
    * @returns The server's verdict.
@@ -149,11 +155,21 @@ export class SessionCache {
     questionId: number,
     optionId: number,
   ): Promise<AnswerResult> {
-    const result = await this.client.submitAnswer(questionId, optionId);
-    if (this.currentQuestion?.questionId === questionId) {
-      this.currentQuestion = null;
+    const forget = (): void => {
+      if (this.currentQuestion?.questionId === questionId) {
+        this.currentQuestion = null;
+      }
+    };
+    try {
+      const result = await this.client.submitAnswer(questionId, optionId);
+      forget();
+      return result;
+    } catch (error) {
+      if (error instanceof ApiError && error.code === ALREADY_ANSWERED) {
+        forget();
+      }
+      throw error;
     }
-    return result;
   }
 
   /**

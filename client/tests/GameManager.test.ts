@@ -621,23 +621,32 @@ describe('GameManager questions, one at a time', () => {
     expect(lastScreen()).toEqual(TITLE);
   });
 
-  it('shows an error when the next question cannot be loaded, and loads it on Ok', async () => {
-    const {gateway} = await setup();
-    gateway.getNextQuestion.mockRejectedValueOnce(
-      new ApiError('network', 'down'),
-    );
-    act({type: 'start'});
-    act({type: 'next'});
+  it.each([
+    {
+      name: 'the server is offline',
+      error: new ApiError('network', 'down'),
+      message: 'Server offline. Press Ok to retry.',
+    },
+    {
+      name: 'the server fails',
+      error: new ApiError('http', 'boom', 500),
+      message: "We couldn't load the next question. Press Ok to retry.",
+    },
+  ])(
+    'says that $name when the next question cannot be loaded, and loads it on Ok',
+    async ({error, message}) => {
+      const {gateway} = await setup();
+      gateway.getNextQuestion.mockRejectedValueOnce(error);
+      act({type: 'start'});
+      act({type: 'next'});
 
-    await actAndWait({type: 'next'});
-    expect(lastScreen()).toEqual({
-      type: 'questionResult',
-      result: "We couldn't load the next question. Press Ok to retry.",
-    });
+      await actAndWait({type: 'next'});
+      expect(lastScreen()).toEqual({type: 'questionResult', result: message});
 
-    await actAndWait({type: 'next'});
-    expect(lastScreen()).toEqual(QUESTION_1);
-  });
+      await actAndWait({type: 'next'});
+      expect(lastScreen()).toEqual(QUESTION_1);
+    },
+  );
 
   it('drops a question that arrives after the player went back', async () => {
     const {gateway} = await setup();
@@ -654,6 +663,22 @@ describe('GameManager questions, one at a time', () => {
     expect(lastScreen()).toEqual(INTRO);
   });
 
+  it('keeps the current screen until the next question arrives', async () => {
+    const {gateway} = await setup();
+    const pending = deferred<NextQuestion>();
+    gateway.getNextQuestion.mockReturnValueOnce(pending.promise);
+    act({type: 'start'});
+    act({type: 'next'});
+    ui.displayScreen.mockClear();
+
+    act({type: 'next'});
+    expect(ui.displayScreen).not.toHaveBeenCalled();
+
+    pending.resolve({question: QUESTIONS[0], progress: gateway.progress()});
+    await flush();
+    expect(ui.displayScreen).toHaveBeenCalledExactlyOnceWith(QUESTION_1);
+  });
+
   it('shows the question once for a double click on Next', async () => {
     const {gateway} = await setup();
     act({type: 'start'});
@@ -664,8 +689,7 @@ describe('GameManager questions, one at a time', () => {
     await actAndWait({type: 'next'});
 
     expect(gateway.getNextQuestion).toHaveBeenCalledTimes(2);
-    expect(ui.displayScreen).toHaveBeenCalledTimes(1);
-    expect(lastScreen()).toEqual(QUESTION_1);
+    expect(ui.displayScreen).toHaveBeenCalledExactlyOnceWith(QUESTION_1);
   });
 });
 
@@ -737,22 +761,51 @@ describe('GameManager answers', () => {
     expect(lastScreen()).toEqual(CORRECT);
   });
 
-  it('shows an error result when the answer cannot be submitted, then asks again', async () => {
+  it.each([
+    {
+      name: 'the server is offline',
+      error: new ApiError('network', 'down'),
+      message: 'Server offline. Press Ok to try again.',
+    },
+    {
+      name: 'the server fails',
+      error: new ApiError('http', 'boom', 500, 'STORAGE_ERROR'),
+      message: "We couldn't confirm your answer. Press Ok to try again.",
+    },
+  ])(
+    'says that $name when the answer cannot be submitted, then asks again',
+    async ({error, message}) => {
+      const {gateway} = await setupAtQuestion1();
+      gateway.submitAnswer.mockRejectedValueOnce(error);
+
+      await actAndWait({type: 'answer', option: RIGHT_OPTION});
+
+      expect(lastScreen()).toEqual({type: 'questionResult', result: message});
+
+      await actAndWait({type: 'next'});
+      expect(lastScreen()).toEqual(QUESTION_1);
+      await actAndWait({type: 'answer', option: RIGHT_OPTION});
+      expect(gateway.submitAnswer).toHaveBeenCalledTimes(2);
+      expect(lastScreen()).toEqual(CORRECT);
+    },
+  );
+
+  it('moves on when the server says the question was already answered', async () => {
     const {gateway} = await setupAtQuestion1();
-    gateway.submitAnswer.mockRejectedValueOnce(new ApiError('network', 'down'));
+    // The first answer was recorded, but its reply never arrived.
+    gateway.answers.set(1, false);
+    gateway.submitAnswer.mockRejectedValueOnce(
+      new ApiError('http', 'answered', 409, 'ALREADY_ANSWERED'),
+    );
 
     await actAndWait({type: 'answer', option: RIGHT_OPTION});
-
     expect(lastScreen()).toEqual({
       type: 'questionResult',
-      result: "We couldn't confirm your answer.",
+      result: 'You already answered this question. Press Ok to move on.',
     });
 
     await actAndWait({type: 'next'});
-    expect(lastScreen()).toEqual(QUESTION_1);
-    await actAndWait({type: 'answer', option: RIGHT_OPTION});
-    expect(gateway.submitAnswer).toHaveBeenCalledTimes(2);
-    expect(lastScreen()).toEqual(CORRECT);
+    expect(lastScreen()).toEqual(QUESTION_2);
   });
 
   it('drops the result if the player moved to another screen', async () => {
@@ -894,22 +947,36 @@ describe('GameManager redoing a planet', () => {
     expect(lastScreen()).toEqual(QUESTION_1);
   });
 
-  it('keeps the warning, with an error, when the reset fails, and can retry', async () => {
-    const {gateway, session} = await setupAtLessonResult();
-    gateway.resetPlanet.mockRejectedValueOnce(new ApiError('network', 'down'));
-    act({type: 'retryLesson'});
+  it.each([
+    {
+      name: 'the server is offline',
+      error: new ApiError('network', 'down'),
+      message: 'Server offline. This planet was not reset.',
+    },
+    {
+      name: 'the server fails',
+      error: new ApiError('http', 'boom', 500),
+      message: "We couldn't reset this planet.",
+    },
+  ])(
+    'keeps the warning, saying that $name, when the reset fails, and can retry',
+    async ({error, message}) => {
+      const {gateway, session} = await setupAtLessonResult();
+      gateway.resetPlanet.mockRejectedValueOnce(error);
+      act({type: 'retryLesson'});
 
-    await actAndWait({type: 'confirmRetry'});
+      await actAndWait({type: 'confirmRetry'});
 
-    expect(lastScreen()).toEqual({
-      type: 'retryWarning',
-      message: `We couldn't reset this planet.\n\n${WARNING}`,
-    });
-    expect(session.progressFor(1)).toMatchObject({correctCount: 2});
+      expect(lastScreen()).toEqual({
+        type: 'retryWarning',
+        message: `${message}\n\n${WARNING}`,
+      });
+      expect(session.progressFor(1)).toMatchObject({correctCount: 2});
 
-    await actAndWait({type: 'confirmRetry'});
-    expect(lastScreen()).toEqual(QUESTION_1);
-  });
+      await actAndWait({type: 'confirmRetry'});
+      expect(lastScreen()).toEqual(QUESTION_1);
+    },
+  );
 });
 
 describe('GameManager settings', () => {
@@ -942,20 +1009,37 @@ describe('GameManager settings', () => {
     expect(lastScreen()).toEqual({type: 'settings', settings: CHOSEN});
   });
 
-  it('keeps the chosen settings on screen, with an error, when saving fails', async () => {
-    const {gateway, session} = await setup();
-    gateway.saveSettings.mockRejectedValueOnce(new ApiError('network', 'down'));
-    act({type: 'openSettings'});
-
-    await actAndWait({type: 'saveSettings', settings: CHOSEN});
-
-    expect(lastScreen()).toEqual({
-      type: 'settings',
-      settings: CHOSEN,
+  it.each([
+    {
+      name: 'the server is offline',
+      error: new ApiError('timeout', 'slow'),
+      message: 'Server offline. Your settings were not saved.',
+    },
+    {
+      name: 'the server fails',
+      error: new ApiError('http', 'boom', 500),
       message: "We couldn't save your settings.",
-    });
-    expect(session.player?.settings).toEqual(PLAYER.settings);
-  });
+    },
+  ])(
+    'keeps the chosen settings on screen, saying that $name, when saving fails',
+    async ({error, message}) => {
+      const {gateway, session} = await setup();
+      gateway.saveSettings.mockRejectedValueOnce(error);
+      act({type: 'openSettings'});
+
+      await actAndWait({type: 'saveSettings', settings: CHOSEN});
+
+      expect(lastScreen()).toEqual({
+        type: 'settings',
+        settings: CHOSEN,
+        message,
+      });
+      expect(session.player?.settings).toEqual(PLAYER.settings);
+
+      await actAndWait({type: 'saveSettings', settings: CHOSEN});
+      expect(session.player?.settings).toEqual(CHOSEN);
+    },
+  );
 
   it('returns to the title on Back', async () => {
     await setup();

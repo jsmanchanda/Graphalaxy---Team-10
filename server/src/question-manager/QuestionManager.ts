@@ -19,6 +19,7 @@ import type {
 export type QuestionErrorCode =
   | 'INVALID_INPUT'
   | 'NOT_FOUND'
+  | 'ALREADY_ANSWERED'
   | 'INVALID_CONTENT'
   | 'STORAGE_ERROR'
   | 'PROGRESS_UPDATE_FAILED';
@@ -74,9 +75,10 @@ export class QuestionManager {
   }
 
   /**
-   * Returns the planet's first question, in question ID order, that this user
-   * has not answered yet, or null once they have answered every one. A wrong
-   * answer counts: each question is asked once, and the player moves on.
+   * Returns the planet's first multiple-choice question, in question ID
+   * order, that this user has not answered yet, or null once they have
+   * answered every one. A wrong answer counts: each question is asked once,
+   * and the player moves on. Questions of other types are never asked.
    */
   nextQuestion(userId: number, planetId: number): Question | null {
     return this.withStorageError('Unable to load the next question.', () => {
@@ -89,7 +91,11 @@ export class QuestionManager {
     });
   }
 
-  /** Records a valid attempt and notifies progress once, in one transaction. */
+  /**
+   * Records a valid attempt and notifies progress if it is correct, in one
+   * transaction. A question can be answered once: a second attempt throws
+   * ALREADY_ANSWERED, until the planet is reset.
+   */
   submit(userId: number, questionId: number, optionId: number): AnswerResult {
     return this.withStorageError('Unable to submit the answer.', () =>
       this.dataWriter.transaction(() => {
@@ -112,18 +118,21 @@ export class QuestionManager {
             'The selected option does not belong to this question.',
           );
         }
-        const completed = this.dataWriter.answers.hasSolved(userId, questionId);
-        // The schema allows only one correct row per user/question.
-        // Keep recording wrong attempts, including those after completion.
-        if (!selected.isCorrect || !completed) {
-          this.dataWriter.answers.record(
-            userId,
-            questionId,
-            optionId,
-            selected.isCorrect,
+        // Each question is answered once, so a wrong answer cannot be turned
+        // into a correct one by sending another request.
+        if (this.dataWriter.answers.hasAnswered(userId, questionId)) {
+          throw new QuestionManagerError(
+            'ALREADY_ANSWERED',
+            `Question ${questionId} has already been answered.`,
           );
         }
-        if (selected.isCorrect && !completed) {
+        this.dataWriter.answers.record(
+          userId,
+          questionId,
+          optionId,
+          selected.isCorrect,
+        );
+        if (selected.isCorrect) {
           try {
             this.progress.onAnswer({
               userId,

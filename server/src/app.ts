@@ -16,10 +16,13 @@ import {
   type QuestionManager,
 } from './question-manager/QuestionManager';
 
+//MOCK APP FOR DEMO. REDO IN SPRINT 2.
+
 /**
  * Maps a QuestionManager error code to an HTTP status.
  * @param code the error code
- * @returns 400 for bad input, 404 for missing things, 500 for the rest
+ * @returns 400 for bad input, 404 for missing things, 409 for a question that
+ * was already answered, 500 for the rest
  */
 function statusFor(code: QuestionErrorCode): number {
   switch (code) {
@@ -27,6 +30,8 @@ function statusFor(code: QuestionErrorCode): number {
       return 400;
     case 'NOT_FOUND':
       return 404;
+    case 'ALREADY_ANSWERED':
+      return 409;
     default:
       return 500;
   }

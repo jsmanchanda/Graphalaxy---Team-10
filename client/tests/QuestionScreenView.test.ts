@@ -128,3 +128,36 @@ describe('QuestionScreenView option selection', () => {
     expect(onAction).not.toHaveBeenCalled();
   });
 });
+
+describe('QuestionScreenView with fewer than four options', () => {
+  const OTHER_COMPONENTS = 4; // back button, alien, prompt, confirm button
+
+  it.each([2, 3, 4])('builds one button per option for %i options', count => {
+    const options = ['A', 'B', 'C', 'D'].slice(0, count);
+    const view = new QuestionScreenView(vi.fn(), {
+      type: 'question',
+      question: {prompt: 'Pick one', options},
+    });
+
+    expect(view.getGroup().getChildren()).toHaveLength(
+      OTHER_COMPONENTS + count,
+    );
+  });
+
+  it('submits the last of two options', () => {
+    const onAction = vi.fn();
+    const view = new QuestionScreenView(onAction, {
+      type: 'question',
+      question: {prompt: 'True or false?', options: ['True', 'False']},
+    });
+    const children = view.getGroup().getChildren() as Konva.Group[];
+    const confirmButton = children[3];
+    const lastOption = children[children.length - 1];
+
+    lastOption.fire('click');
+    confirmButton.fire('click');
+
+    expect(getButtonBackground(lastOption).fill()).toBe('#3b82f6');
+    expect(onAction).toHaveBeenCalledWith({type: 'answer', option: 1});
+  });
+});
