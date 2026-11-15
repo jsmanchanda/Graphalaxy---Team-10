@@ -89,3 +89,23 @@ export interface AnswerResult {
 export interface ApiErrorBody {
   error: {code: string; message: string};
 }
+
+/** A hint the player has unlocked and can review. */
+export interface UnlockedHint {
+  hintId: number;
+  planetId: number;
+  hintNumber: number;
+  text: string;
+}
+
+/** The player's available hint credits. */
+export interface HintBalanceResult {
+  hintQuota: number;
+}
+
+/** The result of unlocking the next hint. */
+export interface HintUnlockResult {
+  /** Null when there are no more hints to unlock. */
+  hint: UnlockedHint | null;
+  hintQuota: number;
+}

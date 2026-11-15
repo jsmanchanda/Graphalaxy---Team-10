@@ -1,14 +1,6 @@
-import type {Hint} from '../data-writer';
+import type {UnlockedHint, HintUnlockResult} from '@graphalaxy/shared';
 
-/** A hint the player has unlocked and can review. */
-export type UnlockedHint = Omit<Hint, 'used'>;
-
-/** The unlocked hint and the player's remaining hint credits. */
-export interface HintUnlockResult {
-  /** Null when the planet has no more hints to unlock. */
-  hint: UnlockedHint | null;
-  hintQuota: number;
-}
+export type {UnlockedHint, HintUnlockResult} from '@graphalaxy/shared';
 
 /** Expected failures callers can handle without inspecting error messages. */
 export type HintErrorCode =
