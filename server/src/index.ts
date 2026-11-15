@@ -6,8 +6,6 @@ import {seed} from './db/seed';
 import {ProgressManager} from './progress-manager/ProgressManager';
 import {QuestionManager} from './question-manager/QuestionManager';
 
-//MOCK INDEX 4 DEMO. TEST IN SPRINT 2.
-
 const PORT = Number(process.env.PORT ?? 3000);
 
 const db = openDb();

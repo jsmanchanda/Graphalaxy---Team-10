@@ -16,8 +16,6 @@ import {
   type QuestionManager,
 } from './question-manager/QuestionManager';
 
-//MOCK APP FOR DEMO. REDO IN SPRINT 2.
-
 /**
  * Maps a QuestionManager error code to an HTTP status.
  * @param code the error code
