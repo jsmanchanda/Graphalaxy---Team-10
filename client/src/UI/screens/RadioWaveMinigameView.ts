@@ -23,10 +23,14 @@ const DEFAULT_HORIZONTAL_SHIFT = 0;
 const DEFAULT_VERTICAL_SHIFT = 0;
 
 /**
- * Displays the visual foundation for the radio-wave minigame.
+ * Displays the instructions, timed round, and results for the minigame.
  */
 export class RadioWaveMinigameView implements View {
   private group: Konva.Group;
+  private timer?: number;
+  private removeControls?: () => void;
+  private correctAnswers = 0;
+  private screen: 'instructions' | 'gameplay' | 'results' = 'instructions';
 
   /**
    * Builds the minigame screen.
@@ -37,12 +41,67 @@ export class RadioWaveMinigameView implements View {
   ) {
     void onAction;
     this.group = new Konva.Group();
+    // UIManager destroys this group when it switches to another view.
+    this.group.on('destroy', () => this.clearRound());
+    this.showInstructions(model);
+  }
+
+  /**
+   * Explains the round before the player starts the timer.
+   */
+  private showInstructions(model: RadioWaveMinigameScreenModel): void {
+    this.group.add(
+      new Konva.Text({
+        x: GRAPH_X,
+        y: 65,
+        width: GRAPH_WIDTH,
+        text: 'Match the radio wave',
+        align: 'center',
+        fontSize: 28,
+        fill: 'white',
+      }),
+    );
+    this.group.add(
+      new Konva.Text({
+        x: GRAPH_X,
+        y: 135,
+        width: GRAPH_WIDTH,
+        text:
+          'Change the equation values to match your blue wave to the white wave.\n\n' +
+          'Use y = A sin(B(x - h)) + k, then submit your answer.\n\n' +
+          `You have ${model.config.timeLimitSeconds} seconds. There are no skips.\n\n` +
+          `Goal: ${model.config.correctAnswersForHint} correct answers for a hint.`,
+        align: 'center',
+        fontSize: 20,
+        lineHeight: 1.3,
+        fill: 'white',
+      }),
+    );
+    const startButton = new ButtonComponent(
+      CHECK_BUTTON_X,
+      CHECK_BUTTON_Y,
+      CHECK_BUTTON_WIDTH,
+      CHECK_BUTTON_HEIGHT,
+      'START',
+      () => this.startRound(model),
+    );
+    this.group.add(startButton.getGroup());
+  }
+
+  /**
+   * Builds the graph and inputs, then starts the round timer.
+   */
+  private startRound(model: RadioWaveMinigameScreenModel): void {
+    if (this.screen !== 'instructions') return;
+    this.screen = 'gameplay';
+    this.group.destroyChildren();
+    this.correctAnswers = 0;
 
     const instructions = new Konva.Text({
       x: GRAPH_X,
       y: 10,
       width: GRAPH_WIDTH,
-      text: 'Match the radio wave',
+      text: 'SIGNAL: SEARCHING',
       align: 'center',
       fontSize: 24,
       fill: 'white',
@@ -103,10 +162,8 @@ export class RadioWaveMinigameView implements View {
     this.group.add(timerBar);
     this.group.add(graph.getGroup());
 
-    const controls = this.createControls(graph);
-    this.group.on('destroy', () => controls.remove());
-    const timer = this.startTimer(timerBar, model.config.timeLimitSeconds);
-    this.group.on('destroy', () => window.clearInterval(timer));
+    this.createControls(graph);
+    this.startTimer(timerBar, model.config.timeLimitSeconds);
 
     const checkButton = new ButtonComponent(
       CHECK_BUTTON_X,
@@ -140,19 +197,60 @@ export class RadioWaveMinigameView implements View {
   /**
    * Shrinks the timer bar for the duration of the round.
    */
-  private startTimer(timerBar: Konva.Rect, timeLimitSeconds: number): number {
+  private startTimer(timerBar: Konva.Rect, timeLimitSeconds: number): void {
     const startTime = Date.now();
     const duration = Math.max(timeLimitSeconds, 1) * 1000;
-    const timer = window.setInterval(() => {
+    this.timer = window.setInterval(() => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 1 - elapsed / duration);
       timerBar.width((GRAPH_WIDTH - 6) * remaining);
 
       if (remaining === 0) {
-        window.clearInterval(timer);
+        this.showResults();
       }
     }, 100);
-    return timer;
+  }
+
+  /**
+   * Stops gameplay and displays the final score when time runs out.
+   */
+  private showResults(): void {
+    if (this.screen !== 'gameplay') return;
+    this.screen = 'results';
+    this.clearRound();
+    this.group.destroyChildren();
+    this.group.add(
+      new Konva.Text({
+        x: GRAPH_X,
+        y: 150,
+        width: GRAPH_WIDTH,
+        text: "Time's up!",
+        align: 'center',
+        fontSize: 32,
+        fill: 'white',
+      }),
+    );
+    this.group.add(
+      new Konva.Text({
+        x: GRAPH_X,
+        y: 230,
+        width: GRAPH_WIDTH,
+        text: `Correct answers: ${this.correctAnswers}`,
+        align: 'center',
+        fontSize: 24,
+        fill: 'white',
+      }),
+    );
+  }
+
+  /**
+   * Removes the HTML controls and timer on timeout or view destruction.
+   */
+  private clearRound(): void {
+    window.clearInterval(this.timer);
+    this.timer = undefined;
+    this.removeControls?.();
+    this.removeControls = undefined;
   }
 
   /**
@@ -182,7 +280,7 @@ export class RadioWaveMinigameView implements View {
   /**
    * Creates the editable expression beneath the graph.
    */
-  private createControls(graph: GraphComponent): HTMLDivElement {
+  private createControls(graph: GraphComponent): void {
     const amplitude = this.createInput('amplitude', String(DEFAULT_AMPLITUDE));
     const frequency = this.createInput('frequency', String(DEFAULT_FREQUENCY));
     const horizontalShift = this.createInput(
@@ -242,10 +340,10 @@ export class RadioWaveMinigameView implements View {
     frequency.addEventListener('input', updateWave);
     horizontalShift.addEventListener('input', updateWave);
     verticalShift.addEventListener('input', updateWave);
-    this.group.on('destroy', () => {
+    this.removeControls = () => {
+      controls.remove();
       window.removeEventListener('resize', positionControls);
-    });
-    return controls;
+    };
   }
 
   /**
