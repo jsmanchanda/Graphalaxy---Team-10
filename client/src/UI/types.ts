@@ -1,4 +1,5 @@
 import type {Group} from 'konva/lib/Group';
+import type {Settings} from '@graphalaxy/shared';
 
 /**
  * Data being displayed
@@ -6,19 +7,39 @@ import type {Group} from 'konva/lib/Group';
  */
 export interface View {
   getGroup(): Group;
+  /**
+   * Cleans up anything the view holds outside its Konva group, such as a
+   * keyboard listener. UiManager calls it before it removes the view.
+   */
+  destroy?(): void;
 }
 
 /**
  * User interaction types
  */
 export type UiAction =
+  | {type: 'login'; username: string}
   | {type: 'start'}
   | {type: 'answer'; option: number}
   | {type: 'next'}
   | {type: 'back'}
-  | {type: 'retryLesson'};
+  | {type: 'retryLesson'}
+  | {type: 'confirmRetry'}
+  | {type: 'cancelRetry'}
+  | {type: 'openSettings'}
+  | {type: 'saveSettings'; settings: Settings};
 
 // ================== Screens Models ===================
+/**
+ * Login Screen Data. `username` is what the input starts with, and `message`
+ * reports progress or the outcome of the last attempt to log in.
+ */
+export interface LoginScreenModel {
+  type: 'login';
+  username: string;
+  message?: string;
+}
+
 /**
  * Title Screen Data
  */
@@ -78,12 +99,32 @@ export interface LessonResultScreenModel {
 }
 
 /**
+ * Retry Warning Screen Data: the warning shown before a planet is redone
+ */
+export interface RetryWarningScreenModel {
+  type: 'retryWarning';
+  message: string;
+}
+
+/**
+ * Settings Screen Data. `message` reports the outcome of the last save.
+ */
+export interface SettingsScreenModel {
+  type: 'settings';
+  settings: Settings;
+  message?: string;
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
+  | LoginScreenModel
   | TitleScreenModel
   | LessonIntroScreenModel
   | ReadingScreenModel
   | QuestionScreenModel
   | QuestionResultScreenModel
-  | LessonResultScreenModel;
+  | LessonResultScreenModel
+  | RetryWarningScreenModel
+  | SettingsScreenModel;

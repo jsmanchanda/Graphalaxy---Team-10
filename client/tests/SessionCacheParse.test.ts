@@ -2,13 +2,16 @@ import {describe, expect, it} from 'vitest';
 import {
   parseAnswerOption,
   parseAnswerResult,
+  parseNextQuestion,
   parsePlanet,
+  parsePlanetSummaries,
+  parsePlanetSummary,
   parsePlayer,
   parseQuestion,
   parseQuestionTask,
   parseReadingTask,
   parseSettings,
-} from '../src/Frontend/SessionCacheModels';
+} from '../src/Frontend/SessionCacheParse';
 import {
   MISSING_FIELDS_ERROR,
   CLASS_CREATION_ERROR,
@@ -419,4 +422,156 @@ describe.each([
       expect(() => parse(json)).toThrowError(nonObjectError);
     },
   );
+});
+
+const VALID_SUMMARY = {
+  planetId: 1,
+  name: 'Linear Land',
+  graphOrder: 0,
+  prereqIds: [2, 3],
+  unlocked: true,
+  status: 'hostile',
+  correctCount: 2,
+  questionCount: 5,
+  completionPct: 0.4,
+};
+
+const SUMMARY_FIELDS = [
+  'planetId',
+  'name',
+  'graphOrder',
+  'prereqIds',
+  'unlocked',
+  'status',
+  'correctCount',
+  'questionCount',
+  'completionPct',
+];
+
+describe('parsePlanetSummary', () => {
+  it('parses a valid planet summary', () => {
+    expect(parsePlanetSummary(VALID_SUMMARY)).toEqual(VALID_SUMMARY);
+  });
+  it('accepts a peaceful, fully completed planet without prerequisites', () => {
+    const done = {
+      ...VALID_SUMMARY,
+      prereqIds: [],
+      status: 'peaceful',
+      correctCount: 5,
+      completionPct: 1,
+    };
+    expect(parsePlanetSummary(done)).toEqual(done);
+  });
+  it('throws an error listing all missing fields', () => {
+    expect(() => parsePlanetSummary({})).toThrowError(
+      MISSING_FIELDS_ERROR(SUMMARY_FIELDS),
+    );
+  });
+  it.each([[null], [[]], [5], ['text']])(
+    'throws an error when the JSON is %j instead of an object',
+    json => {
+      expect(() => parsePlanetSummary(json)).toThrowError(
+        MISSING_FIELDS_ERROR(SUMMARY_FIELDS),
+      );
+    },
+  );
+  it('throws an error for an unknown status', () => {
+    expect(() =>
+      parsePlanetSummary({...VALID_SUMMARY, status: 'friendly'}),
+    ).toThrowError('Unknown planet status: friendly');
+  });
+  it('throws an error when unlocked is not a boolean', () => {
+    expect(() =>
+      parsePlanetSummary({...VALID_SUMMARY, unlocked: 1}),
+    ).toThrowError(TYPE_ERROR('unlocked', 'boolean'));
+  });
+  it('throws an error when prereqIds is not an array', () => {
+    expect(() =>
+      parsePlanetSummary({...VALID_SUMMARY, prereqIds: 2}),
+    ).toThrowError(TYPE_ERROR('prereqIds', 'array'));
+  });
+  it('throws an error when a prerequisite ID is invalid', () => {
+    expect(() =>
+      parsePlanetSummary({...VALID_SUMMARY, prereqIds: [0]}),
+    ).toThrowError(FIELD_RANGE_ERROR('prereqIds', 1, Number.MAX_SAFE_INTEGER));
+  });
+  it.each(['correctCount', 'questionCount'])(
+    'throws an error when %s is negative',
+    field => {
+      expect(() =>
+        parsePlanetSummary({...VALID_SUMMARY, [field]: -1}),
+      ).toThrowError(FIELD_RANGE_ERROR(field, 0, Number.MAX_SAFE_INTEGER));
+    },
+  );
+  it.each([-0.1, 1.1, '0.4'])(
+    'throws an error when completionPct is %s',
+    completionPct => {
+      expect(() =>
+        parsePlanetSummary({...VALID_SUMMARY, completionPct}),
+      ).toThrowError(FIELD_RANGE_ERROR('completionPct', 0, 1));
+    },
+  );
+  it('drops fields that are not part of PlanetSummary', () => {
+    expect(parsePlanetSummary({...VALID_SUMMARY, extra: true})).toEqual(
+      VALID_SUMMARY,
+    );
+  });
+});
+
+describe('parsePlanetSummaries', () => {
+  it('parses the summaries in order', () => {
+    const second = {...VALID_SUMMARY, planetId: 2, name: 'Quadratic Quay'};
+    expect(parsePlanetSummaries([VALID_SUMMARY, second])).toEqual([
+      VALID_SUMMARY,
+      second,
+    ]);
+  });
+  it('accepts an empty list', () => {
+    expect(parsePlanetSummaries([])).toEqual([]);
+  });
+  it('throws an error when the JSON is not an array', () => {
+    expect(() => parsePlanetSummaries({planets: []})).toThrowError(
+      TYPE_ERROR('planets', 'array'),
+    );
+  });
+  it('throws an error when a summary is invalid', () => {
+    expect(() => parsePlanetSummaries([VALID_SUMMARY, {}])).toThrowError(
+      MISSING_FIELDS_ERROR(SUMMARY_FIELDS),
+    );
+  });
+});
+
+describe('parseNextQuestion', () => {
+  it('parses a question with the progress on its planet', () => {
+    const next = {question: VALID_QUESTION, progress: VALID_SUMMARY};
+    expect(parseNextQuestion(next)).toEqual(next);
+  });
+  it('parses null when no question is left', () => {
+    const next = {question: null, progress: VALID_SUMMARY};
+    expect(parseNextQuestion(next)).toEqual(next);
+  });
+  it('throws an error listing all missing fields', () => {
+    expect(() => parseNextQuestion({})).toThrowError(
+      MISSING_FIELDS_ERROR(['question', 'progress']),
+    );
+  });
+  it('throws an error when the question is invalid', () => {
+    expect(() =>
+      parseNextQuestion({question: {}, progress: VALID_SUMMARY}),
+    ).toThrowError(
+      MISSING_FIELDS_ERROR(['questionId', 'prompt', 'type', 'options']),
+    );
+  });
+  it('throws an error when the progress is invalid', () => {
+    expect(() =>
+      parseNextQuestion({question: null, progress: {}}),
+    ).toThrowError(MISSING_FIELDS_ERROR(SUMMARY_FIELDS));
+  });
+  it('does not keep an answer key the server should never send', () => {
+    const parsed = parseNextQuestion({
+      question: {...VALID_QUESTION, correct: 0},
+      progress: VALID_SUMMARY,
+    });
+    expect(parsed.question).not.toHaveProperty('correct');
+  });
 });

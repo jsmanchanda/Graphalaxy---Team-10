@@ -162,6 +162,16 @@ export interface ContentRep {
    */
   nextUnsolvedQuestion(userId: number, planetId: number): Question | undefined;
   /**
+   * The next question on a planet that the user has not attempted at all,
+   * right or wrong, or undefined if they have attempted every one.
+   * @param userId the id of the user
+   * @param planetId the id of the planet
+   */
+  nextUnansweredQuestion(
+    userId: number,
+    planetId: number,
+  ): Question | undefined;
+  /**
    * Gets the public answer options for a question, ordered by label.
    * @param questionId the id of the question
    */
@@ -203,6 +213,14 @@ export interface AnswerRep {
     optionId: number,
     correct: boolean,
   ): void;
+  /**
+   * Deletes every attempt the user has made on the planet's questions, so
+   * none of them count as solved any more.
+   * @param userId the id of the user
+   * @param planetId the id of the planet
+   * @returns the number of attempts deleted
+   */
+  clearForPlanet(userId: number, planetId: number): number;
 }
 
 /**
@@ -248,6 +266,13 @@ export interface ProgressRep {
    * @param status the new status of the planet
    */
   setStatus(userId: number, planetId: number, status: PlanetStatus): void;
+  /**
+   * Puts the row back to hostile with 0 correct, creating it if needed.
+   * @param userId the id of the user
+   * @param planetId the id of the planet
+   * @returns the reset row
+   */
+  reset(userId: number, planetId: number): PlanetProgress;
 }
 
 /**

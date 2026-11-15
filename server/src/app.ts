@@ -1,7 +1,15 @@
 import express from 'express';
 import type {ErrorRequestHandler} from 'express';
-import type {AnswerResult, Planet, Player, Settings} from '@graphalaxy/shared';
+import type {
+  AnswerResult,
+  NextQuestion,
+  Planet,
+  PlanetSummary,
+  Player,
+  Settings,
+} from '@graphalaxy/shared';
 import type {DataWriter, User} from './data-writer';
+import type {ProgressManager} from './progress-manager/ProgressManager';
 import {
   QuestionManagerError,
   type QuestionErrorCode,
@@ -30,7 +38,11 @@ const MAX_USERNAME_LENGTH = 32;
 
 /** What the HTTP layer needs. Narrow types keep tests easy to fake. */
 export interface AppDeps {
-  questions: Pick<QuestionManager, 'submit' | 'getPlanet'>;
+  questions: Pick<QuestionManager, 'submit' | 'getPlanet' | 'nextQuestion'>;
+  progress: Pick<
+    ProgressManager,
+    'listPlanets' | 'getPlanetSummary' | 'resetPlanet'
+  >;
   dataWriter: Pick<DataWriter, 'users'>;
 }
 
@@ -139,11 +151,16 @@ export function toPlayer(user: User): Player {
  * request and response bodies are listed in shared's api.ts.
  * Errors are returned as ApiErrorBody: {error: {code, message}}.
  * @param deps the services the routes use (or fakes in tests)
- * @param deps.questions loads planets and records and grades answers
+ * @param deps.questions loads planets and questions, and records and grades answers
+ * @param deps.progress reports and resets each player's progress on planets
  * @param deps.dataWriter reads and writes users
  * @returns the Express app, ready to listen
  */
-export function createApp({questions, dataWriter}: AppDeps): express.Express {
+export function createApp({
+  questions,
+  progress,
+  dataWriter,
+}: AppDeps): express.Express {
   const app = express();
   app.use(express.json());
 
@@ -170,10 +187,37 @@ export function createApp({questions, dataWriter}: AppDeps): express.Express {
     res.json(body);
   });
 
+  // The player's progress on every planet. The client loads this at login.
+  app.get('/api/users/:userId/planets', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const body: PlanetSummary[] = progress.listPlanets(user.userId);
+    res.json(body);
+  });
+
   app.get('/api/users/:userId/planets/:planetId', (req, res) => {
     const user = requireUser(req.params.userId);
     const planetId = parseId(req.params.planetId, 'planetId');
     const body: Planet = questions.getPlanet(user.userId, planetId);
+    res.json(body);
+  });
+
+  // Questions are served one at a time: the first one, in question ID order,
+  // that the player has not answered yet, right or wrong.
+  app.get('/api/users/:userId/planets/:planetId/questions/next', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const planetId = parseId(req.params.planetId, 'planetId');
+    const body: NextQuestion = {
+      question: questions.nextQuestion(user.userId, planetId),
+      progress: progress.getPlanetSummary(user.userId, planetId),
+    };
+    res.json(body);
+  });
+
+  // Redoes a planet: forgets the player's answers and progress on it.
+  app.delete('/api/users/:userId/planets/:planetId/progress', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const planetId = parseId(req.params.planetId, 'planetId');
+    const body: PlanetSummary = progress.resetPlanet(user.userId, planetId);
     res.json(body);
   });
 

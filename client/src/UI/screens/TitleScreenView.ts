@@ -3,6 +3,10 @@
 import {ButtonComponent, TextBoxComponent} from '../components';
 import {
   FONT_PLANET_KOSMOS,
+  SETTINGS_BUTTON_HEIGHT,
+  SETTINGS_BUTTON_WIDTH,
+  SETTINGS_BUTTON_X,
+  SETTINGS_BUTTON_Y,
   START_BUTTON_HEIGHT,
   START_BUTTON_WIDTH,
   START_BUTTON_X,
@@ -21,7 +25,7 @@ export class TitleScreenView implements View {
 
   /**
    * Builds the title screen.
-   * @param onAction Called when the player selects Start.
+   * @param onAction Called when the player selects Start or Settings.
    */
   constructor(onAction: (action: UiAction) => void, model: TitleScreenModel) {
     this.group = new Konva.Group();
@@ -45,8 +49,18 @@ export class TitleScreenView implements View {
       () => onAction({type: 'start'}),
     );
 
+    const settingsButton = new ButtonComponent(
+      SETTINGS_BUTTON_X,
+      SETTINGS_BUTTON_Y,
+      SETTINGS_BUTTON_WIDTH,
+      SETTINGS_BUTTON_HEIGHT,
+      'Settings',
+      () => onAction({type: 'openSettings'}),
+    );
+
     this.group.add(titleText.getGroup());
     this.group.add(startButton.getGroup());
+    this.group.add(settingsButton.getGroup());
   }
 
   /**

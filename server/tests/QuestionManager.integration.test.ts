@@ -52,12 +52,12 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     );
   });
 
-  it("loads planet questions by question ID and skips only this user's completed questions", () => {
+  it('loads planet questions by question ID and skips only the questions this user has answered', () => {
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
     writer.answers.record(2, 2, 21, true);
-    writer.answers.record(1, 2, 22, false);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
-    manager.submit(1, 2, 21);
+    // A wrong answer moves on too: each question is asked once.
+    manager.submit(1, 2, 22);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(3);
     manager.submit(1, 3, 31);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(7);
@@ -90,38 +90,17 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     );
   });
 
-  it('loads a planet as ordered readings then questions, no answer keys', () => {
+  it('loads a planet as its ordered readings, without questions or answer keys', () => {
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
     const planet = manager.getPlanet(1, 1);
     expect(planet).toMatchObject({planetId: 1, name: 'Lines'});
-    expect(planet.tasks.map(task => task.type)).toEqual([
-      'Reading',
-      'Reading',
-      'Question',
-      'Question',
-      'Question',
-    ]);
-    expect(planet.tasks.slice(0, 2)).toEqual([
+    expect(planet.tasks).toEqual([
       {type: 'Reading', text: 'Slopes'},
       {type: 'Reading', text: 'Intercepts'},
     ]);
     expect(JSON.stringify(planet)).not.toMatch(
       /is_correct|isCorrect|correctOption|"correct"/,
     );
-    // manager.submit(1, 3, 31);
-    // expect(
-    //   manager
-    //     .getPlanet(1, 1)
-    //     .tasks.flatMap(task =>
-    //       task.type === 'Question'
-    //         ? [[task.question.questionId, task.solved]]
-    //         : [],
-    //     ),
-    // ).toEqual([
-    //   [2, false],
-    //   [3, true],
-    //   [7, false],
-    // ]);
   });
 
   it('records selected option IDs and official attempt metadata for wrong and correct answers', () => {

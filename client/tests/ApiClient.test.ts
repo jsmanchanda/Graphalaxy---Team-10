@@ -37,6 +37,30 @@ const RESULT = {
   correct: true,
   correctOption: {optionId: 11, label: 'a', text: '2'},
 };
+const SUMMARY = {
+  planetId: 1,
+  name: 'Linear Land',
+  graphOrder: 0,
+  prereqIds: [],
+  unlocked: true,
+  status: 'hostile',
+  correctCount: 1,
+  questionCount: 5,
+  completionPct: 0.2,
+};
+const NEXT = {
+  question: {
+    questionId: 2,
+    prompt: 'What is the y-intercept of y = 2x + 3?',
+    graph: {fn: '2*x+3'},
+    type: 'mcq',
+    options: [
+      {optionId: 21, label: 'a', text: '2'},
+      {optionId: 22, label: 'b', text: '3'},
+    ],
+  },
+  progress: SUMMARY,
+};
 
 /**
  * Builds a fake fetch that return in the order of responses.
@@ -162,5 +186,70 @@ describe('ApiClient retries', () => {
     });
     // login + 1 try
     expect(http).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ApiClient progress, questions and settings', () => {
+  it("gets the logged-in user's progress on every planet", async () => {
+    const {client, http} = await loggedIn(json([SUMMARY]));
+    await expect(client.getPlanets()).resolves.toEqual([SUMMARY]);
+    const [url, init] = http.mock.calls[1];
+    expect(url).toBe('/api/users/7/planets');
+    expect(init?.method).toBe('GET');
+  });
+
+  it('gets the next question of a planet with the progress on it', async () => {
+    const {client, http} = await loggedIn(json(NEXT));
+    await expect(client.getNextQuestion(1)).resolves.toEqual(NEXT);
+    expect(http.mock.calls[1][0]).toBe('/api/users/7/planets/1/questions/next');
+  });
+
+  it('accepts no next question once none are left', async () => {
+    const done = {question: null, progress: SUMMARY};
+    const {client} = await loggedIn(json(done));
+    await expect(client.getNextQuestion(1)).resolves.toEqual(done);
+  });
+
+  it('resets a planet with a DELETE and parses the reset progress', async () => {
+    const {client, http} = await loggedIn(json(SUMMARY));
+    await expect(client.resetPlanet(1)).resolves.toEqual(SUMMARY);
+    const [url, init] = http.mock.calls[1];
+    expect(url).toBe('/api/users/7/planets/1/progress');
+    expect(init?.method).toBe('DELETE');
+    expect(init?.body).toBeUndefined();
+  });
+
+  it('retries a planet reset after a 5xx response', async () => {
+    const {client, http} = await loggedIn(json({}, 500), json(SUMMARY));
+    await expect(client.resetPlanet(1)).resolves.toMatchObject({planetId: 1});
+    // login + 2 tries
+    expect(http).toHaveBeenCalledTimes(3);
+  });
+
+  it('saves settings as a JSON PATCH and parses the updated player', async () => {
+    const settings = {musicVolume: 0.8, sfxVolume: 0.1};
+    const {client, http} = await loggedIn(json({...PLAYER, settings}));
+    await expect(client.saveSettings(settings)).resolves.toEqual({
+      ...PLAYER,
+      settings,
+    });
+    const [url, init] = http.mock.calls[1];
+    expect(url).toBe('/api/users/7/settings');
+    expect(init?.method).toBe('PATCH');
+    expect(init?.body).toBe(JSON.stringify(settings));
+  });
+
+  it('reports malformed progress as a parse error', async () => {
+    const {client} = await loggedIn(json({planets: [SUMMARY]}));
+    await expect(client.getPlanets()).rejects.toMatchObject({kind: 'parse'});
+  });
+
+  it('rejects progress and question requests before login without calling http', async () => {
+    const http = fakeHttp();
+    const client = new ApiClient(http, OPTIONS);
+    await expect(client.getPlanets()).rejects.toThrow();
+    await expect(client.getNextQuestion(1)).rejects.toThrow();
+    await expect(client.resetPlanet(1)).rejects.toThrow();
+    expect(http).not.toHaveBeenCalled();
   });
 });

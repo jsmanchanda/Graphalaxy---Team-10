@@ -2,25 +2,33 @@ import type {
   AnswerRequest,
   AnswerResult,
   LoginRequest,
+  NextQuestion,
   Planet,
+  PlanetSummary,
   Player,
   Settings,
 } from '@graphalaxy/shared';
 import {ApiError} from './ApiError';
 import {
   parseAnswerResult,
+  parseNextQuestion,
   parsePlanet,
+  parsePlanetSummaries,
+  parsePlanetSummary,
   parsePlayer,
-} from './SessionCacheModels';
+} from './SessionCacheParse';
 
-type Method = 'GET' | 'POST' | 'PATCH';
+type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 /**
  * Interface for any client that communicates with the backend.
  */
 export interface ServerGateway {
   login(username: string): Promise<Player>;
+  getPlanets(): Promise<PlanetSummary[]>;
   getPlanet(planetId: number): Promise<Planet>;
+  getNextQuestion(planetId: number): Promise<NextQuestion>;
+  resetPlanet(planetId: number): Promise<PlanetSummary>;
   saveSettings(settings: Settings): Promise<Player>;
   submitAnswer(questionId: number, optionId: number): Promise<AnswerResult>;
 }
@@ -58,6 +66,16 @@ export class ApiClient implements ServerGateway {
   }
 
   /**
+   * Gets the player's progress on every planet.
+   * @returns One summary per planet, in graph order.
+   * @throws {ApiError} An error if the request or parsing fails.
+   */
+  async getPlanets(): Promise<PlanetSummary[]> {
+    const text = await this.request('GET', this.userPath('/planets'));
+    return parseWith(text, parsePlanetSummaries);
+  }
+
+  /**
    * Gets a planet with its ordered tasks.
    * @param planetId The planet's ID.
    * @returns The planet.
@@ -69,6 +87,35 @@ export class ApiClient implements ServerGateway {
       this.userPath(`/planets/${planetId}`),
     );
     return parseWith(text, parsePlanet);
+  }
+
+  /**
+   * Gets the next question the player has not answered yet on a planet, with
+   * their progress there.
+   * @param planetId The planet's ID.
+   * @returns The question, or null in its place once none are left.
+   * @throws {ApiError} An error if the request or parsing fails.
+   */
+  async getNextQuestion(planetId: number): Promise<NextQuestion> {
+    const text = await this.request(
+      'GET',
+      this.userPath(`/planets/${planetId}/questions/next`),
+    );
+    return parseWith(text, parseNextQuestion);
+  }
+
+  /**
+   * Erases the player's answers and progress on a planet so they can redo it.
+   * @param planetId The planet's ID.
+   * @returns The player's progress on the planet after the reset.
+   * @throws {ApiError} An error if the request or parsing fails.
+   */
+  async resetPlanet(planetId: number): Promise<PlanetSummary> {
+    const text = await this.request(
+      'DELETE',
+      this.userPath(`/planets/${planetId}/progress`),
+    );
+    return parseWith(text, parsePlanetSummary);
   }
 
   /**
@@ -108,7 +155,7 @@ export class ApiClient implements ServerGateway {
   }
 
   /**
-   * Sends a request, retries failed GET and PATCH requests.
+   * Sends a request, retries failed GET, PATCH and DELETE requests.
    * Never retries POST.
    * @param method The HTTP method.
    * @param path The request path, relative to the base URL.

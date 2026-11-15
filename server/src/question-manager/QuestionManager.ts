@@ -4,7 +4,6 @@ import type {
   GraphSpec,
   Planet,
   Question,
-  QuestionTask,
   ReadingTask,
 } from '@graphalaxy/shared';
 import type {AnswerProgress} from './AnswerProgress';
@@ -54,9 +53,9 @@ export class QuestionManager {
   ) {}
 
   /**
-   * Returns a planet as the client displays it: its readings, then its
-   * questions. Answer keys are not
-   * included; the client finds out through submit().
+   * Returns a planet's lesson as the client displays it: its readings in
+   * order. Questions are not included; the client loads them one at a time
+   * through nextQuestion().
    */
   getPlanet(userId: number, planetId: number): Planet {
     return this.withStorageError('Unable to load the planet.', () => {
@@ -64,32 +63,25 @@ export class QuestionManager {
       const readings: ReadingTask[] = this.dataWriter.content
         .getReadings(planetId)
         .map(reading => ({type: 'Reading', text: reading.text}));
-      const questions: QuestionTask[] = this.dataWriter.content
-        .getQuestions(planetId)
-        .filter(question => question.qtype === 'mcq')
-        .map(question => ({
-          type: 'Question',
-          question: this.toQuestion(question),
-          // solved: this.dataWriter.answers.hasSolved(
-          //   userId,
-          //   question.questionId,
-          // ),
-        }));
       return {
         planetId: planet.planetId,
         name: planet.name,
         introText: planet.introText,
         graphOrder: planet.graphOrder,
-        tasks: [...readings, ...questions],
+        tasks: readings,
       };
     });
   }
 
-  /** Returns the first question without a correct attempt, or null if complete. */
+  /**
+   * Returns the planet's first question, in question ID order, that this user
+   * has not answered yet, or null once they have answered every one. A wrong
+   * answer counts: each question is asked once, and the player moves on.
+   */
   nextQuestion(userId: number, planetId: number): Question | null {
     return this.withStorageError('Unable to load the next question.', () => {
       this.requirePlanet(planetId);
-      const question = this.dataWriter.content.nextUnsolvedQuestion(
+      const question = this.dataWriter.content.nextUnansweredQuestion(
         userId,
         planetId,
       );

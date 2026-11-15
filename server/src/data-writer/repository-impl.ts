@@ -135,6 +135,7 @@ export class SqliteContentRep implements ContentRep {
   private readonly question: Statement;
   private readonly questions: Statement;
   private readonly nextQ: Statement;
+  private readonly nextUnanswered: Statement;
   private readonly publicOpts: Statement;
   private readonly option: Statement;
   private readonly correctOpt: Statement;
@@ -164,6 +165,18 @@ export class SqliteContentRep implements ContentRep {
     );
     this.questions = db.prepare(
       `SELECT ${QUESTION_COLS} FROM questions WHERE planet_id = ? ORDER BY question_id`,
+    );
+    // Like nextQ below, but any attempt excludes the question, not only a
+    // correct one.
+    this.nextUnanswered = db.prepare(
+      `SELECT ${QUESTION_COLS} FROM questions q
+       WHERE q.planet_id = @planetId
+         AND NOT EXISTS (
+           SELECT 1 FROM user_answer ua
+           WHERE ua.user_id = @userId
+             AND ua.question_id = q.question_id)
+       ORDER BY q.question_id
+       LIMIT 1`,
     );
     this.nextQ = db.prepare(
       `SELECT ${QUESTION_COLS} FROM questions q
@@ -257,6 +270,19 @@ export class SqliteContentRep implements ContentRep {
   }
 
   /**
+   * The next question on a planet that the user has not attempted at all,
+   * right or wrong, or undefined if they have attempted every one.
+   * @param userId the id of the user
+   * @param planetId the id of the planet
+   */
+  nextUnansweredQuestion(
+    userId: number,
+    planetId: number,
+  ): Question | undefined {
+    return this.nextUnanswered.get({userId, planetId}) as Question | undefined;
+  }
+
+  /**
    * Gets the public answer options for a question, ordered by label.
    * @param questionId the id of the question
    */
@@ -288,6 +314,7 @@ export class SqliteContentRep implements ContentRep {
 export class SqliteAnswerRep implements AnswerRep {
   private readonly solved: Statement;
   private readonly insert: Statement;
+  private readonly clearPlanet: Statement;
 
   /**
    * Prepares the statements for the answer repository.
@@ -299,6 +326,11 @@ export class SqliteAnswerRep implements AnswerRep {
     );
     this.insert = db.prepare(
       'INSERT INTO user_answer (user_id, question_id, selected_option_id, correct) VALUES (?, ?, ?, ?)',
+    );
+    this.clearPlanet = db.prepare(
+      `DELETE FROM user_answer
+       WHERE user_id = ?
+         AND question_id IN (SELECT question_id FROM questions WHERE planet_id = ?)`,
     );
   }
 
@@ -327,6 +359,17 @@ export class SqliteAnswerRep implements AnswerRep {
   ): void {
     this.insert.run(userId, questionId, optionId, correct ? 1 : 0);
   }
+
+  /**
+   * Deletes every attempt the user has made on the planet's questions, so
+   * none of them count as solved any more.
+   * @param userId the id of the user
+   * @param planetId the id of the planet
+   * @returns the number of attempts deleted
+   */
+  clearForPlanet(userId: number, planetId: number): number {
+    return this.clearPlanet.run(userId, planetId).changes;
+  }
 }
 
 /**
@@ -338,6 +381,7 @@ export class SqliteProgressRep implements ProgressRep {
   private readonly list: Statement;
   private readonly inc: Statement;
   private readonly status: Statement;
+  private readonly clear: Statement;
 
   /**
    * Prepares the statements for the progress repository.
@@ -358,6 +402,9 @@ export class SqliteProgressRep implements ProgressRep {
     );
     this.status = db.prepare(
       'UPDATE planet_progress SET status = ? WHERE user_id = ? AND planet_id = ?',
+    );
+    this.clear = db.prepare(
+      "UPDATE planet_progress SET status = 'hostile', correct_count = 0 WHERE user_id = ? AND planet_id = ?",
     );
   }
 
@@ -399,6 +446,18 @@ export class SqliteProgressRep implements ProgressRep {
   setStatus(userId: number, planetId: number, status: PlanetStatus): void {
     this.ensureRow.run(userId, planetId);
     this.status.run(status, userId, planetId);
+  }
+
+  /**
+   * Puts the row back to hostile with 0 correct, creating it if needed.
+   * @param userId the id of the user
+   * @param planetId the id of the planet
+   * @returns the reset row
+   */
+  reset(userId: number, planetId: number): PlanetProgress {
+    this.ensureRow.run(userId, planetId);
+    this.clear.run(userId, planetId);
+    return this.byKey.get(userId, planetId) as PlanetProgress;
   }
 }
 

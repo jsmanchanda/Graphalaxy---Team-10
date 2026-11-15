@@ -3,6 +3,7 @@ import {createDataWriter} from './data-writer';
 import {openDb} from './db/connection';
 import {migrate} from './db/migrate';
 import {seed} from './db/seed';
+import {ProgressManager} from './progress-manager/ProgressManager';
 import {QuestionManager} from './question-manager/QuestionManager';
 
 //MOCK INDEX 4 DEMO. TEST IN SPRINT 2.
@@ -14,11 +15,10 @@ migrate(db);
 seed(db);
 
 const dataWriter = createDataWriter(db);
-const questions = new QuestionManager(dataWriter, {
-  // TODO: replace with a ProgressManager that updates planet_progress.
-  onAnswer: () => undefined,
-});
+// Progress Manager subscribes to Question Manager's first-correct-answer event.
+const progress = new ProgressManager(dataWriter);
+const questions = new QuestionManager(dataWriter, progress);
 
-createApp({questions, dataWriter}).listen(PORT, () => {
+createApp({questions, progress, dataWriter}).listen(PORT, () => {
   console.log(`API listening on http://localhost:${PORT}`);
 });

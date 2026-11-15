@@ -76,6 +76,16 @@ export class TextBoxComponent extends Component {
   }
 
   /**
+   * Changes the text shown in the box.
+   * @param text The new text.
+   * @returns This text box, so setters can be chained.
+   */
+  setText(text: string): this {
+    this.label.text(text);
+    return this;
+  }
+
+  /**
    * Changes the font of the text.
    * @param fontFamily A loaded font's name, e.g. TITLE_FONT_FAMILY.
    * @returns This text box, so setters can be chained.

@@ -116,7 +116,7 @@ export class QuestionScreenView implements View {
       ALIEN_FRIEND_Y,
       ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_WIDTH,
-      'public/assets/alien-cat.png',
+      '/assets/alien-cat.png',
     );
 
     const backButton = new ButtonComponent(

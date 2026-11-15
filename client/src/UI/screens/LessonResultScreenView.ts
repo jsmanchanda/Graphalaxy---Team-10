@@ -7,6 +7,10 @@ import {
   OK_BUTTON_WIDTH,
   OK_BUTTON_X,
   OK_BUTTON_Y,
+  REDO_BUTTON_HEIGHT,
+  REDO_BUTTON_WIDTH,
+  REDO_BUTTON_X,
+  REDO_BUTTON_Y,
   RESULT_TEXT_HEIGHT,
   RESULT_TEXT_WIDTH,
   RESULT_TEXT_X,
@@ -44,7 +48,18 @@ export class LessonResultScreenView implements View {
       () => onAction({type: 'next'}),
     );
 
+    // Asks to redo the planet; Game Manager shows a warning before it resets
+    const redoButton = new ButtonComponent(
+      REDO_BUTTON_X,
+      REDO_BUTTON_Y,
+      REDO_BUTTON_WIDTH,
+      REDO_BUTTON_HEIGHT,
+      'Redo Planet',
+      () => onAction({type: 'retryLesson'}),
+    );
+
     this.group.add(okButton.getGroup());
+    this.group.add(redoButton.getGroup());
     this.group.add(resultText.getGroup());
   }
 

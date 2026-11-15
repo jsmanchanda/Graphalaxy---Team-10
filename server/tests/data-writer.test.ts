@@ -299,6 +299,59 @@ describe('nextUnsolvedQuestion', () => {
   });
 });
 
+describe('nextUnansweredQuestion', () => {
+  const next = (userId = user.userId) =>
+    dw.content.nextUnansweredQuestion(userId, 1)?.questionId;
+
+  it('starts at the first question', () => {
+    expect(next()).toBe(1);
+  });
+
+  it('skips a question that was answered wrong', () => {
+    answerWrong(1);
+    expect(next()).toBe(2);
+  });
+
+  it('skips questions answered correctly', () => {
+    answerRight(1);
+    answerRight(2);
+    expect(next()).toBe(3);
+  });
+
+  it('counts a question once however many times it was attempted', () => {
+    answerWrong(1);
+    answerWrong(1);
+    answerRight(1);
+    expect(next()).toBe(2);
+  });
+
+  it('returns undefined once every question is answered, right or wrong', () => {
+    for (const id of [1, 3, 5]) answerRight(id);
+    for (const id of [2, 4]) answerWrong(id);
+    expect(next()).toBeUndefined();
+  });
+
+  it("is per-user: one user's answers don't affect another's", () => {
+    const other = dw.users.create('other');
+    answerWrong(1);
+    answerRight(2);
+    expect(next(other.userId)).toBe(1);
+  });
+
+  it('starts at the first question again after the planet is cleared', () => {
+    answerWrong(1);
+    answerRight(2);
+    dw.answers.clearForPlanet(user.userId, 1);
+    expect(next()).toBe(1);
+  });
+
+  it('returns undefined for a planet with no questions', () => {
+    expect(
+      dw.content.nextUnansweredQuestion(user.userId, 9999),
+    ).toBeUndefined();
+  });
+});
+
 describe('answers', () => {
   it('tracks whether a question has been solved', () => {
     expect(dw.answers.hasSolved(user.userId, 1)).toBe(false);
@@ -329,6 +382,47 @@ describe('answers', () => {
     expect(() =>
       dw.answers.record(user.userId, 1, foreign.optionId, false),
     ).toThrow(/FOREIGN KEY/);
+  });
+
+  it("clears one user's attempts on a planet, so its questions are unsolved again", () => {
+    const other = dw.users.create('other');
+    answerWrong(1);
+    answerRight(1);
+    answerRight(2);
+    answerRight(1, other.userId);
+
+    expect(dw.answers.clearForPlanet(user.userId, 1)).toBe(3);
+
+    expect(dw.answers.hasSolved(user.userId, 1)).toBe(false);
+    expect(dw.answers.hasSolved(user.userId, 2)).toBe(false);
+    expect(dw.answers.hasSolved(other.userId, 1)).toBe(true);
+    expect(dw.content.nextUnsolvedQuestion(user.userId, 1)?.questionId).toBe(1);
+    // The one-correct-row-per-question index no longer blocks a new answer.
+    answerRight(1);
+    expect(dw.answers.hasSolved(user.userId, 1)).toBe(true);
+  });
+
+  it('leaves attempts on other planets alone when clearing a planet', () => {
+    const planetId = addPlanet();
+    const questionId = addFreeResponse(planetId);
+    const optionId = Number(
+      db
+        .prepare(
+          "INSERT INTO answer_options (question_id, label, text, is_correct) VALUES (?, 'a', 'x', 1)",
+        )
+        .run(questionId).lastInsertRowid,
+    );
+    dw.answers.record(user.userId, questionId, optionId, true);
+    answerRight(1);
+
+    expect(dw.answers.clearForPlanet(user.userId, 1)).toBe(1);
+
+    expect(dw.answers.hasSolved(user.userId, questionId)).toBe(true);
+  });
+
+  it('clears nothing for a planet without attempts, or an unknown planet', () => {
+    expect(dw.answers.clearForPlanet(user.userId, 1)).toBe(0);
+    expect(dw.answers.clearForPlanet(user.userId, 9999)).toBe(0);
   });
 });
 
@@ -389,6 +483,39 @@ describe('progress', () => {
     const rows = dw.progress.listForUser(user.userId);
     expect(rows).toHaveLength(1);
     expect(rows[0].userId).toBe(user.userId);
+  });
+
+  it('reset puts the row back to hostile with 0 correct, creating it if needed', () => {
+    const fresh = {
+      userId: user.userId,
+      planetId: 1,
+      status: 'hostile',
+      correctCount: 0,
+    };
+    expect(dw.progress.reset(user.userId, 1)).toEqual(fresh);
+    dw.progress.incrementCorrect(user.userId, 1);
+    dw.progress.setStatus(user.userId, 1, 'peaceful');
+
+    expect(dw.progress.reset(user.userId, 1)).toEqual(fresh);
+
+    expect(dw.progress.listForUser(user.userId)).toEqual([fresh]);
+  });
+
+  it('reset only changes the targeted user and planet', () => {
+    const other = dw.users.create('other');
+    const planetId = addPlanet();
+    dw.progress.incrementCorrect(other.userId, 1);
+    dw.progress.incrementCorrect(user.userId, planetId);
+    dw.progress.incrementCorrect(user.userId, 1);
+
+    dw.progress.reset(user.userId, 1);
+
+    expect(dw.progress.ensure(other.userId, 1).correctCount).toBe(1);
+    expect(dw.progress.ensure(user.userId, planetId).correctCount).toBe(1);
+  });
+
+  it('rejects a reset for an unknown planet', () => {
+    expect(() => dw.progress.reset(user.userId, 9999)).toThrow(/FOREIGN KEY/);
   });
 });
 
