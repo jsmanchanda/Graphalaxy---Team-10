@@ -11,12 +11,14 @@ const PLACEHOLDER =
 
 /**
  * Turns a graph equation into a function the same way the client's
- * GraphComponent.stringToMathFunction does.
- * @param equation - The JavaScript expression in x.
+ * GraphComponent.stringToMathFunction does: `sin` and `cos` become
+ * `Math.sin` and `Math.cos`, then the equation runs as JavaScript.
+ * @param equation - The expression in x, like `3*sin(2*x)`.
  * @returns The function of x it describes.
  */
 function toFunction(equation: string): (x: number) => number {
-  return new Function('x', `return ${equation};`) as (x: number) => number;
+  const body = equation.replace(/(?<!\.)\b(sin|cos)\(/g, 'Math.$1(');
+  return new Function('x', `return ${body};`) as (x: number) => number;
 }
 
 /**
@@ -29,7 +31,6 @@ function optionToFunction(option: string): (x: number) => number {
   const expression = option
     .replace(/^y\s*=\s*/, '')
     .replace(/(\d|\)|π)(?=\s*(x|\(|sin|cos|π))/g, '$1*') // 4x -> 4*x
-    .replace(/\b(sin|cos)\(/g, 'Math.$1(')
     .replace(/π/g, 'Math.PI')
     .replace(/\^/g, '**');
   return toFunction(expression);

@@ -5,9 +5,10 @@ import {openDb} from './connection';
  * One multiple-choice question.
  *
  * `fn` is the graph drawn next to the question, stored in `questions.graph` as
- * `{"fn": "<fn>"}`. The client's GraphComponent runs it as the body of
- * `new Function('x', 'return <fn>;')` on a [-10, 10] x [-10, 10] grid, so it
- * must be a JavaScript expression in `x`: write `2*x`, `x**2`, `sin(x)`,
+ * `{"fn": "<fn>"}`. The client's GraphComponent turns `sin` and `cos` into
+ * `Math.sin` and `Math.cos`, then runs it as the body of
+ * `new Function('x', 'return <fn>;')` on a [-10, 10] x [-10, 10] grid. So it
+ * must be a JavaScript expression in `x`: write `2*x`, `x**2`, `3*sin(2*x)`,
  * and wrap a negated power in parentheses (`-(x**2)`, since `-x**2` is a
  * syntax error).
  */
@@ -65,7 +66,8 @@ export const PLANETS: SeedPlanet[] = [
         correct: 1,
       },
       {
-        prompt: "Which labrador's path is the steepest?",
+        prompt:
+          'The graph shows the steepest of these labrador paths. Which equation is it?',
         fn: '-4*x+1',
         options: ['y = 2x', 'y = -4x + 1', 'y = x', 'y = 0.5x'],
         correct: 1,
@@ -85,7 +87,7 @@ export const PLANETS: SeedPlanet[] = [
       },
       {
         prompt:
-          "A labrador's path falls to the right and crosses the y-axis at 1. Which line is it?",
+          "The graph shows a labrador's path that falls to the right and crosses the y-axis at 1. Which equation is it?",
         fn: '-x+1',
         options: ['y = x + 1', 'y = -x - 1', 'y = x - 1', 'y = -x + 1'],
         correct: 3,
@@ -160,14 +162,14 @@ export const PLANETS: SeedPlanet[] = [
     graphOrder: 2,
     readings: [
       'The seals of Sine Shores float on waves that rise and fall forever. A wave like this is drawn by the sine function y = sin(x). It moves between -1 and 1, and sin(0) = 0. Here x is measured in radians.',
-      'In y = a sin(x), |a| is the amplitude: how far the waves lift a seal above calm sea level and drop it below. A bigger amplitude means a bumpier ride.',
-      "In y = a sin(x) + d, d moves the whole sea up or down, like a tide. The midline, or calm sea level, is the line y = d. A seal's highest point is d + |a| and its lowest point is d - |a|.",
+      'In y = a*sin(x), |a| is the amplitude: how far the waves lift a seal above calm sea level and drop it below. A bigger amplitude means a bumpier ride.',
+      "In y = a*sin(x) + d, d moves the whole sea up or down, like a tide. The midline, or calm sea level, is the line y = d. A seal's highest point is d + |a| and its lowest point is d - |a|.",
     ],
     hints: [],
     questions: [
       {
         prompt:
-          'A seal bobs on y = 3 sin(x). What is the amplitude of the wave?',
+          'A seal bobs on y = 3*sin(x). What is the amplitude of the wave?',
         fn: '3*sin(x)',
         options: ['1', '3', '6', '2π'],
         correct: 1,
@@ -180,31 +182,31 @@ export const PLANETS: SeedPlanet[] = [
         correct: 2,
       },
       {
-        prompt: 'A seal rides y = 2 sin(x) + 3. What is its highest point?',
+        prompt: 'A seal rides y = 2*sin(x) + 3. What is its highest point?',
         fn: '2*sin(x)+3',
         options: ['5', '3', '2', '6'],
         correct: 0,
       },
       {
-        prompt: 'A seal rides y = 4 sin(x) + 1. What is its lowest point?',
+        prompt: 'A seal rides y = 4*sin(x) + 1. What is its lowest point?',
         fn: '4*sin(x)+1',
         options: ['5', '-3', '1', '-4'],
         correct: 1,
       },
       {
-        prompt: 'A seal floats on y = 5 sin(x). How high is it at x = 0?',
+        prompt: 'A seal floats on y = 5*sin(x). How high is it at x = 0?',
         fn: '5*sin(x)',
         options: ['5', '1', '-5', '0'],
         correct: 3,
       },
       {
         prompt:
-          'Which wave gives a seal an amplitude of 4 and a calm sea level of y = 2?',
+          'The graph shows a wave with an amplitude of 4 and a calm sea level of y = 2. Which equation is it?',
         fn: '4*sin(x)+2',
         options: [
-          'y = 2 sin(x) + 4',
-          'y = 4 sin(x) + 2',
-          'y = 4 sin(x) - 2',
+          'y = 2*sin(x) + 4',
+          'y = 4*sin(x) + 2',
+          'y = 4*sin(x) - 2',
           'y = sin(x) + 6',
         ],
         correct: 1,
@@ -218,66 +220,74 @@ export const PLANETS: SeedPlanet[] = [
     graphOrder: 3,
     readings: [
       'A hamster running in its wheel goes round and round. Follow one spot on the wheel and its height makes a sine wave, one full cycle for every turn.',
-      'The period is the length of one full cycle, one turn of the wheel. y = sin(bx) has period 2π / |b|. A bigger |b| means a faster hamster and a shorter period, so y = sin(2x) repeats every π.',
-      'A hamster that starts at a different spot on its wheel makes the same wave, shifted sideways. This is a phase shift: y = sin(x - c) is the wave moved right by c, and y = sin(x + c) is the wave moved left by c.',
-      'A hamster that starts at the top of its wheel follows y = cos(x). Cosine is sine moved left by π/2, so cos(x) = sin(x + π/2). Putting it all together, y = a sin(b(x - c)) + d has amplitude |a|, period 2π / |b|, a shift right by c, and midline y = d.',
+      'The period is the length of one full cycle, one turn of the wheel. y = sin(b*x) has period 2π / |b|. A bigger |b| means a faster hamster and a shorter period, so y = sin(2*x) repeats every π.',
+      'A hamster that starts at a different spot on its wheel makes the same wave, shifted sideways. This is a phase shift, set by c in y = sin(x + c). A positive c moves the wave left by c, and a negative c moves it right, so y = sin(x - 1) is the wave moved right by 1.',
+      'A hamster that starts at the top of its wheel follows y = cos(x). Cosine is sine moved left by π/2, so cos(x) = sin(x + π/2).',
+      'Putting it all together, y = a*sin(b*x + c) + d has amplitude |a|, period 2π / |b|, and midline y = d. The wave is shifted left by c / b, or right when c / b is negative. Divide by b first: y = sin(2*x + 2) is shifted left by 2 / 2 = 1, not 2.',
     ],
     hints: [],
     questions: [
       {
         prompt:
-          "A hamster's wheel follows y = 3 sin(2x). What is the period of one turn?",
+          "A hamster's wheel follows y = 3*sin(2*x). What is the period of one turn?",
         fn: '3*sin(2*x)',
         options: ['2π', 'π', '4π', 'π/2'],
         correct: 1,
       },
       {
         prompt:
-          'The graph shows a wheel at y = 3 sin(x). Which hamster spins fastest, with the shortest period?',
-        fn: '3*sin(x)',
+          'The graph shows the wheel of the hamster that spins fastest, with the shortest period. Which equation is it?',
+        fn: '3*sin(3*x)',
         options: [
-          'y = 3 sin(x/2)',
-          'y = 3 sin(x)',
-          'y = 3 sin(3x)',
-          'y = 3 sin(2x)',
+          'y = 3*sin(x/2)',
+          'y = 3*sin(x)',
+          'y = 3*sin(3*x)',
+          'y = 3*sin(2*x)',
         ],
         correct: 2,
       },
       {
         prompt:
-          "A hamster's wheel follows y = 2 sin(x - 1). How is its wave shifted from y = 2 sin(x)?",
+          "A hamster's wheel follows y = 2*sin(x - 1). How is its wave shifted from y = 2*sin(x)?",
         fn: '2*sin(x-1)',
         options: ['Left by 1', 'Right by 1', 'Up by 1', 'Down by 1'],
         correct: 1,
       },
       {
         prompt:
-          "A hamster's wheel follows y = 3 sin(x + 2). How is its wave shifted from y = 3 sin(x)?",
+          "A hamster's wheel follows y = 3*sin(x + 2). How is its wave shifted from y = 3*sin(x)?",
         fn: '3*sin(x+2)',
         options: ['Right by 2', 'Up by 2', 'Left by 2', 'Down by 2'],
         correct: 2,
       },
       {
         prompt:
-          'A hamster starts at the top of its wheel, so it follows y = 4 cos(x). Which sine function draws the same wave?',
+          'A hamster starts at the top of its wheel, so it follows y = 4*cos(x), shown in the graph. Which sine function draws the same wave?',
         fn: '4*cos(x)',
         options: [
-          'y = 4 sin(x + π/2)',
-          'y = 4 sin(x - π)',
-          'y = 4 sin(x) + π/2',
-          'y = 4 sin(2x)',
+          'y = 4*sin(x + π/2)',
+          'y = 4*sin(x - π)',
+          'y = 4*sin(x) + π/2',
+          'y = 4*sin(2*x)',
         ],
         correct: 0,
       },
       {
         prompt:
-          "A hamster's wheel follows y = 2 sin(2(x - 1)) + 3. What are its period and phase shift?",
-        fn: '2*sin(2*(x-1))+3',
+          "A hamster's wheel follows y = 3*sin(2*x + 2). How is its wave shifted from y = 3*sin(2*x)?",
+        fn: '3*sin(2*x+2)',
+        options: ['Left by 2', 'Left by 1', 'Right by 1', 'Right by 2'],
+        correct: 1,
+      },
+      {
+        prompt:
+          "A hamster's wheel follows y = 2*sin(2*x - 2) + 3. What are its period and phase shift?",
+        fn: '2*sin(2*x-2)+3',
         options: [
           'Period π, shifted right by 1',
           'Period 2π, shifted right by 1',
+          'Period π, shifted right by 2',
           'Period π, shifted left by 1',
-          'Period 2π, shifted left by 2',
         ],
         correct: 0,
       },
