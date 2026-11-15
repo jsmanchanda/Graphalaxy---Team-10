@@ -11,7 +11,7 @@ const model: RadioWaveMinigameScreenModel = {
     verticalShift: 0,
   },
   config: {
-    timeLimitSeconds: 60,
+    timeLimitSeconds: 120,
     correctAnswersForHint: 5,
   },
 };

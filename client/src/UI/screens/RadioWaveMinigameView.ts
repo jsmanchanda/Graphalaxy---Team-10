@@ -3,7 +3,12 @@ import {GraphComponent} from '../../Graphing/GraphComponent';
 import {Interval} from '../../Graphing/functions';
 import {ButtonComponent} from '../components';
 import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../constants';
-import {RadioWaveMinigameScreenModel, UiAction, View} from '../types';
+import {
+  RadioWaveMinigameScreenModel,
+  RadioWaveQuestion,
+  UiAction,
+  View,
+} from '../types';
 
 const GRAPH_WIDTH = 600;
 const GRAPH_HEIGHT = 275;
@@ -21,6 +26,7 @@ const DEFAULT_AMPLITUDE = 1;
 const DEFAULT_FREQUENCY = 2;
 const DEFAULT_HORIZONTAL_SHIFT = 0;
 const DEFAULT_VERTICAL_SHIFT = 0;
+const ANSWER_TOLERANCE = 0.05;
 
 /**
  * Displays the instructions, timed round, and results for the minigame.
@@ -28,6 +34,15 @@ const DEFAULT_VERTICAL_SHIFT = 0;
 export class RadioWaveMinigameView implements View {
   private group: Konva.Group;
   private timer?: number;
+  private roundEndsAt = 0;
+  private currentQuestion: RadioWaveQuestion;
+  private graph?: GraphComponent;
+  private inputs?: {
+    amplitude: HTMLInputElement;
+    frequency: HTMLInputElement;
+    horizontalShift: HTMLInputElement;
+    verticalShift: HTMLInputElement;
+  };
   private removeControls?: () => void;
   private correctAnswers = 0;
   private screen: 'instructions' | 'gameplay' | 'results' = 'instructions';
@@ -40,6 +55,7 @@ export class RadioWaveMinigameView implements View {
     model: RadioWaveMinigameScreenModel,
   ) {
     void onAction;
+    this.currentQuestion = model.question;
     this.group = new Konva.Group();
     // UIManager destroys this group when it switches to another view.
     this.group.on('destroy', () => this.clearRound());
@@ -125,23 +141,73 @@ export class RadioWaveMinigameView implements View {
       cornerRadius: (TIMER_HEIGHT - 6) / 2,
     });
 
+    this.group.add(instructions);
+    this.group.add(timerTrack);
+    this.group.add(timerBar);
+    this.nextQuestion();
+    this.createControls();
+    this.startTimer(timerBar, model.config.timeLimitSeconds);
+
+    const checkButton = new ButtonComponent(
+      CHECK_BUTTON_X,
+      CHECK_BUTTON_Y,
+      CHECK_BUTTON_WIDTH,
+      CHECK_BUTTON_HEIGHT,
+      'SUBMIT',
+      () => this.checkAnswer(),
+    );
+
+    this.group.add(checkButton.getGroup());
+  }
+
+  /**
+   * Chooses small whole-number values for the sine equation.
+   */
+  private generateQuestion(): RadioWaveQuestion {
+    return {
+      amplitude: Math.floor(Math.random() * 4) + 1,
+      frequency: Math.floor(Math.random() * 3) + 1,
+      horizontalShift: Math.floor(Math.random() * 5) - 2,
+      verticalShift: Math.floor(Math.random() * 5) - 2,
+    };
+  }
+
+  /**
+   * Replaces the target graph and resets the player wave for a new question.
+   */
+  private nextQuestion(): void {
+    const question = this.generateQuestion();
+    // Avoid giving the player the exact same question twice in a row.
+    if (
+      question.amplitude === this.currentQuestion.amplitude &&
+      question.frequency === this.currentQuestion.frequency &&
+      question.horizontalShift === this.currentQuestion.horizontalShift &&
+      question.verticalShift === this.currentQuestion.verticalShift
+    ) {
+      question.amplitude = (question.amplitude % 4) + 1;
+    }
+    this.currentQuestion = question;
+    this.graph?.getGroup().destroy();
     const graph = new GraphComponent(
       GRAPH_X,
       GRAPH_Y,
       GRAPH_WIDTH,
       GRAPH_HEIGHT,
       this.getXinterval(
-        model.question.frequency,
-        model.question.horizontalShift,
+        this.currentQuestion.frequency,
+        this.currentQuestion.horizontalShift,
       ),
-      this.getYinterval(model.question.amplitude, model.question.verticalShift),
+      this.getYinterval(
+        this.currentQuestion.amplitude,
+        this.currentQuestion.verticalShift,
+      ),
     );
     graph.addFunction(
       this.playerEquation(
-        model.question.amplitude,
-        model.question.frequency,
-        model.question.horizontalShift,
-        model.question.verticalShift,
+        this.currentQuestion.amplitude,
+        this.currentQuestion.frequency,
+        this.currentQuestion.horizontalShift,
+        this.currentQuestion.verticalShift,
       ),
       'target-wave',
     );
@@ -157,24 +223,51 @@ export class RadioWaveMinigameView implements View {
     this.setWaveColor(graph, 'target-wave', '#ffffff');
     this.setWaveColor(graph, 'player-wave', '#38bdf8');
 
-    this.group.add(instructions);
-    this.group.add(timerTrack);
-    this.group.add(timerBar);
+    this.graph = graph;
     this.group.add(graph.getGroup());
+    if (this.inputs) {
+      this.inputs.amplitude.value = String(DEFAULT_AMPLITUDE);
+      this.inputs.frequency.value = String(DEFAULT_FREQUENCY);
+      this.inputs.horizontalShift.value = String(DEFAULT_HORIZONTAL_SHIFT);
+      this.inputs.verticalShift.value = String(DEFAULT_VERTICAL_SHIFT);
+    }
+  }
 
-    this.createControls(graph);
-    this.startTimer(timerBar, model.config.timeLimitSeconds);
+  /**
+   * Counts a matching answer and advances without restarting the timer.
+   */
+  private checkAnswer(): void {
+    if (this.screen !== 'gameplay' || !this.inputs) return;
+    if (Date.now() >= this.roundEndsAt) {
+      this.showResults();
+      return;
+    }
+    const {amplitude, frequency, horizontalShift, verticalShift} = this.inputs;
+    const matches =
+      Math.abs(amplitude.valueAsNumber - this.currentQuestion.amplitude) <=
+        ANSWER_TOLERANCE &&
+      Math.abs(frequency.valueAsNumber - this.currentQuestion.frequency) <=
+        ANSWER_TOLERANCE &&
+      this.matchesHorizontalShift(horizontalShift.valueAsNumber) &&
+      Math.abs(
+        verticalShift.valueAsNumber - this.currentQuestion.verticalShift,
+      ) <= ANSWER_TOLERANCE;
+    // Empty or invalid number inputs produce NaN, so they cannot match.
+    if (!matches) return;
+    this.correctAnswers += 1;
+    this.nextQuestion();
+  }
 
-    const checkButton = new ButtonComponent(
-      CHECK_BUTTON_X,
-      CHECK_BUTTON_Y,
-      CHECK_BUTTON_WIDTH,
-      CHECK_BUTTON_HEIGHT,
-      'SUBMIT',
-      () => undefined,
-    );
-
-    this.group.add(checkButton.getGroup());
+  /**
+   * Accepts shifts that differ by a whole number of wave periods.
+   */
+  private matchesHorizontalShift(horizontalShift: number): boolean {
+    if (!Number.isFinite(horizontalShift)) return false;
+    const period = (2 * Math.PI) / Math.abs(this.currentQuestion.frequency);
+    const difference = horizontalShift - this.currentQuestion.horizontalShift;
+    const wholePeriods = Math.round(difference / period);
+    const remainingShift = difference - wholePeriods * period;
+    return Math.abs(remainingShift) <= ANSWER_TOLERANCE;
   }
 
   /**
@@ -200,6 +293,7 @@ export class RadioWaveMinigameView implements View {
   private startTimer(timerBar: Konva.Rect, timeLimitSeconds: number): void {
     const startTime = Date.now();
     const duration = Math.max(timeLimitSeconds, 1) * 1000;
+    this.roundEndsAt = startTime + duration;
     this.timer = window.setInterval(() => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 1 - elapsed / duration);
@@ -251,6 +345,7 @@ export class RadioWaveMinigameView implements View {
     this.timer = undefined;
     this.removeControls?.();
     this.removeControls = undefined;
+    this.inputs = undefined;
   }
 
   /**
@@ -262,25 +357,25 @@ export class RadioWaveMinigameView implements View {
       Math.PI * 2,
       Math.abs(horizontalShift) + (Math.PI * 2) / safeFrequency,
     );
-    return new Interval(-halfRange, halfRange, Math.PI, true);
+    return new Interval(-halfRange, halfRange, 1);
   }
 
   /**
    * Creates a y-axis range that contains the target wave.
    */
   private getYinterval(amplitude: number, verticalShift: number): Interval {
-    const halfRange = Math.max(5, Math.abs(amplitude) + 1);
-    return new Interval(
-      verticalShift - halfRange,
-      verticalShift + halfRange,
-      1,
+    // Keep zero in the center so the graph's axis labels line up correctly.
+    const halfRange = Math.max(
+      5,
+      Math.abs(amplitude) + Math.abs(verticalShift) + 1,
     );
+    return new Interval(-halfRange, halfRange, 1);
   }
 
   /**
    * Creates the editable expression beneath the graph.
    */
-  private createControls(graph: GraphComponent): void {
+  private createControls(): void {
     const amplitude = this.createInput('amplitude', String(DEFAULT_AMPLITUDE));
     const frequency = this.createInput('frequency', String(DEFAULT_FREQUENCY));
     const horizontalShift = this.createInput(
@@ -291,6 +386,7 @@ export class RadioWaveMinigameView implements View {
       'vertical-shift',
       String(DEFAULT_VERTICAL_SHIFT),
     );
+    this.inputs = {amplitude, frequency, horizontalShift, verticalShift};
     const controls = document.createElement('div');
     controls.style.position = 'fixed';
     controls.style.display = 'flex';
@@ -328,14 +424,16 @@ export class RadioWaveMinigameView implements View {
     positionControls();
     window.addEventListener('resize', positionControls);
 
-    const updateWave = (): void =>
+    const updateWave = (): void => {
+      if (!this.graph || this.screen !== 'gameplay') return;
       this.updatePlayerWave(
-        graph,
+        this.graph,
         amplitude,
         frequency,
         horizontalShift,
         verticalShift,
       );
+    };
     amplitude.addEventListener('input', updateWave);
     frequency.addEventListener('input', updateWave);
     horizontalShift.addEventListener('input', updateWave);
@@ -376,10 +474,10 @@ export class RadioWaveMinigameView implements View {
     horizontalShift: HTMLInputElement,
     verticalShift: HTMLInputElement,
   ): void {
-    const amplitudeValue = Number(amplitude.value);
-    const frequencyValue = Number(frequency.value);
-    const horizontalShiftValue = Number(horizontalShift.value);
-    const verticalShiftValue = Number(verticalShift.value);
+    const amplitudeValue = amplitude.valueAsNumber;
+    const frequencyValue = frequency.valueAsNumber;
+    const horizontalShiftValue = horizontalShift.valueAsNumber;
+    const verticalShiftValue = verticalShift.valueAsNumber;
     if (
       !Number.isFinite(amplitudeValue) ||
       !Number.isFinite(frequencyValue) ||
@@ -411,6 +509,6 @@ export class RadioWaveMinigameView implements View {
     horizontalShift: number,
     verticalShift: number,
   ): string {
-    return `${amplitude} * Math.sin(${frequency} * (x - ${horizontalShift})) + ${verticalShift}`;
+    return `${amplitude} * Math.sin(${frequency} * (x - (${horizontalShift}))) + ${verticalShift}`;
   }
 }
