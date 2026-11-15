@@ -134,7 +134,6 @@ export class SqliteContentRep implements ContentRep {
   private readonly countQ: Statement;
   private readonly question: Statement;
   private readonly questions: Statement;
-  private readonly nextQ: Statement;
   private readonly nextUnanswered: Statement;
   private readonly publicOpts: Statement;
   private readonly option: Statement;
@@ -166,8 +165,7 @@ export class SqliteContentRep implements ContentRep {
     this.questions = db.prepare(
       `SELECT ${QUESTION_COLS} FROM questions WHERE planet_id = ? ORDER BY question_id`,
     );
-    // Like nextQ below, but any attempt excludes the question, not only a
-    // correct one.
+    // 1st mult choice user hasnt attempted
     this.nextUnanswered = db.prepare(
       `SELECT ${QUESTION_COLS} FROM questions q
        WHERE q.planet_id = @planetId
@@ -178,19 +176,6 @@ export class SqliteContentRep implements ContentRep {
        ORDER BY q.question_id
        LIMIT 1`,
     );
-    this.nextQ = db.prepare(
-      `SELECT ${QUESTION_COLS} FROM questions q
-       WHERE q.planet_id = @planetId
-         AND NOT EXISTS (
-           SELECT 1 FROM user_answer ua
-           WHERE ua.user_id = @userId
-             AND ua.question_id = q.question_id
-             AND ua.correct = 1)
-       ORDER BY q.question_id
-       LIMIT 1`,
-    ); //QUESTION COLS, from questions table, set q = table alias so questions = q. then
-    //planet_id = @planetId the named parameter {userId, planetId}, and keep the question if the following finds no rows:
-    //any row in ua with the same user_id and question_id and correct = 1.EXCLUDE THOSE. order by the question id (lowest first), and only return 1 row.
     this.publicOpts = db.prepare(
       'SELECT option_id AS optionId, question_id as questionId, label, text FROM answer_options WHERE question_id = ? ORDER BY label',
     );
@@ -258,15 +243,6 @@ export class SqliteContentRep implements ContentRep {
    */
   getQuestions(planetId: number): Question[] {
     return this.questions.all(planetId) as Question[];
-  }
-
-  /**
-   * The next unsolved question for a user on a planet, or undefined if all are solved.
-   * @param userId the id of the user
-   * @param planetId the id of the planet
-   */
-  nextUnsolvedQuestion(userId: number, planetId: number): Question | undefined {
-    return this.nextQ.get({userId, planetId}) as Question | undefined;
   }
 
   /**

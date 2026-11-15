@@ -88,10 +88,6 @@ class FakeDataWriter implements Pick<
       this.questions
         .filter(question => question.planetId === planetId)
         .sort((a, b) => a.questionId - b.questionId),
-    nextUnsolvedQuestion: (userId, planetId) =>
-      this.content
-        .getQuestions(planetId)
-        .find(question => !this.answers.hasSolved(userId, question.questionId)),
     nextUnansweredQuestion: (userId, planetId) =>
       this.content
         .getQuestions(planetId)

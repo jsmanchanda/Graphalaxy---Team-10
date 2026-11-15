@@ -156,12 +156,6 @@ export interface ContentRep {
    */
   getQuestions(planetId: number): Question[];
   /**
-   * The next unsolved question for a user on a planet, or undefined if all are solved.
-   * @param userId the id of the user
-   * @param planetId the id of the planet
-   */
-  nextUnsolvedQuestion(userId: number, planetId: number): Question | undefined;
-  /**
    * The next question on a planet that the user has not attempted at all,
    * right or wrong, or undefined if they have attempted every one.
    * @param userId the id of the user

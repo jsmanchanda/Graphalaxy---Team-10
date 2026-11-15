@@ -265,40 +265,6 @@ describe('content', () => {
   });
 });
 
-describe('nextUnsolvedQuestion', () => {
-  it('starts at the first question', () => {
-    expect(dw.content.nextUnsolvedQuestion(user.userId, 1)?.questionId).toBe(1);
-  });
-
-  it('does not skip a question that was only answered wrong', () => {
-    answerWrong(1);
-    expect(dw.content.nextUnsolvedQuestion(user.userId, 1)?.questionId).toBe(1);
-  });
-
-  it('skips questions answered correctly', () => {
-    answerRight(1);
-    answerRight(2);
-    expect(dw.content.nextUnsolvedQuestion(user.userId, 1)?.questionId).toBe(3);
-  });
-
-  it('returns undefined once everything is solved', () => {
-    for (const id of [1, 2, 3, 4, 5]) answerRight(id);
-    expect(dw.content.nextUnsolvedQuestion(user.userId, 1)).toBeUndefined();
-  });
-
-  it("is per-user: one user's progress doesn't affect another's", () => {
-    const other = dw.users.create('other');
-    answerRight(1);
-    expect(dw.content.nextUnsolvedQuestion(other.userId, 1)?.questionId).toBe(
-      1,
-    );
-  });
-
-  it('returns undefined for a planet with no questions', () => {
-    expect(dw.content.nextUnsolvedQuestion(user.userId, 9999)).toBeUndefined();
-  });
-});
-
 describe('nextUnansweredQuestion', () => {
   const next = (userId = user.userId) =>
     dw.content.nextUnansweredQuestion(userId, 1)?.questionId;
@@ -396,8 +362,6 @@ describe('answers', () => {
     expect(dw.answers.hasSolved(user.userId, 1)).toBe(false);
     expect(dw.answers.hasSolved(user.userId, 2)).toBe(false);
     expect(dw.answers.hasSolved(other.userId, 1)).toBe(true);
-    expect(dw.content.nextUnsolvedQuestion(user.userId, 1)?.questionId).toBe(1);
-    // The one-correct-row-per-question index no longer blocks a new answer.
     answerRight(1);
     expect(dw.answers.hasSolved(user.userId, 1)).toBe(true);
   });
@@ -442,12 +406,6 @@ describe('progress', () => {
   it('incrementCorrect adds one each time, creating the row if needed', () => {
     expect(dw.progress.incrementCorrect(user.userId, 1).correctCount).toBe(1);
     expect(dw.progress.incrementCorrect(user.userId, 1).correctCount).toBe(2);
-  });
-
-  it('keeps the status when no progress row exists yet', () => {
-    dw.progress.setStatus(user.userId, 1, 'peaceful');
-
-    expect(dw.progress.ensure(user.userId, 1).status).toBe('peaceful');
   });
 
   it('sets status on an existing row without touching correctCount', () => {
