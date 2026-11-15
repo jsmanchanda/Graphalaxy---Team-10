@@ -6,6 +6,9 @@
  *   GET   /api/users/:userId/planets/:planetId -> Planet
  *   PATCH /api/users/:userId/settings: Settings -> Player
  *   POST  /api/users/:userId/questions/:questionId/answer: AnswerRequest -> AnswerResult
+ *   GET   /api/users/:userId/hints/balance -> HintBalanceResult
+ *   GET   /api/users/:userId/planets/:planetId/hints -> UnlockedHint[]
+ *   POST  /api/users/:userId/planets/:planetId/hints/unlock -> HintUnlockResult
  *
  * Errors are sent as ApiErrorBody with a 4xx or 5xx status.
  */
