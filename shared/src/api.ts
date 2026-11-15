@@ -80,7 +80,7 @@ export interface Planet {
 }
 
 /**
- * Planet display data
+ * Planet display data (Brina might change)
  */
 export interface PlanetSummary {
   planetId: number;
