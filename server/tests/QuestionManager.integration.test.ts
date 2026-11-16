@@ -271,7 +271,7 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     expect(onAnswer).not.toHaveBeenCalled();
   });
 
-  it('works with the production seed and every question can be completed', () => {
+  it('works with the production seed and every question on every planet can be completed', () => {
     const seededDb = openDb(':memory:');
     try {
       migrate(seededDb);
@@ -283,22 +283,31 @@ describe('QuestionManager with the official migration and Data Writer', () => {
           seededWriter.progress.incrementCorrect(event.userId, event.planetId);
         },
       });
-      expect(readingCount(manager, 1)).toBe(2);
-      for (const question of seededWriter.content.getQuestions(1)) {
-        expect(manager.nextQuestion(user.userId, 1)?.questionId).toBe(
-          question.questionId,
+      const planets = seededWriter.content.listPlanets();
+      expect(planets.length).toBeGreaterThan(0);
+      for (const {planetId} of planets) {
+        expect(readingCount(manager, planetId)).toBe(
+          seededWriter.content.getReadings(planetId).length,
         );
-        const correct = seededWriter.content.getCorrectOption(
-          question.questionId,
-        );
-        if (!correct) throw new Error('Seed is missing a correct answer');
+        const questions = seededWriter.content.getQuestions(planetId);
+        for (const question of questions) {
+          expect(manager.nextQuestion(user.userId, planetId)?.questionId).toBe(
+            question.questionId,
+          );
+          const correct = seededWriter.content.getCorrectOption(
+            question.questionId,
+          );
+          if (!correct) throw new Error('Seed is missing a correct answer');
+          expect(
+            manager.submit(user.userId, question.questionId, correct.optionId)
+              .correct,
+          ).toBe(true);
+        }
+        expect(manager.nextQuestion(user.userId, planetId)).toBeNull();
         expect(
-          manager.submit(user.userId, question.questionId, correct.optionId)
-            .correct,
-        ).toBe(true);
+          seededWriter.progress.ensure(user.userId, planetId).correctCount,
+        ).toBe(questions.length);
       }
-      expect(manager.nextQuestion(user.userId, 1)).toBeNull();
-      expect(seededWriter.progress.ensure(user.userId, 1).correctCount).toBe(5);
     } finally {
       seededDb.close();
     }

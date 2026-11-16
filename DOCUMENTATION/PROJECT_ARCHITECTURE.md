@@ -20,7 +20,7 @@ demo HTTP API. These are not yet one connected browser-to-database game.
 | HTTP API | User creation/lookup by username, planet payload, settings update, answer submission | Demo code; no password/session authentication or route tests |
 | Question Manager | Reading pages, next unsolved MCQ, grading, safe service responses, first-correct callback | Only `submit` is currently exposed through HTTP |
 | Data Writer | Users, content, answers, progress, hints, and transactions | Persists rows; does not decide game progression |
-| Database | Official migration, connection helper, migration runner, seed, tests | One planet seeded with two readings, five MCQs, and three hints |
+| Database | Official migration, connection helper, migration runner, seed, tests | Four planets seeded (Linear Land, Quadratic Quay, Sine Shores, Phase Planet), each with readings and at least five MCQs |
 | Progress | Repository operations and `AnswerProgress` interface | Server startup supplies a no-op handler; no Progress Manager implementation |
 | Other game services | Planned Game Manager/Session Cache/API Client, Profile/Hint Managers, graph renderer, minigames, navigation/settings screens | No standalone implementations of these services in the current source tree; the demo has a local mock `GameManager` |
 
@@ -343,7 +343,7 @@ the default `server/var/game.db`; `openDb(':memory:')` is used for isolated test
 The database, `server/var/`, build output, and `.env` are ignored by Git.
 
 The migration runner applies new SQL files in filename order, recording each in
-the same transaction as its schema changes. The seed inserts Linear Land only
+the same transaction as its schema changes. The seed inserts the four planets only
 when the planets table is empty. Database scripts are `db:migrate` and `db:seed`
 in the server workspace; resetting the database is not required for normal startup.
 

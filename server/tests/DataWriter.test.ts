@@ -3,6 +3,7 @@ import type {Database} from 'better-sqlite3';
 import {openDb} from '../src/db/connection';
 import {migrate} from '../src/db/migrate';
 import {seed} from '../src/db/seed';
+import {TEST_PLANET} from './helpers/fixture';
 import {createDataWriter, type DataWriter, type User} from '../src/data-writer';
 import {
   SqliteAnswerRep,
@@ -30,7 +31,7 @@ let user: User;
 beforeEach(() => {
   db = openDb(':memory:');
   migrate(db);
-  seed(db); // one planet ("Linear Land"), 2 readings, 3 hints, 5 mcq questions (ids 1-5)
+  seed(db, [TEST_PLANET]); // planet 1, 2 readings, 3 hints, 5 mcq questions (ids 1-5)
   dw = createDataWriter(db);
   user = dw.users.create('test');
 });
@@ -42,7 +43,7 @@ function addPlanet(): number {
   return Number(
     db
       .prepare(
-        "INSERT INTO planets (name, intro_text, graph_order) VALUES ('Quadratic Quay', 'x', 1)",
+        "INSERT INTO planets (name, intro_text, graph_order) VALUES ('Second Planet', 'x', 1)",
       )
       .run().lastInsertRowid,
   );
@@ -162,7 +163,7 @@ describe('content', () => {
   it('lists and fetches planets', () => {
     const planets = dw.content.listPlanets();
     expect(planets).toHaveLength(1);
-    expect(planets[0]).toMatchObject({name: 'Linear Land', graphOrder: 0});
+    expect(planets[0]).toMatchObject({name: TEST_PLANET.name, graphOrder: 0});
     expect(dw.content.getPlanet(planets[0].planetId)).toEqual(planets[0]);
     expect(dw.content.getPlanet(9999)).toBeUndefined();
   });
@@ -188,7 +189,7 @@ describe('content', () => {
 
   it('lists prerequisite edges', () => {
     db.prepare(
-      "INSERT INTO planets (name, intro_text, graph_order) VALUES ('Quadratic Quay', 'x', 1)",
+      "INSERT INTO planets (name, intro_text, graph_order) VALUES ('Second Planet', 'x', 1)",
     ).run();
     db.prepare(
       'INSERT INTO planet_prereqs (planet_id, prereq_planet_id) VALUES (2, 1)',

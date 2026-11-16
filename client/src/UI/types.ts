@@ -63,6 +63,7 @@ export interface LessonIntroScreenModel {
 export interface ReadingScreenModel {
   type: 'reading';
   readingText: string;
+  equation?: string;
 }
 
 /**
@@ -80,6 +81,7 @@ export interface QuestionDisplay {
 export interface QuestionScreenModel {
   type: 'question';
   question: QuestionDisplay;
+  equation?: string;
 }
 
 /**

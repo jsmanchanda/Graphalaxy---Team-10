@@ -5,7 +5,8 @@
   "scripts": {
     "lint": "eslint . --no-error-on-unmatched-pattern",
     "dev": "vite",
-    "dev:demo": "vite --open /demo.html",
+    "dev:demo": "vite --open /src/demos/demo.html",
+    "dev:graph": "vite --open /src/demos/graph.html",
     "test": "vitest run",
     "test:watch": "vitest"
   },
