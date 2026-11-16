@@ -121,7 +121,7 @@ export class GameManager {
         break;
       }
       case 'next': {
-        this.taskIndex++;
+        this.taskIndex = Math.min(this.taskIndex + 1, planet.tasks.length);
         if (this.taskIndex >= planet.tasks.length) {
           this.taskIndex = -1;
           const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
