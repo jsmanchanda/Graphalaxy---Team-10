@@ -1,5 +1,3 @@
-/// <reference lib="dom" />
-
 import Konva from 'konva';
 import {TitleScreenView} from './screens/TitleScreenView';
 import {ReadingScreenView} from './screens/ReadingScreenView';
@@ -34,7 +32,7 @@ export class UiManager {
       0,
       DESIGN_WIDTH,
       DESIGN_HEIGHT,
-      'assets/background.jpeg',
+      '/assets/background.jpeg',
     );
     this.layer = new Konva.Layer();
     this.layer.add(background.getGroup());
