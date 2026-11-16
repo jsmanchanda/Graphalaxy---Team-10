@@ -24,7 +24,7 @@ All database and Data Writer code is in `server/`; `shared/` and `client/` do no
 | `server/migrations/001_schema.sql` | The full schema. Add new `NNN_name.sql` files beside it. |
 | `server/src/db/connection.ts` | `openDb()`: opens SQLite and turns on foreign keys. |
 | `server/src/db/migrate.ts` | `migrate(db)`: applies unapplied `.sql` files in filename order. |
-| `server/src/db/seed.ts` | `seed(db)`: inserts the "Linear Land" planet, 2 readings, 3 hints, 5 questions. |
+| `server/src/db/seed.ts` | `seed(db, planets = PLANETS)`: inserts the four game planets with their readings, hints and questions. |
 | `server/src/db/db.test.ts` | Schema and constraint tests. |
 | `server/src/data-writer/repository.ts` | Interfaces and row types for the five repositories. |
 | `server/src/data-writer/repository-impl.ts` | `Sqlite*Rep` classes that implement them. |
@@ -73,7 +73,13 @@ Migrations are tracked by filename only. There is no checksum and no down-migrat
 
 ### Seed (`seed.ts`)
 
-`seed(db)` does nothing if `planets` already has any row. Otherwise, in one transaction, it inserts the planet "Linear Land" with 2 readings, 3 hints and 5 multiple-choice questions of 4 options each. Question content is the hard-coded `QUESTIONS` array at the top of the file. It does not insert any `planet_prereqs`.
+`seed(db, planets = PLANETS)` does nothing if `planets` already has any row. Otherwise, in one transaction, it inserts every planet in the `PLANETS` array at the top of the file: Linear Land (labradors), Quadratic Quay (cats), Sine Shores (seals) and Phase Planet (hamsters), with `graph_order` 0-3. Each planet has its lesson readings (stored in order as `reading_number` 1, 2, ...), its hints, and at least 5 multiple-choice questions with options `a`-`d` and one correct answer. It does not insert any `planet_prereqs`.
+
+Each question's `fn` is stored in `questions.graph` as `{"fn": "<fn>"}`. The client's `GraphComponent` turns `sin` and `cos` into `Math.sin` and `Math.cos`, then runs it as `new Function('x', 'return <fn>;')` on a `[-10, 10]` grid. So `fn` must be a JavaScript expression in `x`: `2*x+3`, `x**2`, `3*sin(2*x)`. Write a negated power as `-(x**2)`, because `-x**2` is a syntax error. `server/tests/seed.test.ts` checks all of this.
+
+Tests that check the schema or repositories pass their own fixture, `seed(db, [TEST_PLANET])` from `server/tests/helpers/fixture.ts`, so they keep working when the game content changes.
+
+To load changed seed content into an existing database, run `npm run db:reset` (it deletes local users and progress).
 
 ## Data writer implementation
 

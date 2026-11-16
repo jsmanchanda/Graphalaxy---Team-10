@@ -198,6 +198,8 @@ npm run db:seed -w server
 
 `DB_PATH` overrides the default `server/var/game.db`. The existing `npm run db:reset -w server` deletes the default file and then migrates and seeds. Its delete step always targets `server/var/game.db`, even when `DB_PATH` points elsewhere.
 
+**Reseeding after content changes.** `seed()` does nothing once any planet exists, so pulling new content in `server/src/db/seed.ts` does not update a database you already have. Run `npm run db:reset -w server` (with the server stopped) to rebuild it from the current seed. This deletes all local users and progress.
+
 ### 4.5 TypeScript config notes
 
 The root `tsconfig.json` extends `node_modules/gts/tsconfig-google.json`, sets `rootDir` to `.`, writes output to `build/`, and includes `client/**/*.ts`, `server/**/*.ts`, `shared/**/*.ts`, and `test/**/*.ts`. Two consequences:
