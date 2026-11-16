@@ -3,7 +3,6 @@ import {NavigationScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
 import {Component, ImageComponent, TextBoxComponent} from '../components';
 import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../constants';
-import {UiError} from '../UIError';
 import {PlanetSummary} from '@graphalaxy/shared';
 
 // Planet Path Colors
@@ -142,15 +141,11 @@ export class NavigationScreenView implements View {
    * @returns string corresponding path color based on range
    */
   completionToColor(completion: number): string {
-    if (completion < 0 || completion > 1) {
-      throw new UiError(
-        'InvalidInput',
-        `Invalid Planet Completion value. Expects 0-1, received :${completion}`,
-      );
-    }
-    if (completion === 0) return COLOR_UNREACHABLE;
-    if (completion <= 0.4) return COLOR_REACHABLE;
-    if (completion <= 0.7) return COLOR_IN_PROGRESS;
+    // Written as !(in range) so NaN is rejected too
+    const c = Math.min(1, Math.max(0, completion));
+    if (c === 0) return COLOR_UNREACHABLE;
+    if (c) return COLOR_REACHABLE;
+    if (c <= 0.7) return COLOR_IN_PROGRESS;
     return COLOR_COMPLETE;
   }
 
