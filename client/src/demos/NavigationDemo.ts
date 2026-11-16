@@ -1,7 +1,7 @@
 import {FONT_CONTHRAX, FONT_PLANET_KOSMOS} from '../UI/constants';
 import {NavigationScreenModel} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
-import {allPlanets} from './demoPlanets';
+import {allPlanets} from './demoAllPlanets';
 
 const model: NavigationScreenModel = {
   type: 'navigation',

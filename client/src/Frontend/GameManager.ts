@@ -13,7 +13,7 @@ import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
-import {allPlanets} from '../demos/demoPlanets';
+import {allPlanets} from '../demos/demoAllPlanets';
 
 // for MVP
 const DEMO_USERNAME = 'demo';
