@@ -5,7 +5,6 @@
 import type {
   QuestionTask,
   ReadingTask,
-  VisualReadingTask,
   Task,
   PlanetSummary,
 } from '@graphalaxy/shared';
@@ -17,7 +16,6 @@ import type {
   QuestionScreenModel,
   QuestionResultScreenModel,
   LessonIntroScreenModel,
-  VisualReadingScreenModel,
   NavigationScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
@@ -34,8 +32,6 @@ export function taskToScreen(task: Task): ScreenModel {
       return questionTaskToQuestionScreen(task);
     case 'Reading':
       return readingTaskToScreen(task);
-    case 'VisualReading':
-      return visualReadingTaskToScreen(task);
   }
 }
 
@@ -103,19 +99,6 @@ export function makeLessonIntroScreen(
   description: string,
 ): LessonIntroScreenModel {
   return {type: 'intro', title: title, description: description};
-}
-
-/**
- * Creates Screen Model For a reading with a graph
- */
-export function visualReadingTaskToScreen(
-  task: VisualReadingTask,
-): VisualReadingScreenModel {
-  return {
-    type: 'visualReading',
-    readingText: task.text,
-    mathFunction: task.mathFunction,
-  };
 }
 
 /**

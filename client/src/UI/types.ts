@@ -1,6 +1,6 @@
 import type {Group} from 'konva/lib/Group';
-import {MathFunction} from '../Graphing/functions';
 import {PlanetSummary} from '@graphalaxy/shared/src/api';
+
 /**
  * Data being displayed
  * usually collection of Konva elements
@@ -83,15 +83,6 @@ export interface LessonResultScreenModel {
 }
 
 /**
- * Reading with Graph
- */
-export interface VisualReadingScreenModel {
-  type: 'visualReading';
-  readingText: string;
-  mathFunction: MathFunction;
-}
-
-/**
  * Data for navigation screen
  */
 export interface NavigationScreenModel {
@@ -110,5 +101,4 @@ export type ScreenModel =
   | QuestionScreenModel
   | QuestionResultScreenModel
   | LessonResultScreenModel
-  | VisualReadingScreenModel
   | NavigationScreenModel;

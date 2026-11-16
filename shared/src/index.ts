@@ -11,7 +11,6 @@ export type {
   Question,
   QuestionTask,
   ReadingTask,
-  VisualReadingTask,
   Settings,
   Task,
 } from './api';
