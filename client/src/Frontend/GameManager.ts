@@ -13,7 +13,7 @@ import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
-import {allPlanets} from '../demos/NavigationDemo';
+import {allPlanets} from '../demos/demoPlanets';
 
 // for MVP
 const DEMO_USERNAME = 'demo';
@@ -79,7 +79,6 @@ export class GameManager {
    */
   private handleAction(action: UiAction): void {
     // update view (UIManager)
-    console.log(action);
     const planet = this.session.currentPlanet;
     if (!planet) {
       if (action.type === 'start') {
