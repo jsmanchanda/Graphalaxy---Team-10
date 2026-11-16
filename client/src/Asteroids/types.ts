@@ -51,7 +51,7 @@ export type FunctionType = 'linear' | 'quadratic' | 'cubic';
 export type FormId =
   | 'linearSlopeIntercept'
   | 'linearPointSlope'
-  | 'linearStandard' // should we include this? bring up w team lator
+  // | 'linearStandard' // should we include this? bring up w team lator
   | 'quadraticStandard'
   | 'quadraticVertex'
   | 'quadraticIntercept'
@@ -68,4 +68,15 @@ export interface AsteroidQuestion {
   difficulty: Difficulty;
   formId: FormId;
   asteroids: Asteroid[];
+}
+
+/**
+ * the shape of the forms table entry
+ */
+export interface FormDefinition {
+  type: FunctionType;
+  name: string; // "Vertex form"
+  template: string; // "y = a(x - h)² + k"
+  coefficients: string[]; // ['a', 'h', 'k']
+  toExpression: (c: number[]) => string;
 }

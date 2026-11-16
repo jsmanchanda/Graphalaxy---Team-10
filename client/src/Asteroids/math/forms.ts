@@ -5,11 +5,7 @@ import type {FormDefinition, FormId, FunctionType} from '../types';
  * compiler complain if a FormId is added to types.ts without an entry here.
  *
  * Each toExpression returns the right-hand side of `y =` as a JS expression
- * for GraphComponent.addFunction. Rules for those strings:
- * - `**` for powers, never `^` (bitwise XOR in JS)
- * - always an explicit `*`
- * - every substituted number wrapped in parentheses, so negatives work:
- *   `x-(-3)` is valid JS, `x--3` is a syntax error
+ * for GraphComponent.addFunction.
  */
 export const FORMS: Record<FormId, FormDefinition> = {
   linearSlopeIntercept: {
