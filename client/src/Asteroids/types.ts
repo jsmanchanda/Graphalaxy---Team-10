@@ -80,3 +80,15 @@ export interface FormDefinition {
   coefficients: string[]; // ['a', 'h', 'k']
   toExpression: (c: number[]) => string;
 }
+
+/**
+ * what one shot did, for the view
+ * - hit: true if every asteroid in the question was hit
+ * - hits: one entry per asteroid, in the same order as question.asteroids
+ * - expression: the curve to draw with GraphComponent.addFunction
+ */
+export interface FireResult {
+  hit: boolean;
+  hits: boolean[];
+  expression: string;
+}
