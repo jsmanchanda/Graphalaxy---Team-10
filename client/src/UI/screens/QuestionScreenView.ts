@@ -1,29 +1,38 @@
+import Konva from 'konva';
+import {GraphComponent} from '../../Graphing/GraphComponent';
 import {ButtonComponent, ImageComponent, TextBoxComponent} from '../components';
 import {
-  MULTIPLE_CHOICE_OPTION_RIGHT_X,
-  MULTIPLE_CHOICE_OPTION_LEFT_X,
-  MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
-  MULTIPLE_CHOICE_OPTION_TOP_Y,
-  MULTIPLE_CHOICE_OPTION_WIDTH,
-  MULTIPLE_CHOICE_OPTION_HEIGHT,
-  MULTIPLE_CHOICE_PROMPT_X,
-  MULTIPLE_CHOICE_PROMPT_Y,
-  MULTIPLE_CHOICE_PROMPT_WIDTH,
-  MULTIPLE_CHOICE_PROMPT_HEIGHT,
   ALIEN_FRIEND_WIDTH,
-  DESIGN_WIDTH,
   ALIEN_FRIEND_Y,
   CONFIRM_BUTTON_HEIGHT,
   CONFIRM_BUTTON_WIDTH,
   CONFIRM_BUTTON_X,
   CONFIRM_BUTTON_Y,
+  DESIGN_WIDTH,
+  MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
+  MULTIPLE_CHOICE_OPTION_HEIGHT,
+  MULTIPLE_CHOICE_OPTION_LEFT_X,
+  MULTIPLE_CHOICE_OPTION_RIGHT_X,
+  MULTIPLE_CHOICE_OPTION_TOP_Y,
+  MULTIPLE_CHOICE_OPTION_WIDTH,
+  MULTIPLE_CHOICE_PROMPT_HEIGHT,
+  MULTIPLE_CHOICE_PROMPT_WIDTH,
+  MULTIPLE_CHOICE_PROMPT_X,
+  MULTIPLE_CHOICE_PROMPT_Y,
   QUESTION_BACK_BUTTON_HEIGHT,
   QUESTION_BACK_BUTTON_WIDTH,
   QUESTION_BACK_BUTTON_X,
   QUESTION_BACK_BUTTON_Y,
+  QUESTION_GRAPH_HEIGHT,
+  QUESTION_GRAPH_WIDTH,
+  QUESTION_GRAPH_X,
+  QUESTION_GRAPH_Y,
+  VISUAL_QUESTION_PROMPT_HEIGHT,
+  VISUAL_QUESTION_PROMPT_WIDTH,
+  VISUAL_QUESTION_PROMPT_X,
+  VISUAL_QUESTION_PROMPT_Y,
 } from '../constants';
 import {QuestionScreenModel, UiAction, View} from '../types';
-import Konva from 'konva';
 
 /**
  * Question screen view
@@ -42,14 +51,6 @@ export class QuestionScreenView implements View {
 
     // Track the selected option, null by default (no option selected)
     let selectedOption: number | null = null;
-
-    const prompt = new TextBoxComponent(
-      MULTIPLE_CHOICE_PROMPT_X,
-      MULTIPLE_CHOICE_PROMPT_Y,
-      MULTIPLE_CHOICE_PROMPT_WIDTH,
-      MULTIPLE_CHOICE_PROMPT_HEIGHT,
-      model.question.prompt,
-    );
 
     const option0 = new ButtonComponent(
       MULTIPLE_CHOICE_OPTION_LEFT_X,
@@ -127,6 +128,34 @@ export class QuestionScreenView implements View {
       'Back To Lesson',
       () => onAction({type: 'back'}),
     );
+    let prompt: TextBoxComponent;
+    // if question wants to display a graph
+    if (model.equation) {
+      const graphComponent = new GraphComponent(
+        QUESTION_GRAPH_X,
+        QUESTION_GRAPH_Y,
+        QUESTION_GRAPH_WIDTH,
+        QUESTION_GRAPH_HEIGHT,
+      );
+      prompt = new TextBoxComponent(
+        VISUAL_QUESTION_PROMPT_X,
+        VISUAL_QUESTION_PROMPT_Y,
+        VISUAL_QUESTION_PROMPT_WIDTH,
+        VISUAL_QUESTION_PROMPT_HEIGHT,
+        model.question.prompt,
+      );
+
+      graphComponent.addFunction(model.equation);
+      this.group.add(graphComponent.getGroup());
+    } else {
+      prompt = new TextBoxComponent(
+        MULTIPLE_CHOICE_PROMPT_X,
+        MULTIPLE_CHOICE_PROMPT_Y,
+        MULTIPLE_CHOICE_PROMPT_WIDTH,
+        MULTIPLE_CHOICE_PROMPT_HEIGHT,
+        model.question.prompt,
+      );
+    }
 
     this.group.add(backButton.getGroup());
     this.group.add(alienCat.getGroup());
@@ -136,6 +165,7 @@ export class QuestionScreenView implements View {
     this.group.add(option1.getGroup());
     this.group.add(option2.getGroup());
     this.group.add(option3.getGroup());
+    this.group.add();
   }
 
   /**

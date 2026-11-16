@@ -15,7 +15,16 @@ import {
   READING_TEXT_WIDTH,
   READING_TEXT_X,
   READING_TEXT_Y,
+  VISUAL_READING_GRAPH_HEIGHT,
+  VISUAL_READING_GRAPH_WIDTH,
+  VISUAL_READING_GRAPH_X,
+  VISUAL_READING_GRAPH_Y,
+  VISUAL_READING_TEXT_HEIGHT,
+  VISUAL_READING_TEXT_WIDTH,
+  VISUAL_READING_TEXT_X,
+  VISUAL_READING_TEXT_Y,
 } from '../constants';
+import {GraphComponent} from '../../Graphing/GraphComponent';
 
 /**
  * Reading task View
@@ -29,14 +38,6 @@ export class ReadingScreenView implements View {
    */
   constructor(onAction: (action: UiAction) => void, model: ReadingScreenModel) {
     this.group = new Konva.Group();
-
-    const readingText = new TextBoxComponent(
-      READING_TEXT_X,
-      READING_TEXT_Y,
-      READING_TEXT_WIDTH,
-      READING_TEXT_HEIGHT,
-      model.readingText,
-    );
 
     const nextButton = new ButtonComponent(
       NEXT_BUTTON_X,
@@ -55,6 +56,35 @@ export class ReadingScreenView implements View {
       'back',
       () => onAction({type: 'back'}),
     );
+
+    // change view based on if it shows a graph or not
+    let readingText: TextBoxComponent;
+    if (model.equation) {
+      const graphComponent = new GraphComponent(
+        VISUAL_READING_GRAPH_X,
+        VISUAL_READING_GRAPH_Y,
+        VISUAL_READING_GRAPH_WIDTH,
+        VISUAL_READING_GRAPH_HEIGHT,
+      );
+
+      readingText = new TextBoxComponent(
+        VISUAL_READING_TEXT_X,
+        VISUAL_READING_TEXT_Y,
+        VISUAL_READING_TEXT_WIDTH,
+        VISUAL_READING_TEXT_HEIGHT,
+        model.readingText,
+      );
+      graphComponent.addFunction(model.equation);
+      this.group.add(graphComponent.getGroup());
+    } else {
+      readingText = new TextBoxComponent(
+        READING_TEXT_X,
+        READING_TEXT_Y,
+        READING_TEXT_WIDTH,
+        READING_TEXT_HEIGHT,
+        model.readingText,
+      );
+    }
 
     this.group.add(nextButton.getGroup());
     this.group.add(backButton.getGroup());
