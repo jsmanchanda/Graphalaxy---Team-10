@@ -1,5 +1,5 @@
 import type {Group} from 'konva/lib/Group';
-import {PlanetSummary} from '@graphalaxy/shared/src/api';
+import type {PlanetSummary} from '@graphalaxy/shared';
 
 /**
  * Data being displayed
