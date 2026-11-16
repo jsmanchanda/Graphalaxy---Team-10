@@ -104,6 +104,7 @@ export class GameManager {
       case 'enterPlanet': {
         this.currentPlanetId = action.planetId;
         this.currentPlanetId = DEMO_PLANET_ID; // DEMO, need to remove
+        this.taskIndex = INTRO_INDEX;
         // await this.session.loadPlanet(this.currentPlanetId);
         const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
           planet.name,
