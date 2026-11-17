@@ -47,20 +47,6 @@ export type CreateInputs = (
 ) => CoefficientInputsHandle;
 
 /**
- * A text box whose text can change. TextBoxComponent can't change its text
- * after it's built, and its label is protected, so this subclass adds that.
- */
-class StatusText extends TextBoxComponent {
-  /**
-   * Replaces the shown text.
-   * @param text the new text
-   */
-  setText(text: string): void {
-    this.label.setAttr('text', text);
-  }
-}
-
-/**
  * What the status box says after a shot.
  * @param shot what controller.fire returned
  * @returns "HIT!", "MISS", or e.g. "1 of 2 hit" for a partial hit
@@ -82,7 +68,7 @@ export class AsteroidGameView implements View {
   private readonly group = new Konva.Group();
   private readonly controller: AsteroidMiniGameController;
   private readonly field: AsteroidFieldComponent;
-  private readonly status: StatusText;
+  private readonly status: TextBoxComponent;
   private readonly fireButton: ButtonComponent;
   private readonly nextButton: ButtonComponent;
   private readonly inputs: CoefficientInputsHandle;
@@ -137,7 +123,7 @@ export class AsteroidGameView implements View {
       form.template,
     );
 
-    this.status = new StatusText(
+    this.status = new TextBoxComponent(
       SHOT_STATUS_X,
       SHOT_STATUS_Y,
       SHOT_STATUS_WIDTH,

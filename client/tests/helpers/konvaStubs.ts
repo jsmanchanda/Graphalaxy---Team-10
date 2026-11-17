@@ -16,6 +16,17 @@ export class FakeText extends Konva.Rect {
   fontSize(): this {
     return this;
   }
+
+  /**
+   * Keeps the new text so TextBoxComponent.setText still works and tests can
+   * read it back with getAttr('text').
+   * @param text the new text
+   * @returns this, like Konva.Text
+   */
+  text(text: string): this {
+    this.setAttr('text', text);
+    return this;
+  }
 }
 
 /**
