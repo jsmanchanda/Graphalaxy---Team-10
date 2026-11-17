@@ -1,0 +1,22 @@
+import type {UnlockedHint, HintUnlockResult} from '@graphalaxy/shared';
+
+export type {UnlockedHint, HintUnlockResult} from '@graphalaxy/shared';
+
+/** Expected failures callers can handle without inspecting error messages. */
+export type HintErrorCode =
+  'INVALID_INPUT' | 'NOT_FOUND' | 'NO_HINTS_LEFT' | 'STORAGE_ERROR';
+
+/** Basic operations provided by the Hint Manager. */
+export interface HintManagerService {
+  /** Returns only hints this player has already unlocked on the planet. */
+  getUnlockedHints(userId: number, planetId: number): UnlockedHint[];
+
+  /** Unlocks the next hint, spending one credit when a hint is available. */
+  unlockNextHint(userId: number, planetId: number): HintUnlockResult;
+
+  /** Returns the player's current hint credit balance. */
+  getBalance(userId: number): number;
+
+  /** Adds earned credits and returns the updated balance; for server use. */
+  awardHintCredits(userId: number, count: number): number;
+}

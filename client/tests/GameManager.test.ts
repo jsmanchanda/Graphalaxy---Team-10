@@ -109,11 +109,6 @@ const QUESTION_2: ScreenModel = {
   type: 'question',
   question: {prompt: 'Question 2', options: ['2', '3']},
 };
-const END: ScreenModel = {
-  type: 'title',
-  title:
-    'OOPS! Youve reached the end of the planet and we havent coded anything else :(!!',
-};
 
 /** Creates a started GameManager with the display history cleared. */
 async function setup() {
@@ -233,17 +228,76 @@ describe('GameManager with no planet loaded', () => {
 });
 
 describe('GameManager navigation', () => {
-  it('shows the lesson intro on start', async () => {
+  /** Matches any navigation map screen; the planet list is demo data for now. */
+  const NAV = expect.objectContaining({type: 'navigation'});
+
+  /**
+   * Presses Start, picks the demo planet on the map, then skips the
+   * minigame and goes straight to the lesson.
+   */
+  function enterPlanet() {
+    act({type: 'start'});
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'enterPlanet'});
+  }
+
+  it('shows the navigation map on start', async () => {
     await setup();
 
     act({type: 'start'});
+
+    expect(lastScreen()).toEqual(NAV);
+  });
+
+  it('shows the minigame select screen on selecting a planet', async () => {
+    await setup();
+    act({type: 'start'});
+
+    act({type: 'selectPlanet', planetId: 1});
+
+    expect(lastScreen()).toEqual({type: 'miniGameSelect'});
+  });
+
+  it('shows the lesson intro on entering a planet', async () => {
+    await setup();
+
+    enterPlanet();
 
     expect(lastScreen()).toEqual(INTRO);
   });
 
+  it.each([true, false])(
+    'shows the lesson intro when a minigame ends (addHint: %s)',
+    async addHint => {
+      await setup();
+      act({type: 'start'});
+      act({type: 'selectPlanet', planetId: 1});
+
+      act({type: 'endMiniGame', addHint});
+
+      expect(lastScreen()).toEqual(INTRO);
+      act({type: 'next'});
+      expect(lastScreen()).toEqual(READING);
+    },
+  );
+
+  it.each(['Asteroid', 'Radio'] as const)(
+    'does not change screens when the %s minigame starts',
+    async name => {
+      await setup();
+      act({type: 'start'});
+      act({type: 'selectPlanet', planetId: 1});
+      ui.displayScreen.mockClear();
+
+      act({type: 'startMiniGame', name});
+
+      expect(ui.displayScreen).not.toHaveBeenCalled();
+    },
+  );
+
   it('steps through the tasks in order', async () => {
     await setup();
-    act({type: 'start'});
+    enterPlanet();
 
     act({type: 'next'});
     expect(lastScreen()).toEqual(READING);
@@ -253,17 +307,17 @@ describe('GameManager navigation', () => {
     expect(lastScreen()).toEqual(QUESTION_2);
   });
 
-  it('shows the end screen after the last task', async () => {
+  it('returns to the navigation map after the last task', async () => {
     await setup();
-    act({type: 'start'});
+    enterPlanet();
     for (let i = 0; i < 4; i++) act({type: 'next'});
 
-    expect(lastScreen()).toEqual(END);
+    expect(lastScreen()).toEqual(NAV);
   });
 
-  it('goes back to the previous task, then the intro, and stays there', async () => {
+  it('goes back to the previous task, then the intro, then the map', async () => {
     await setup();
-    act({type: 'start'});
+    enterPlanet();
     act({type: 'next'});
     act({type: 'next'});
 
@@ -272,30 +326,28 @@ describe('GameManager navigation', () => {
     act({type: 'back'});
     expect(lastScreen()).toEqual(INTRO);
     act({type: 'back'});
+    expect(lastScreen()).toEqual(NAV);
+  });
+
+  it('restarts the lesson when the planet is re-entered mid-lesson', async () => {
+    await setup();
+    enterPlanet();
+    act({type: 'next'});
+    act({type: 'next'});
+
+    enterPlanet();
     expect(lastScreen()).toEqual(INTRO);
     act({type: 'next'});
     expect(lastScreen()).toEqual(READING);
   });
 
-  it('resets to the intro when Start is pressed mid-lesson', async () => {
+  it('shows the map on Back after finishing a planet', async () => {
     await setup();
-    act({type: 'start'});
-    act({type: 'next'});
-    act({type: 'next'});
-
-    act({type: 'start'});
-    expect(lastScreen()).toEqual(INTRO);
-    act({type: 'next'});
-    expect(lastScreen()).toEqual(READING);
-  });
-
-  it('goes back to the last task after pressing Next past the end more than once', async () => {
-    await setup();
-    act({type: 'start'});
-    for (let i = 0; i < 5; i++) act({type: 'next'});
+    enterPlanet();
+    for (let i = 0; i < 4; i++) act({type: 'next'});
 
     expect(() => act({type: 'back'})).not.toThrow();
-    expect(lastScreen()).toEqual(QUESTION_2);
+    expect(lastScreen()).toEqual(NAV);
   });
 
   it('ignores retryLesson', async () => {

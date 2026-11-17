@@ -2,7 +2,12 @@
   @fileoverview Converts the shared API types into the screen models the UI renders.
 */
 
-import type {QuestionTask, ReadingTask, Task} from '@graphalaxy/shared';
+import type {
+  QuestionTask,
+  ReadingTask,
+  Task,
+  PlanetSummary,
+} from '@graphalaxy/shared';
 
 // screen models (output)
 import type {
@@ -11,6 +16,7 @@ import type {
   QuestionScreenModel,
   QuestionResultScreenModel,
   LessonIntroScreenModel,
+  NavigationScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
 
@@ -37,7 +43,15 @@ export function taskToScreen(task: Task): ScreenModel {
 export function readingTaskToScreen(
   readingTask: ReadingTask,
 ): ReadingScreenModel {
-  return {type: 'reading', readingText: readingTask.text};
+  const model: ReadingScreenModel = {
+    type: 'reading',
+    readingText: readingTask.text,
+  };
+
+  if (readingTask.graph) {
+    model.equation = readingTask.graph['fn'];
+  }
+  return model;
 }
 
 /**
@@ -51,10 +65,16 @@ export function questionTaskToQuestionScreen(
   questionTask: QuestionTask,
 ): QuestionScreenModel {
   const {prompt, options} = questionTask.question;
-  return {
+  const model: QuestionScreenModel = {
     type: 'question',
     question: {prompt, options: options.map(option => option.text)},
   };
+
+  // If question has a graph component add it to the model
+  if (questionTask.question.graph) {
+    model.equation = questionTask.question.graph['fn'];
+  }
+  return model;
 }
 
 /**
@@ -79,6 +99,25 @@ export function makeLessonIntroScreen(
   description: string,
 ): LessonIntroScreenModel {
   return {type: 'intro', title: title, description: description};
+}
+
+/**
+ * Makes model for UI nav screen
+ */
+export function makeNavScreen(
+  allPlanets: PlanetSummary[],
+): NavigationScreenModel {
+  // Compute total planet completion
+  let totalProgress = 0;
+  const totalPlanets = allPlanets.length;
+  for (let i = 0; i < allPlanets.length; ++i) {
+    totalProgress += allPlanets[i].completionPct;
+  }
+  return {
+    type: 'navigation',
+    planets: allPlanets,
+    overallStatus: totalProgress / totalPlanets,
+  };
 }
 
 // function makeLessonResultScreen - dependent on progress tracking

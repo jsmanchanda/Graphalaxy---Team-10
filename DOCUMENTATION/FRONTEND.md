@@ -111,7 +111,7 @@ All paths start with `/api`, and all JSON keys are camelCase.
 Every error response uses the same format:
 
 ```json
-{ "error": { "code": "NOT_FOUND", "message": "Planet not found" } }
+{"error": {"code": "NOT_FOUND", "message": "Planet not found"}}
 ```
 
 ### JSON Responses
@@ -125,7 +125,7 @@ Every error response uses the same format:
   "userId": 1,
   "name": "alice",
   "hintQuota": 3,
-  "settings": { "musicVolume": 0.5, "sfxVolume": 0.5 }
+  "settings": {"musicVolume": 0.5, "sfxVolume": 0.5}
 }
 ```
 
@@ -136,7 +136,7 @@ Every error response uses the same format:
   "planetId": 1,
   "name": "Linear Land",
   "graphOrder": 0,
-  "prereqIds": [],
+  "prereqIds": number[] | null,
   "unlocked": true,
   "status": "hostile",
   "completionPct": 0.4
@@ -154,7 +154,7 @@ Every error response uses the same format:
   "introText": "A hostile world of straight lines.",
   "graphOrder": 0,
   "tasks": [
-    { "type": "Reading", "text": "A linear function has the form y = mx + b." },
+    {"type": "Reading", "text": "A linear function has the form y = mx + b."},
     {
       "type": "Question",
       "prompt": "What is the slope of y = 2x + 3?",

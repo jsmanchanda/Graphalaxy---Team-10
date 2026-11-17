@@ -1,5 +1,3 @@
-/// <reference lib="dom" />
-
 import Konva from 'konva';
 import {TitleScreenView} from './screens/TitleScreenView';
 import {ReadingScreenView} from './screens/ReadingScreenView';
@@ -11,6 +9,8 @@ import {LessonResultScreenView} from './screens/LessonResultScreenView';
 import {DESIGN_HEIGHT, DESIGN_WIDTH} from './constants';
 import {ScreenModel, UiAction, View} from './types';
 import {ImageComponent} from './components';
+import {NavigationScreenView} from './screens/NavigationScreenView';
+import {MiniGameSelectView} from './screens/MiniGameSelectView';
 
 /** Renders different Konva screens */
 export class UiManager {
@@ -34,7 +34,7 @@ export class UiManager {
       0,
       DESIGN_WIDTH,
       DESIGN_HEIGHT,
-      'assets/background.jpeg',
+      '/assets/background.jpeg',
     );
     this.layer = new Konva.Layer();
     this.layer.add(background.getGroup());
@@ -78,6 +78,12 @@ export class UiManager {
         break;
       case 'intro':
         this.currentView = new LessonIntroScreenView(this.onAction, model);
+        break;
+      case 'navigation':
+        this.currentView = new NavigationScreenView(this.onAction, model);
+        break;
+      case 'miniGameSelect':
+        this.currentView = new MiniGameSelectView(this.onAction);
         break;
       case 'reading':
         this.currentView = new ReadingScreenView(this.onAction, model);

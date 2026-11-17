@@ -3,10 +3,10 @@
 /**
  * UI DEMO
  * run with :
- *        npm run dev:demo -w client # starts Vite and opens http://localhost:5173/demo.html
+ *        npm run dev:demo -w client # starts Vite and opens http://localhost:5173/src/demos/demo.html
  */
 
-import {FONT_CONTHRAX, FONT_PLANET_KOSMOS} from '../constants';
+import {FONT_CONTHRAX, FONT_PLANET_KOSMOS} from '../UI/constants';
 import {
   LessonIntroScreenModel,
   LessonResultScreenModel,
@@ -17,8 +17,8 @@ import {
   ScreenModel,
   TitleScreenModel,
   UiAction,
-} from '../types';
-import {UiManager} from '../UIManager';
+} from '../UI/types';
+import {UiManager} from '../UI/UIManager';
 
 // Mock Data
 const titleScreen: TitleScreenModel = {type: 'title', title: 'Graphalaxy'};

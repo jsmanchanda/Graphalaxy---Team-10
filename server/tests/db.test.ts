@@ -6,6 +6,7 @@ import type {Database} from 'better-sqlite3';
 import {openDb} from '../src/db/connection';
 import {migrate} from '../src/db/migrate';
 import {seed} from '../src/db/seed';
+import {TEST_PLANET} from './helpers/fixture';
 
 describe('openDb', () => {
   it('enables foreign keys', () => {
@@ -30,13 +31,13 @@ describe('openDb', () => {
   });
 });
 
-describe('schema + seed', () => {
+describe('schema', () => {
   let db: Database;
 
   beforeEach(() => {
     db = openDb(':memory:');
     migrate(db);
-    seed(db);
+    seed(db, [TEST_PLANET]);
     db.prepare("INSERT INTO users (username) VALUES ('test')").run();
   });
 
@@ -61,56 +62,6 @@ describe('schema + seed', () => {
     }
     expect(names).not.toContain('lessons');
     expect(names).not.toContain('hints');
-  });
-
-  it('seeds one planet with 5 questions, 4 options each, exactly 1 correct', () => {
-    expect(db.prepare('SELECT COUNT(*) FROM planets').pluck().get()).toBe(1);
-    expect(db.prepare('SELECT COUNT(*) FROM questions').pluck().get()).toBe(5);
-    const rows = db
-      .prepare(
-        `SELECT COUNT(*) AS n, SUM(is_correct) AS c
-                FROM answer_options GROUP BY question_id`,
-      )
-      .all() as Array<{n: number; c: number}>;
-    expect(rows).toHaveLength(5);
-    for (const r of rows) expect(r).toEqual({n: 4, c: 1});
-  });
-
-  it('seeds the labels a, b, c, d on every question', () => {
-    const labels = db
-      .prepare(
-        `SELECT (SELECT GROUP_CONCAT(label) FROM
-                  (SELECT label FROM answer_options o
-                   WHERE o.question_id = q.question_id ORDER BY label))
-         FROM questions q`,
-      )
-      .pluck()
-      .all();
-    expect(labels).toEqual(Array(5).fill('a,b,c,d'));
-  });
-
-  it('seeds every question with a graph', () => {
-    const graphs = db
-      .prepare('SELECT graph FROM questions')
-      .pluck()
-      .all() as string[];
-    expect(graphs).toHaveLength(5);
-    for (const g of graphs) expect(JSON.parse(g).fn).toBeTruthy();
-  });
-
-  it('seeds 2 readings and 3 hints on the planet', () => {
-    expect(db.prepare('SELECT COUNT(*) FROM readings').pluck().get()).toBe(2);
-    expect(db.prepare('SELECT COUNT(*) FROM planet_hints').pluck().get()).toBe(
-      3,
-    );
-  });
-
-  it('seed is idempotent', () => {
-    seed(db);
-    expect(db.prepare('SELECT COUNT(*) FROM planets').pluck().get()).toBe(1);
-    expect(db.prepare('SELECT COUNT(*) FROM planet_hints').pluck().get()).toBe(
-      3,
-    );
   });
 
   it('allows the four labels on a question, but no fifth option', () => {
