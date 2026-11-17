@@ -1,6 +1,11 @@
-import type {Planet, QuestionTask, Task} from '@graphalaxy/shared';
+import type {
+  Planet,
+  QuestionTask,
+  Task,
+  PlanetSummary,
+} from '@graphalaxy/shared';
 
-// --- view stuff ---
+// --- View Objects ---
 import {ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
 import {SessionCache} from './SessionCache';
@@ -8,11 +13,13 @@ import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
+import {allPlanets} from '../demos/demoAllPlanets';
 
 // for MVP
 const DEMO_USERNAME = 'demo';
 const DEMO_PLANET_ID = 1;
 const INTRO_INDEX = -1;
+const DEMO_ALL_PLANETS: PlanetSummary[] = allPlanets;
 
 /**
  * GameManager - coordinates game logic between SessionCache and UiManager
@@ -20,11 +27,13 @@ const INTRO_INDEX = -1;
  */
 export class GameManager {
   private ui: UiManager;
-
   private session: SessionCache;
+
+  private currentPlanetId: number;
+  private allPlanets: PlanetSummary[];
   private taskIndex: number;
-  // True while an answer is with the server, so a double click sends one.
-  private answerPending = false;
+
+  private answerPending = false; // True while an answer is with the server, so a double click sends one.
 
   /**
    * Creates a new GameManager instance.
@@ -33,7 +42,11 @@ export class GameManager {
   constructor(session: SessionCache = new SessionCache()) {
     this.ui = new UiManager('container', action => this.handleAction(action));
     this.session = session;
+    this.currentPlanetId = 0;
     this.taskIndex = INTRO_INDEX;
+
+    // TODO: put this in start() and call session manager for it
+    this.allPlanets = DEMO_ALL_PLANETS;
   }
 
   /**
@@ -75,7 +88,55 @@ export class GameManager {
     }
     switch (action.type) {
       case 'start': {
+        const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
+          this.allPlanets,
+        );
+        this.ui.displayScreen(screenModel);
+        break;
+      }
+      case 'navigate': {
+        const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
+          this.allPlanets,
+        );
+        this.ui.displayScreen(screenModel);
+        break;
+      }
+      case 'startMiniGame': {
+        if (action.name === 'Asteroid') {
+          // run asteroid minigame
+          // AsteroidMiniGame.start();
+        } else if (action.name === 'Radio') {
+          // run radio minigame
+          // RadioMiniGame.start();
+        } else {
+          // minigame not supported
+        }
+        break;
+      }
+      case 'endMiniGame': {
+        // check if reward is given
+        if (action.addHint) {
+          // add hint
+        }
+        // then go to lesson
+        const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
+          planet.name,
+          planet.introText,
+        );
+        this.ui.displayScreen(screenModel);
+        break;
+      }
+      case 'selectPlanet': {
+        // loads planet, and prompts user to play minigame
+        this.currentPlanetId = action.planetId;
+        this.currentPlanetId = DEMO_PLANET_ID; // DEMO, need to remove
+        // await this.session.loadPlanet(this.currentPlanetId); // want to actually load planet that is chosen
         this.taskIndex = INTRO_INDEX;
+        this.ui.displayScreen({type: 'miniGameSelect'});
+        break;
+      }
+      case 'enterPlanet': {
+        // actually starts the lesson of planet
         const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
           planet.name,
           planet.introText,
@@ -92,13 +153,13 @@ export class GameManager {
         break;
       }
       case 'next': {
-        this.taskIndex++;
+        this.taskIndex = Math.min(this.taskIndex + 1, planet.tasks.length);
         if (this.taskIndex >= planet.tasks.length) {
-          this.ui.displayScreen({
-            type: 'title',
-            title:
-              'OOPS! Youve reached the end of the planet and we havent coded anything else :(!!',
-          });
+          this.taskIndex = -1;
+          const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
+            this.allPlanets,
+          );
+          this.ui.displayScreen(screenModel);
         } else {
           const task: Task = planet.tasks[this.taskIndex];
           const screenModel: ScreenModel = screenModelMaker.taskToScreen(task);
@@ -107,14 +168,21 @@ export class GameManager {
         break;
       }
       case 'back': {
-        this.taskIndex = Math.max(this.taskIndex - 1, INTRO_INDEX);
         if (this.taskIndex === INTRO_INDEX) {
-          const screenModel = screenModelMaker.makeLessonIntroScreen(
-            planet.name,
-            planet.introText,
+          const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
+            this.allPlanets,
           );
           this.ui.displayScreen(screenModel);
+        } else if (this.taskIndex === 0) {
+          this.taskIndex--;
+          const screenModel: ScreenModel =
+            screenModelMaker.makeLessonIntroScreen(
+              planet.name,
+              planet.introText,
+            );
+          this.ui.displayScreen(screenModel);
         } else {
+          this.taskIndex--;
           const task: Task = planet.tasks[this.taskIndex];
           const screenModel: ScreenModel = screenModelMaker.taskToScreen(task);
           this.ui.displayScreen(screenModel);

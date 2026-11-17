@@ -4,8 +4,11 @@ export type {
   AnswerResult,
   ApiErrorBody,
   GraphSpec,
+  HintBalanceResult,
+  HintUnlockResult,
   LoginRequest,
   Planet,
+  PlanetSummary,
   Player,
   Question,
   QuestionTask,
@@ -13,4 +16,5 @@ export type {
   VisualReadingTask,
   Settings,
   Task,
+  UnlockedHint,
 } from './api';

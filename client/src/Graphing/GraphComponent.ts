@@ -6,7 +6,6 @@ import {Interval} from './functions';
 const DEFAULT_INTERVAL_X = new Interval(-10, 10, 1);
 const DEFAULT_INTERVAL_Y = new Interval(-10, 10, 1);
 
-// const MAX_DISTANCE_BETWEEN_LINES_PIXELS = 20;
 const LABEL_FONTSIZE = 8;
 /**
  * Renders graph in the screen
@@ -238,9 +237,7 @@ export class GraphComponent extends Component {
    * Calculates axis labels and turns into strings
    */
   valueToLabel(value: number, isPi: boolean): string {
-    // π based labels supports fractions of the form k/24
-    console.log(`${value}, ${(value * 2) % Math.PI}`);
-    console.log(`${this.convertToPixelsX(value)}\n\n`);
+    // π based labels
     if (isPi) {
       return String(value / Math.PI) + 'π';
     }

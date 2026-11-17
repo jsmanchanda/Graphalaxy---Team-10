@@ -6,6 +6,9 @@
  *   GET   /api/users/:userId/planets/:planetId -> Planet
  *   PATCH /api/users/:userId/settings: Settings -> Player
  *   POST  /api/users/:userId/questions/:questionId/answer: AnswerRequest -> AnswerResult
+ *   GET   /api/users/:userId/hints/balance -> HintBalanceResult
+ *   GET   /api/users/:userId/planets/:planetId/hints -> UnlockedHint[]
+ *   POST  /api/users/:userId/planets/:planetId/hints/unlock -> HintUnlockResult
  *
  * Errors are sent as ApiErrorBody with a 4xx or 5xx status.
  */
@@ -49,6 +52,7 @@ export interface Question {
 export interface ReadingTask {
   type: 'Reading';
   text: string;
+  graph?: GraphSpec;
 }
 
 /** A question slide in a lesson, and whether this player has solved it. */
@@ -79,6 +83,19 @@ export interface Planet {
   tasks: Task[];
 }
 
+/**
+ * Planet display data (Brina might change)
+ */
+export interface PlanetSummary {
+  planetId: number;
+  name: string;
+  graphOrder: number;
+  prereqIds: number[] | null; // Planet id (OR relation)
+  unlocked: boolean; // true if any prereq is unlocked
+  status: 'friendly' | 'hostile';
+  completionPct: number; // percentage 0-1
+}
+
 /** The body of POST /api/users. */
 export interface LoginRequest {
   username: string;
@@ -99,4 +116,24 @@ export interface AnswerResult {
 /** The body of every error response. */
 export interface ApiErrorBody {
   error: {code: string; message: string};
+}
+
+/** A hint the player has unlocked and can review. */
+export interface UnlockedHint {
+  hintId: number;
+  planetId: number;
+  hintNumber: number;
+  text: string;
+}
+
+/** The player's available hint credits. */
+export interface HintBalanceResult {
+  hintQuota: number;
+}
+
+/** The result of unlocking the next hint. */
+export interface HintUnlockResult {
+  /** Null when there are no more hints to unlock. */
+  hint: UnlockedHint | null;
+  hintQuota: number;
 }

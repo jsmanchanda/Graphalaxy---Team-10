@@ -60,6 +60,17 @@ export const READING_TEXT_HEIGHT = 300;
 export const READING_TEXT_X = (DESIGN_WIDTH - READING_TEXT_WIDTH) * 0.5;
 export const READING_TEXT_Y = 100;
 
+// With Graph
+export const VISUAL_READING_TEXT_X = 15;
+export const VISUAL_READING_TEXT_Y = 25;
+export const VISUAL_READING_TEXT_WIDTH = 375;
+export const VISUAL_READING_TEXT_HEIGHT = 375;
+
+export const VISUAL_READING_GRAPH_X = 410;
+export const VISUAL_READING_GRAPH_Y = 25;
+export const VISUAL_READING_GRAPH_WIDTH = 375;
+export const VISUAL_READING_GRAPH_HEIGHT = 375;
+
 // ============== Multiple Choice Screen ==============
 
 // Multiple choice option dimensions
@@ -105,6 +116,20 @@ export const QUESTION_BACK_BUTTON_X = 0;
 export const QUESTION_BACK_BUTTON_Y =
   MULTIPLE_CHOICE_OPTION_TOP_Y - CONFIRM_BUTTON_HEIGHT;
 
+// Question with graph
+
+// prompt
+export const VISUAL_QUESTION_PROMPT_X = 15;
+export const VISUAL_QUESTION_PROMPT_Y = 25;
+export const VISUAL_QUESTION_PROMPT_WIDTH = 375;
+export const VISUAL_QUESTION_PROMPT_HEIGHT = 375;
+
+// graph
+export const QUESTION_GRAPH_X = 410;
+export const QUESTION_GRAPH_Y = 25;
+export const QUESTION_GRAPH_WIDTH = 375;
+export const QUESTION_GRAPH_HEIGHT = 375;
+
 // ============== Question Result Screen + Lesson Result Screen ==============
 export const RESULT_TEXT_WIDTH = 600;
 export const RESULT_TEXT_HEIGHT = 300;
@@ -115,3 +140,29 @@ export const OK_BUTTON_WIDTH = 100;
 export const OK_BUTTON_HEIGHT = 100;
 export const OK_BUTTON_X = (DESIGN_WIDTH - OK_BUTTON_WIDTH) * 0.5;
 export const OK_BUTTON_Y = RESULT_TEXT_Y + RESULT_TEXT_HEIGHT + 25;
+
+// ============== Mini Game Select Screen ==============
+export const MINI_GAME_SELECT_TITLE_WIDTH = 500;
+export const MINI_GAME_SELECT_TITLE_HEIGHT = 100;
+export const MINI_GAME_SELECT_TITLE_X =
+  (DESIGN_WIDTH - MINI_GAME_SELECT_TITLE_WIDTH) * 0.5;
+export const MINI_GAME_SELECT_TITLE_Y = 60;
+
+// Mini game buttons sit side by side, centered horizontally
+export const MINI_GAME_BUTTON_WIDTH = 200;
+export const MINI_GAME_BUTTON_HEIGHT = 100;
+export const MINI_GAME_BUTTON_GAP = 50;
+export const MINI_GAME_BUTTON_Y =
+  MINI_GAME_SELECT_TITLE_Y + MINI_GAME_SELECT_TITLE_HEIGHT + 40;
+
+export const ASTEROID_BUTTON_X =
+  (DESIGN_WIDTH - 2 * MINI_GAME_BUTTON_WIDTH - MINI_GAME_BUTTON_GAP) * 0.5;
+export const RADIO_WAVE_BUTTON_X =
+  ASTEROID_BUTTON_X + MINI_GAME_BUTTON_WIDTH + MINI_GAME_BUTTON_GAP;
+
+export const SKIP_MINI_GAME_BUTTON_WIDTH = 200;
+export const SKIP_MINI_GAME_BUTTON_HEIGHT = 60;
+export const SKIP_MINI_GAME_BUTTON_X =
+  (DESIGN_WIDTH - SKIP_MINI_GAME_BUTTON_WIDTH) * 0.5;
+export const SKIP_MINI_GAME_BUTTON_Y =
+  MINI_GAME_BUTTON_Y + MINI_GAME_BUTTON_HEIGHT + 50;

@@ -1,5 +1,6 @@
-import type {Group} from 'konva/lib/Group';
 import {MathFunction} from '../Graphing/functions';
+import type {Group} from 'konva/lib/Group';
+import type {PlanetSummary} from '@graphalaxy/shared';
 
 /**
  * Data being displayed
@@ -17,7 +18,12 @@ export type UiAction =
   | {type: 'answer'; option: number}
   | {type: 'next'}
   | {type: 'back'}
-  | {type: 'retryLesson'};
+  | {type: 'retryLesson'}
+  | {type: 'enterPlanet'}
+  | {type: 'selectPlanet'; planetId: number}
+  | {type: 'navigate'}
+  | {type: 'startMiniGame'; name: 'Asteroid' | 'Radio'}
+  | {type: 'endMiniGame'; addHint: boolean};
 
 // ================== Screens Models ===================
 /**
@@ -43,6 +49,7 @@ export interface LessonIntroScreenModel {
 export interface ReadingScreenModel {
   type: 'reading';
   readingText: string;
+  equation?: string;
 }
 
 /**
@@ -77,6 +84,22 @@ export interface QuestionResultScreenModel {
 export interface LessonResultScreenModel {
   type: 'lessonResult';
   result: string;
+}
+
+/**
+ * Data for navigation screen
+ */
+export interface NavigationScreenModel {
+  type: 'navigation';
+  planets: PlanetSummary[];
+  overallStatus: number;
+}
+
+/**
+ * Data for navigation screen
+ */
+export interface MiniGameSelectModel {
+  type: 'miniGameSelect';
 }
 
 /**
@@ -125,5 +148,7 @@ export type ScreenModel =
   | QuestionScreenModel
   | QuestionResultScreenModel
   | LessonResultScreenModel
+  | NavigationScreenModel
+  | MiniGameSelectModel
   | VisualReadingScreenModel
   | RadioWaveMinigameScreenModel;

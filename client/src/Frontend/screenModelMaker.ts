@@ -7,6 +7,7 @@ import type {
   ReadingTask,
   VisualReadingTask,
   Task,
+  PlanetSummary,
 } from '@graphalaxy/shared';
 
 // screen models (output)
@@ -16,6 +17,7 @@ import type {
   QuestionScreenModel,
   QuestionResultScreenModel,
   LessonIntroScreenModel,
+  NavigationScreenModel,
   VisualReadingScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
@@ -30,10 +32,10 @@ export function taskToScreen(task: Task): ScreenModel {
   switch (task.type) {
     case 'Question':
       return questionTaskToQuestionScreen(task);
-    case 'Reading':
-      return readingTaskToScreen(task);
     case 'VisualReading':
       return visualReadingTaskToScreen(task);
+    case 'Reading':
+      return readingTaskToScreen(task);
   }
 }
 
@@ -45,7 +47,15 @@ export function taskToScreen(task: Task): ScreenModel {
 export function readingTaskToScreen(
   readingTask: ReadingTask,
 ): ReadingScreenModel {
-  return {type: 'reading', readingText: readingTask.text};
+  const model: ReadingScreenModel = {
+    type: 'reading',
+    readingText: readingTask.text,
+  };
+
+  if (readingTask.graph) {
+    model.equation = readingTask.graph['fn'];
+  }
+  return model;
 }
 
 /**
@@ -96,6 +106,27 @@ export function makeLessonIntroScreen(
 }
 
 /**
+ * Makes model for UI nav screen
+ */
+export function makeNavScreen(
+  allPlanets: PlanetSummary[],
+): NavigationScreenModel {
+  // Compute total planet completion
+  let totalProgress = 0;
+  const totalPlanets = allPlanets.length;
+  for (let i = 0; i < allPlanets.length; ++i) {
+    totalProgress += allPlanets[i].completionPct;
+  }
+  return {
+    type: 'navigation',
+    planets: allPlanets,
+    overallStatus: totalProgress / totalPlanets,
+  };
+}
+
+// function makeLessonResultScreen - dependent on progress tracking
+
+/**
  * Creates Screen Model For a reading with a graph
  */
 export function visualReadingTaskToScreen(
@@ -107,5 +138,3 @@ export function visualReadingTaskToScreen(
     mathFunction: task.mathFunction,
   };
 }
-
-// function makeLessonResultScreen - dependent on progress tracking
