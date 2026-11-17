@@ -76,7 +76,7 @@ export class HintManager implements HintManagerService {
     );
   }
 
-  /** Called by server after it verifies a minigame reward. */
+  /** Adds credits; callers are responsible for verifying earned rewards. */
   awardHintCredits(userId: number, count: number): number {
     this.requirePositiveInteger(count, 'Credit count');
     return this.withStorageError('Unable to award hint credits.', () =>

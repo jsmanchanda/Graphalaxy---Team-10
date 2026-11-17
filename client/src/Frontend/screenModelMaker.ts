@@ -3,10 +3,11 @@
 */
 
 import type {
+  PlanetSummary,
   QuestionTask,
   ReadingTask,
+  Settings,
   Task,
-  PlanetSummary,
 } from '@graphalaxy/shared';
 
 // screen models (output)
@@ -16,9 +17,12 @@ import type {
   QuestionScreenModel,
   QuestionResultScreenModel,
   LessonIntroScreenModel,
+  LessonResultScreenModel,
+  LoginScreenModel,
   NavigationScreenModel,
   RadioWaveMinigameScreenModel,
-  // LessonResultScreenModel
+  RetryWarningScreenModel,
+  SettingsScreenModel,
 } from '../UI/types';
 
 /**
@@ -93,35 +97,129 @@ export function makeQuestionResultScreen(
  * Creates the lesson intro screen model.
  * @param title The lesson title.
  * @param description The lesson's introductory text.
+ * @param progress The player's progress on the planet, if it has been loaded.
+ * It is shown under the description.
  * @returns The lesson intro screen model for the UI.
  */
 export function makeLessonIntroScreen(
   title: string,
   description: string,
+  progress?: PlanetSummary | null,
 ): LessonIntroScreenModel {
-  return {type: 'intro', title: title, description: description};
+  return {
+    type: 'intro',
+    title: title,
+    description: progress
+      ? `${description}\n\nCurrent progress: ${describeProgress(progress)}`
+      : description,
+  };
 }
 
 /**
- * Makes model for UI nav screen
+ * Describes a player's progress on a planet in one line.
+ * @param progress The player's progress on the planet.
+ * @returns E.g. '2 of 5 questions correct (40%), hostile'.
+ */
+export function describeProgress(progress: PlanetSummary): string {
+  const {correctCount, questionCount, completionPct, status} = progress;
+  const percent = Math.round(completionPct * 100);
+  return `${correctCount} of ${questionCount} questions correct (${percent}%), ${status}`;
+}
+
+/**
+ * Creates the lesson result screen model shown once every question has been
+ * answered: the score, and whether that made the planet peaceful.
+ * @param progress The player's progress on the planet.
+ * @returns The lesson result screen model for the UI.
+ */
+export function makeLessonResultScreen(
+  progress: PlanetSummary,
+): LessonResultScreenModel {
+  const {name, correctCount, questionCount, status} = progress;
+  const outcome =
+    status === 'peaceful'
+      ? `${name} is now peaceful!`
+      : `${name} is still hostile. Redo the planet to try again.`;
+  return {
+    type: 'lessonResult',
+    result: `You answered ${correctCount} of ${questionCount} questions correctly. ${outcome}`,
+  };
+}
+
+/**
+ * Creates the warning screen model shown before a planet is redone.
+ * @param progress The player's progress on the planet, which would be reset.
+ * @param error A message to add when the last attempt to reset failed.
+ * @returns The retry warning screen model for the UI.
+ */
+export function makeRetryWarningScreen(
+  progress: PlanetSummary,
+  error?: string,
+): RetryWarningScreenModel {
+  const consequence =
+    progress.status === 'peaceful'
+      ? 'The planet turns hostile again and you answer every question from the start.'
+      : 'You answer every question from the start.';
+  const warning =
+    `Redo ${progress.name}? ` +
+    `Current progress: ${describeProgress(progress)}. This resets all progress here. ${consequence}`;
+  return {
+    type: 'retryWarning',
+    message: error ? `${error}\n\n${warning}` : warning,
+  };
+}
+
+/**
+ * Creates the settings screen model.
+ * @param settings The settings to show.
+ * @param message The outcome of the last save, if there was one.
+ * @returns The settings screen model for the UI.
+ */
+export function makeSettingsScreen(
+  settings: Settings,
+  message?: string,
+): SettingsScreenModel {
+  return message
+    ? {type: 'settings', settings, message}
+    : {type: 'settings', settings};
+}
+
+/**
+ * Creates the login screen model.
+ * @param username The username the input starts with.
+ * @param message Progress, or the outcome of the last attempt to log in.
+ * @returns The login screen model for the UI.
+ */
+export function makeLoginScreen(
+  username: string,
+  message?: string,
+): LoginScreenModel {
+  return message
+    ? {type: 'login', username, message}
+    : {type: 'login', username};
+}
+
+/**
+ * Creates the navigation screen model: the planets on the map and how far the
+ * player has got across all of them.
+ * @param allPlanets The player's progress on every planet.
+ * @returns The navigation screen model for the UI.
  */
 export function makeNavScreen(
   allPlanets: PlanetSummary[],
 ): NavigationScreenModel {
-  // Compute total planet completion
-  let totalProgress = 0;
-  const totalPlanets = allPlanets.length;
-  for (let i = 0; i < allPlanets.length; ++i) {
-    totalProgress += allPlanets[i].completionPct;
-  }
+  const totalProgress = allPlanets.reduce(
+    (sum, planet) => sum + planet.completionPct,
+    0,
+  );
   return {
     type: 'navigation',
     planets: allPlanets,
-    overallStatus: totalProgress / totalPlanets,
+    // Guards against dividing by zero before any planet has loaded.
+    overallStatus:
+      allPlanets.length === 0 ? 0 : totalProgress / allPlanets.length,
   };
 }
-
-// function makeLessonResultScreen - dependent on progress tracking
 
 /** Creates the radio-wave round for the navigation flow and standalone demo. */
 export function makeRadioWaveMinigameScreen(): RadioWaveMinigameScreenModel {

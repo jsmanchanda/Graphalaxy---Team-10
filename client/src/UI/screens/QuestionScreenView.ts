@@ -52,39 +52,23 @@ export class QuestionScreenView implements View {
     // Track the selected option, null by default (no option selected)
     let selectedOption: number | null = null;
 
-    const option0 = new ButtonComponent(
-      MULTIPLE_CHOICE_OPTION_LEFT_X,
-      MULTIPLE_CHOICE_OPTION_TOP_Y,
-      MULTIPLE_CHOICE_OPTION_WIDTH,
-      MULTIPLE_CHOICE_OPTION_HEIGHT,
-      model.question.options[0],
-      () => selectOption(0),
+    // One button per option, however many the question has (2 to 4), filling
+    // a two-column grid from the top left.
+    const options = model.question.options.map(
+      (text, index) =>
+        new ButtonComponent(
+          index % 2 === 0
+            ? MULTIPLE_CHOICE_OPTION_LEFT_X
+            : MULTIPLE_CHOICE_OPTION_RIGHT_X,
+          index < 2
+            ? MULTIPLE_CHOICE_OPTION_TOP_Y
+            : MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
+          MULTIPLE_CHOICE_OPTION_WIDTH,
+          MULTIPLE_CHOICE_OPTION_HEIGHT,
+          text,
+          () => selectOption(index),
+        ),
     );
-    const option1 = new ButtonComponent(
-      MULTIPLE_CHOICE_OPTION_RIGHT_X,
-      MULTIPLE_CHOICE_OPTION_TOP_Y,
-      MULTIPLE_CHOICE_OPTION_WIDTH,
-      MULTIPLE_CHOICE_OPTION_HEIGHT,
-      model.question.options[1],
-      () => selectOption(1),
-    );
-    const option2 = new ButtonComponent(
-      MULTIPLE_CHOICE_OPTION_LEFT_X,
-      MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
-      MULTIPLE_CHOICE_OPTION_WIDTH,
-      MULTIPLE_CHOICE_OPTION_HEIGHT,
-      model.question.options[2],
-      () => selectOption(2),
-    );
-    const option3 = new ButtonComponent(
-      MULTIPLE_CHOICE_OPTION_RIGHT_X,
-      MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
-      MULTIPLE_CHOICE_OPTION_WIDTH,
-      MULTIPLE_CHOICE_OPTION_HEIGHT,
-      model.question.options[3],
-      () => selectOption(3),
-    );
-    const options = [option0, option1, option2, option3];
 
     function selectOption(option: number): void {
       selectedOption = option;
@@ -117,7 +101,7 @@ export class QuestionScreenView implements View {
       ALIEN_FRIEND_Y,
       ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_WIDTH,
-      'public/assets/alien-cat.png',
+      '/assets/alien-cat.png',
     );
 
     const backButton = new ButtonComponent(
@@ -161,11 +145,7 @@ export class QuestionScreenView implements View {
     this.group.add(alienCat.getGroup());
     this.group.add(prompt.getGroup());
     this.group.add(confirmButton.getGroup());
-    this.group.add(option0.getGroup());
-    this.group.add(option1.getGroup());
-    this.group.add(option2.getGroup());
-    this.group.add(option3.getGroup());
-    this.group.add();
+    options.forEach(option => this.group.add(option.getGroup()));
   }
 
   /**

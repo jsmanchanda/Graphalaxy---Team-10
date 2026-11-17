@@ -7,8 +7,10 @@ export const allPlanets: PlanetSummary[] = [
     graphOrder: 1,
     prereqIds: [],
     unlocked: true,
-    status: 'friendly',
+    status: 'peaceful',
     completionPct: 1,
+    correctCount: 0,
+    questionCount: 4,
   },
   {
     planetId: 2,
@@ -16,8 +18,10 @@ export const allPlanets: PlanetSummary[] = [
     graphOrder: 2,
     prereqIds: [1],
     unlocked: true,
-    status: 'friendly',
+    status: 'peaceful',
     completionPct: 0.2,
+    correctCount: 0,
+    questionCount: 4,
   },
   {
     planetId: 3,
@@ -25,8 +29,10 @@ export const allPlanets: PlanetSummary[] = [
     graphOrder: 2,
     prereqIds: [1],
     unlocked: true,
-    status: 'friendly',
+    status: 'peaceful',
     completionPct: 0.7,
+    correctCount: 0,
+    questionCount: 4,
   },
   {
     planetId: 4,
@@ -36,5 +42,7 @@ export const allPlanets: PlanetSummary[] = [
     unlocked: false,
     status: 'hostile',
     completionPct: 0,
+    correctCount: 0,
+    questionCount: 4,
   },
 ];

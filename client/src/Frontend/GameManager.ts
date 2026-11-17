@@ -1,39 +1,109 @@
-import type {
-  Planet,
-  QuestionTask,
-  Task,
-  PlanetSummary,
-} from '@graphalaxy/shared';
+import type {PlanetSummary, Question, Settings} from '@graphalaxy/shared';
 
-// --- View Objects ---
+// --- view stuff ---
 import {ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
-import {SessionCache} from './SessionCache';
+import {ALREADY_ANSWERED, SessionCache} from './SessionCache';
 import {ApiError} from './ApiError';
 
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
-import {allPlanets} from '../demos/demoAllPlanets';
 
-// for MVP
-const DEMO_USERNAME = 'demo';
-const DEMO_PLANET_ID = 1;
 const INTRO_INDEX = -1;
-const DEMO_ALL_PLANETS: PlanetSummary[] = allPlanets;
+
+/**
+ * Says whether a request failed because the server could not be reached.
+ * @param error what the request threw
+ * @returns true for network errors and timeouts
+ */
+function isOffline(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    (error.kind === 'network' || error.kind === 'timeout')
+  );
+}
+
+/**
+ * Explains a failed login to the player.
+ * @param error what login or loading the planet threw
+ * @returns the message to show on the login screen
+ */
+function loginFailureMessage(error: unknown): string {
+  if (isOffline(error)) {
+    return 'Server offline. Try again.';
+  }
+  if (error instanceof ApiError && error.status === 400) {
+    return "That username can't be used. Try another.";
+  }
+  return "Couldn't load the game. Try again.";
+}
+
+/**
+ * Explains a failed answer to the player.
+ * @param error what submitting the answer threw
+ * @returns the message to show on the result screen
+ */
+function answerFailureMessage(error: unknown): string {
+  if (isOffline(error)) {
+    return 'Server offline. Press Ok to try again.';
+  }
+  if (error instanceof ApiError && error.code === ALREADY_ANSWERED) {
+    return 'Question has already been answered. Press Ok to continue.';
+  }
+  return "Couldn't confirm answer. Press Ok to try again.";
+}
+
+/**
+ * Which kind of screen is showing. 'lesson' is the planet's intro and its
+ * readings; `taskIndex` says which one.
+ */
+type Stage =
+  | 'login'
+  | 'title'
+  | 'settings'
+  | 'navigation'
+  | 'miniGameSelect'
+  | 'miniGame'
+  | 'lesson'
+  | 'question'
+  | 'questionResult'
+  | 'lessonResult'
+  | 'retryWarning';
 
 /**
  * GameManager - coordinates game logic between SessionCache and UiManager
  * Kind of like the controller in MVC where SessionCache is the model and UiManager is the view
+ *
+ * The game opens on the login screen. Logging in loads the player's settings
+ * and progress, and the planet, and leads to the title screen.
+ *
+ * From the title screen the player opens the navigation map, picks a planet,
+ * and chooses or skips a minigame before entering its lesson.
+ *
+ * A planet is played as its intro, its readings, then its questions. The
+ * questions are loaded from the server one at a time and each is answered
+ * once. After the last one the lesson result shows the score, from where the
+ * planet can be redone or the map reopened.
  */
 export class GameManager {
   private ui: UiManager;
+
   private session: SessionCache;
-
-  private currentPlanetId: number;
-  private allPlanets: PlanetSummary[];
+  private stage: Stage = 'login';
   private taskIndex: number;
-
-  private answerPending = false; // True while an answer is with the server, so a double click sends one.
+  // Counts the screens shown, so a reply from the server is dropped if the
+  // player has moved to another screen in the meantime.
+  private screenId = 0;
+  // True while an answer is with the server, so a double click sends one.
+  private answerPending = false;
+  // True while a planet reset is with the server, for the same reason.
+  private resetPending = false;
+  // True while a login is with the server, for the same reason.
+  private loginPending = false;
+  // Blocks repeated completion actions while the reward and lesson are loading.
+  private minigamePending = false;
+  // The planet load started by selectPlanet, awaited before its lesson opens.
+  private planetLoad: Promise<unknown> | null = null;
 
   /**
    * Creates a new GameManager instance.
@@ -42,35 +112,49 @@ export class GameManager {
   constructor(session: SessionCache = new SessionCache()) {
     this.ui = new UiManager('container', action => this.handleAction(action));
     this.session = session;
-    this.currentPlanetId = 0;
     this.taskIndex = INTRO_INDEX;
-
-    // TODO: put this in start() and call session manager for it
-    this.allPlanets = DEMO_ALL_PLANETS;
   }
 
   /**
-   * Starts the game by logging in the demo user and loading the demo planet.
-   * @returns a promise that resolves when the game has started or failed to start
+   * Starts the game on the login screen. Nothing is loaded until the player
+   * logs in.
    */
-  async start(): Promise<void> {
-    try {
-      await this.session.login(DEMO_USERNAME);
-      await this.session.loadPlanet(DEMO_PLANET_ID);
-    } catch (error) {
-      console.error(error);
-      const offline =
-        error instanceof ApiError &&
-        (error.kind === 'network' || error.kind === 'timeout');
-      this.ui.displayScreen({
-        type: 'title',
-        title: offline
-          ? 'Server offline. Press Start to retry.'
-          : "Couldn't load the game. Press Start to retry.",
-      });
+  start(): void {
+    this.show('login', screenModelMaker.makeLoginScreen(''));
+  }
+
+  /**
+   * Logs the player in under the username they typed, which loads their
+   * settings and progress, then shows the title. A planet's content is loaded
+   * later, when the player picks it on the map. Stays on the login screen,
+   * with a message, if the username is empty or anything fails, so the player
+   * can try again.
+   * @param username the username as typed on the login screen
+   */
+  private async login(username: string): Promise<void> {
+    const name = username.trim();
+    if (name === '') {
+      this.show(
+        'login',
+        screenModelMaker.makeLoginScreen('', 'Enter username to log in.'),
+      );
       return;
     }
-    this.ui.displayScreen({type: 'title', title: 'Graphalaxy'});
+    this.loginPending = true;
+    this.show('login', screenModelMaker.makeLoginScreen(name, 'Logging in...'));
+    try {
+      await this.session.login(name);
+    } catch (error) {
+      console.error(error);
+      this.show(
+        'login',
+        screenModelMaker.makeLoginScreen(name, loginFailureMessage(error)),
+      );
+      return;
+    } finally {
+      this.loginPending = false;
+    }
+    this.showTitle();
   }
 
   /**
@@ -78,113 +162,133 @@ export class GameManager {
    * @param action the type of button that is clicked
    */
   private handleAction(action: UiAction): void {
+    if (this.minigamePending) return;
     // update view (UIManager)
-    const planet = this.session.currentPlanet;
-    if (!planet) {
-      if (action.type === 'start') {
-        void this.start();
+    if (this.stage === 'login') {
+      // Nothing else works until the player is logged in.
+      if (action.type === 'login' && !this.loginPending) {
+        void this.login(action.username);
       }
       return;
     }
     switch (action.type) {
-      case 'start': {
-        const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
-          this.allPlanets,
-        );
-        this.ui.displayScreen(screenModel);
-        break;
-      }
+      case 'start':
       case 'navigate': {
-        const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
-          this.allPlanets,
-        );
-        this.ui.displayScreen(screenModel);
-        break;
-      }
-      case 'startMiniGame': {
-        if (action.name === 'Asteroid') {
-          // run asteroid minigame
-          // AsteroidMiniGame.start();
-        } else if (action.name === 'Radio') {
-          this.ui.displayScreen(screenModelMaker.makeRadioWaveMinigameScreen());
-        } else {
-          // minigame not supported
-        }
-        break;
-      }
-      case 'endMiniGame': {
-        // check if reward is given
-        if (action.addHint) {
-          // add hint
-        }
-        // then go to lesson
-        const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
-          planet.name,
-          planet.introText,
-        );
-        this.ui.displayScreen(screenModel);
+        this.showNavigation();
         break;
       }
       case 'selectPlanet': {
-        // loads planet, and prompts user to play minigame
-        this.currentPlanetId = action.planetId;
-        this.currentPlanetId = DEMO_PLANET_ID; // DEMO, need to remove
-        // await this.session.loadPlanet(this.currentPlanetId); // want to actually load planet that is chosen
+        const summary = this.session.progressFor(action.planetId);
+        if (summary && !summary.unlocked) {
+          // Locked planets are not playable yet.
+          return;
+        }
+        // Loads while the player chooses a minigame; openLesson waits for it.
+        this.planetLoad = this.session.loadPlanet(action.planetId);
+        // Keeps a failed load from becoming an unhandled rejection; the error
+        // is reported when the player tries to enter the planet.
+        this.planetLoad.catch(() => undefined);
         this.taskIndex = INTRO_INDEX;
-        this.ui.displayScreen({type: 'miniGameSelect'});
+        this.show('miniGameSelect', {type: 'miniGameSelect'});
+        break;
+      }
+      case 'startMiniGame': {
+        if (this.stage === 'miniGameSelect' && action.name === 'Radio') {
+          this.show('miniGame', screenModelMaker.makeRadioWaveMinigameScreen());
+        }
+        // Asteroid remains a placeholder until its minigame is integrated.
+        break;
+      }
+      case 'endMiniGame': {
+        if (this.stage === 'miniGame') {
+          void this.finishMinigame(action.addHint);
+        }
         break;
       }
       case 'enterPlanet': {
-        // actually starts the lesson of planet
-        const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
-          planet.name,
-          planet.introText,
-        );
-        this.ui.displayScreen(screenModel);
+        void this.openLesson();
         break;
       }
       case 'answer': {
-        const task = planet.tasks[this.taskIndex];
-        if (task?.type !== 'Question' || this.answerPending) {
+        const question = this.session.currentQuestion;
+        if (this.stage !== 'question' || !question || this.answerPending) {
           return;
         }
-        void this.submitAnswer(planet, task, action.option);
+        void this.submitAnswer(question, action.option);
         break;
       }
       case 'next': {
-        this.taskIndex = Math.min(this.taskIndex + 1, planet.tasks.length);
-        if (this.taskIndex >= planet.tasks.length) {
-          this.taskIndex = -1;
-          const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
-            this.allPlanets,
-          );
-          this.ui.displayScreen(screenModel);
-        } else {
-          const task: Task = planet.tasks[this.taskIndex];
-          const screenModel: ScreenModel = screenModelMaker.taskToScreen(task);
-          this.ui.displayScreen(screenModel);
+        const planet = this.session.currentPlanet;
+        if (!planet) {
+          return;
+        }
+        if (this.stage === 'lesson') {
+          if (this.taskIndex + 1 < planet.tasks.length) {
+            this.taskIndex++;
+            this.showLesson();
+          } else {
+            // Past the last reading: on to the questions.
+            void this.showNextQuestion();
+          }
+        } else if (this.stage === 'questionResult') {
+          void this.showNextQuestion();
+        } else if (this.stage === 'lessonResult') {
+          this.showNavigation();
         }
         break;
       }
       case 'back': {
-        if (this.taskIndex === INTRO_INDEX) {
-          const screenModel: ScreenModel = screenModelMaker.makeNavScreen(
-            this.allPlanets,
+        const planet = this.session.currentPlanet;
+        if (this.stage === 'lesson' && planet) {
+          if (this.taskIndex === INTRO_INDEX) {
+            // Back from the planet's intro leaves it for the map.
+            this.showNavigation();
+          } else {
+            this.taskIndex--;
+            this.showLesson();
+          }
+        } else if (this.stage === 'question' && planet) {
+          // Back to the last reading, or the intro if there are none.
+          this.taskIndex = planet.tasks.length - 1;
+          this.showLesson();
+        } else if (this.stage === 'miniGameSelect') {
+          this.showNavigation();
+        } else if (this.stage === 'navigation' || this.stage === 'settings') {
+          this.showTitle();
+        }
+        break;
+      }
+      case 'retryLesson': {
+        if (this.stage === 'lessonResult') {
+          this.showRetryWarning();
+        }
+        break;
+      }
+      case 'confirmRetry': {
+        if (this.stage === 'retryWarning' && !this.resetPending) {
+          void this.retryPlanet();
+        }
+        break;
+      }
+      case 'cancelRetry': {
+        if (this.stage === 'retryWarning' && !this.resetPending) {
+          this.showLessonResult();
+        }
+        break;
+      }
+      case 'openSettings': {
+        const player = this.session.player;
+        if (this.stage === 'title' && player) {
+          this.show(
+            'settings',
+            screenModelMaker.makeSettingsScreen(player.settings),
           );
-          this.ui.displayScreen(screenModel);
-        } else if (this.taskIndex === 0) {
-          this.taskIndex--;
-          const screenModel: ScreenModel =
-            screenModelMaker.makeLessonIntroScreen(
-              planet.name,
-              planet.introText,
-            );
-          this.ui.displayScreen(screenModel);
-        } else {
-          this.taskIndex--;
-          const task: Task = planet.tasks[this.taskIndex];
-          const screenModel: ScreenModel = screenModelMaker.taskToScreen(task);
-          this.ui.displayScreen(screenModel);
+        }
+        break;
+      }
+      case 'saveSettings': {
+        if (this.stage === 'settings') {
+          void this.saveSettings(action.settings);
         }
         break;
       }
@@ -192,43 +296,291 @@ export class GameManager {
   }
 
   /**
+   * Shows a screen and records which kind it is.
+   * @param stage the kind of screen
+   * @param model the screen's data
+   */
+  private show(stage: Stage, model: ScreenModel): void {
+    this.stage = stage;
+    this.screenId++;
+    this.ui.displayScreen(model);
+  }
+
+  /**
+   * Shows the title screen.
+   */
+  private showTitle(): void {
+    this.show('title', {type: 'title', title: 'Graphalaxy'});
+  }
+
+  /** Awards one earned credit, then opens the selected planet's lesson. */
+  private async finishMinigame(addHint: boolean): Promise<void> {
+    this.minigamePending = true;
+    let message: string | undefined;
+    try {
+      if (addHint) {
+        const hintQuota = await this.session.awardHintCredits(1);
+        message = `+1 hint earned! Available hints: ${hintQuota}`;
+      }
+    } catch (error) {
+      console.error(error);
+      // A failed response might still have awarded the credit. Do not retry
+      // automatically because the existing route adds credits on every call.
+      message = "Couldn't confirm your hint reward. Continuing to the lesson.";
+    }
+    try {
+      await this.openLesson(message);
+    } finally {
+      this.minigamePending = false;
+    }
+  }
+
+  /**
+   * Opens the lesson of the planet picked on the map, once its content has
+   * arrived. Returns to the map if it cannot be loaded.
+   * @param message an optional minigame reward message for the intro
+   */
+  private async openLesson(message?: string): Promise<void> {
+    const screenId = this.screenId;
+    try {
+      await this.planetLoad;
+    } catch (error) {
+      console.error(error);
+      if (screenId === this.screenId) {
+        this.showNavigation();
+      }
+      return;
+    }
+    if (screenId === this.screenId) {
+      this.taskIndex = INTRO_INDEX;
+      this.showLesson(message);
+    }
+  }
+
+  /**
+   * Shows the navigation map, built from the progress loaded at login.
+   */
+  private showNavigation(): void {
+    this.show(
+      'navigation',
+      screenModelMaker.makeNavScreen(this.session.planets),
+    );
+  }
+
+  /**
+   * Shows the lesson slide at `taskIndex`: the planet's intro with the
+   * player's progress on it, or one of its readings.
+   * @param message an optional minigame reward message for the intro
+   */
+  private showLesson(message?: string): void {
+    const planet = this.session.currentPlanet;
+    if (!planet) {
+      return;
+    }
+    if (this.taskIndex === INTRO_INDEX) {
+      this.show(
+        'lesson',
+        screenModelMaker.makeLessonIntroScreen(
+          planet.name,
+          message ? `${planet.introText}\n\n${message}` : planet.introText,
+          this.session.progressFor(planet.planetId),
+        ),
+      );
+    } else {
+      this.show(
+        'lesson',
+        screenModelMaker.taskToScreen(planet.tasks[this.taskIndex]),
+      );
+    }
+  }
+
+  /**
+   * Shows the planet's next unanswered question, or the lesson result once
+   * every question has been answered, right or wrong. The question is loaded
+   * from the server unless one is already loaded and still unanswered, e.g.
+   * after going back to the lesson. Drops the server's reply if the player has
+   * moved to another screen in the meantime.
+   */
+  private async showNextQuestion(): Promise<void> {
+    const loaded = this.session.currentQuestion;
+    if (loaded) {
+      this.showQuestion(loaded);
+      return;
+    }
+    const screenId = this.screenId;
+    try {
+      const question = await this.session.loadNextQuestion();
+      if (screenId !== this.screenId) {
+        return;
+      }
+      if (question) {
+        this.showQuestion(question);
+      } else {
+        this.showLessonResult();
+      }
+    } catch (error) {
+      console.error(error);
+      if (screenId === this.screenId) {
+        // Ok on this screen asks for the question again.
+        this.show('questionResult', {
+          type: 'questionResult',
+          result: isOffline(error)
+            ? 'Server offline. Press Ok to retry.'
+            : "Couldn't load next question. Press Ok to retry.",
+        });
+      }
+    }
+  }
+
+  /**
+   * Shows a question.
+   * @param question the question to show
+   */
+  private showQuestion(question: Question): void {
+    this.show(
+      'question',
+      screenModelMaker.questionTaskToQuestionScreen({
+        type: 'Question',
+        question,
+      }),
+    );
+  }
+
+  /**
+   * Shows the lesson result: the player's progress on the planet, with the
+   * option to redo it.
+   */
+  private showLessonResult(): void {
+    const progress = this.currentProgress();
+    this.show(
+      'lessonResult',
+      progress
+        ? screenModelMaker.makeLessonResultScreen(progress)
+        : {type: 'lessonResult', result: 'You finished this planet!'},
+    );
+  }
+
+  /**
+   * Shows the warning the player has to confirm before a planet is redone.
+   * @param error a message to add when the last attempt to reset failed
+   */
+  private showRetryWarning(error?: string): void {
+    const progress = this.currentProgress();
+    this.show(
+      'retryWarning',
+      progress
+        ? screenModelMaker.makeRetryWarningScreen(progress, error)
+        : {
+            type: 'retryWarning',
+            message: 'Redo this planet? Your progress on it will be reset.',
+          },
+    );
+  }
+
+  /**
+   * Gets the player's progress on the current planet.
+   * @returns the planet's summary, or null if it has not been loaded
+   */
+  private currentProgress(): PlanetSummary | null {
+    const planet = this.session.currentPlanet;
+    return planet ? this.session.progressFor(planet.planetId) : null;
+  }
+
+  /**
+   * Resets the player's progress on the current planet once they have
+   * confirmed the warning, then starts its questions again from the first.
+   */
+  private async retryPlanet(): Promise<void> {
+    const screenId = this.screenId;
+    this.resetPending = true;
+    try {
+      await this.session.resetPlanet();
+      if (screenId === this.screenId) {
+        await this.showNextQuestion();
+      }
+    } catch (error) {
+      console.error(error);
+      if (screenId === this.screenId) {
+        this.showRetryWarning(
+          isOffline(error)
+            ? 'Server offline. This planet was not reset.'
+            : "Couldn't reset planet.",
+        );
+      }
+    } finally {
+      this.resetPending = false;
+    }
+  }
+
+  /**
+   * Saves the settings chosen on the settings screen, then shows the screen
+   * again with the outcome.
+   * @param settings the settings to save
+   */
+  private async saveSettings(settings: Settings): Promise<void> {
+    const screenId = this.screenId;
+    try {
+      const player = await this.session.saveSettings(settings);
+      if (screenId === this.screenId) {
+        this.show(
+          'settings',
+          screenModelMaker.makeSettingsScreen(
+            player.settings,
+            'Settings saved.',
+          ),
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      if (screenId === this.screenId) {
+        // Keep what the player chose so they can try again.
+        this.show(
+          'settings',
+          screenModelMaker.makeSettingsScreen(
+            settings,
+            isOffline(error)
+              ? 'Server offline. Settings were not saved.'
+              : "Couldn't save settings.",
+          ),
+        );
+      }
+    }
+  }
+
+  /**
    * Sends the chosen option to the server, which grades it, then shows the
-   * result. Drops the result if the player has moved to another slide or
+   * result. Drops the result if the player has moved to another screen or
    * planet in the meantime.
-   * @param planet the planet the question is on
-   * @param task the question being answered
+   * @param question the question being answered
    * @param optionIndex the index of the clicked option button
    */
   private async submitAnswer(
-    planet: Planet,
-    task: QuestionTask,
+    question: Question,
     optionIndex: number,
   ): Promise<void> {
-    const option = task.question.options[optionIndex];
+    const option = question.options[optionIndex];
     if (!option) {
       return;
     }
-    const taskIndex = this.taskIndex;
-    const stillHere = () =>
-      this.session.currentPlanet === planet && this.taskIndex === taskIndex;
+    const screenId = this.screenId;
     this.answerPending = true;
     try {
       const result = await this.session.submitAnswer(
-        task.question.questionId,
+        question.questionId,
         option.optionId,
       );
-      if (stillHere()) {
-        this.ui.displayScreen(
+      if (screenId === this.screenId) {
+        this.show(
+          'questionResult',
           screenModelMaker.makeQuestionResultScreen(result.correct),
         );
       }
     } catch (error) {
       console.error(error);
-      if (stillHere()) {
-        this.ui.displayScreen({
+      if (screenId === this.screenId) {
+        this.show('questionResult', {
           type: 'questionResult',
-          // TODO: show a different message for each ApiError kind.
-          result: "We couldn't confirm your answer.",
+          result: answerFailureMessage(error),
         });
       }
     } finally {

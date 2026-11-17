@@ -9,26 +9,37 @@ import {migrate} from '../src/db/migrate';
 import {seed} from '../src/db/seed';
 import {HintManager} from '../src/hint-manager/hintmanager';
 import {QuestionManager} from '../src/question-manager/QuestionManager';
+import {ProgressManager} from '../src/progress-manager/ProgressManager';
+import {TEST_PLANET} from './helpers/fixture';
 
 describe('Hint API with the official schema and Data Writer', () => {
   let db: Database;
   let writer: DataWriter;
   let app: Express;
+  // A planet with no hints of its own, for the "nothing to unlock" case.
+  let emptyPlanetId: number;
 
   beforeEach(() => {
     db = openDb(':memory:');
     migrate(db);
-    seed(db);
+    seed(db, [TEST_PLANET]);
     writer = createDataWriter(db);
     writer.users.create('first');
     writer.users.create('second');
+    emptyPlanetId = Number(
+      db
+        .prepare(
+          "INSERT INTO planets (name, intro_text) VALUES ('Empty', 'Intro')",
+        )
+        .run().lastInsertRowid,
+    );
     db.exec(`
-      INSERT INTO planets (planet_id, name, intro_text) VALUES (2, 'Empty', 'Intro');
       INSERT INTO planet_hints (planet_id, hint_number, text)
         VALUES (1, 4, 'Fourth hint');
     `);
     app = createApp({
       questions: new QuestionManager(writer, {onAnswer: vi.fn()}),
+      progress: new ProgressManager(writer),
       hints: new HintManager(writer),
       dataWriter: writer,
     });
@@ -45,6 +56,86 @@ describe('Hint API with the official schema and Data Writer', () => {
     expect(response.body).toEqual({hintQuota: 3});
   });
 
+  it('awards credits, persists the new balance, and affects only the selected player', async () => {
+    const response = await request(app)
+      .post('/api/users/1/hints/award')
+      .send({count: 2})
+      .expect(200);
+    expect(response.body).toEqual({hintQuota: 5});
+    expect(writer.users.findById(1)?.hintQuota).toBe(5);
+    expect(writer.users.findById(2)?.hintQuota).toBe(3);
+    const balance = await request(app)
+      .get('/api/users/1/hints/balance')
+      .expect(200);
+    expect(balance.body).toEqual({hintQuota: 5});
+  });
+
+  it('lets an awarded credit unlock a hint after the balance reaches zero', async () => {
+    for (let i = 0; i < 3; i++) writer.users.spendHint(1);
+    await request(app)
+      .post('/api/users/1/hints/award')
+      .send({count: 1})
+      .expect(200);
+    const unlocked = await request(app)
+      .post('/api/users/1/planets/1/hints/unlock')
+      .expect(200);
+    expect(unlocked.body.hint.hintNumber).toBe(1);
+    expect(unlocked.body.hintQuota).toBe(0);
+  });
+
+  it.each([
+    {},
+    {count: 0},
+    {count: -1},
+    {count: 1.5},
+    {count: '2'},
+    {count: null},
+    {count: true},
+    {count: [2]},
+    {count: Number.MAX_SAFE_INTEGER},
+    {count: Number.MAX_SAFE_INTEGER + 1},
+  ])('rejects invalid awards without changing the balance: %j', async body => {
+    const response = await request(app)
+      .post('/api/users/1/hints/award')
+      .send(body)
+      .expect(400);
+    expect(response.body.error.code).toBe('INVALID_INPUT');
+    expect(writer.users.findById(1)?.hintQuota).toBe(3);
+  });
+
+  it('rejects missing request bodies and malformed or unknown user IDs', async () => {
+    await request(app).post('/api/users/1/hints/award').expect(400);
+    await request(app)
+      .post('/api/users/0/hints/award')
+      .send({count: 1})
+      .expect(400);
+    await request(app)
+      .post('/api/users/999/hints/award')
+      .send({count: 1})
+      .expect(404);
+    expect(writer.users.findById(1)?.hintQuota).toBe(3);
+  });
+
+  it('rolls back a failed award and does not expose internal storage details', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const original = writer.users.addHints.bind(writer.users);
+    vi.spyOn(writer.users, 'addHints').mockImplementation((userId, count) => {
+      original(userId, count);
+      throw new Error('Private reward storage details');
+    });
+    const response = await request(app)
+      .post('/api/users/1/hints/award')
+      .send({count: 1})
+      .expect(500);
+    expect(response.body).toEqual({
+      error: {
+        code: 'STORAGE_ERROR',
+        message: 'Unable to award hint credits.',
+      },
+    });
+    expect(writer.users.findById(1)?.hintQuota).toBe(3);
+  });
+
   it('hides locked hints, unlocks the next hint, and allows free review', async () => {
     const before = await request(app).get('/api/users/1/planets/1/hints');
     expect(before.status).toBe(200);
@@ -59,7 +150,7 @@ describe('Hint API with the official schema and Data Writer', () => {
         hintId: 1,
         planetId: 1,
         hintNumber: 1,
-        text: 'The slope is the number multiplied by x.',
+        text: TEST_PLANET.hints[0],
       },
       hintQuota: 2,
     });
@@ -97,7 +188,7 @@ describe('Hint API with the official schema and Data Writer', () => {
 
   it('returns null without charging on an empty or fully unlocked planet', async () => {
     const empty = await request(app).post(
-      '/api/users/1/planets/2/hints/unlock',
+      `/api/users/1/planets/${emptyPlanetId}/hints/unlock`,
     );
     expect(empty.status).toBe(200);
     expect(empty.body).toEqual({hint: null, hintQuota: 3});

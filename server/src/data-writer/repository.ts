@@ -32,7 +32,7 @@ export interface UserRep {
    */
   findById(userId: number): User | undefined;
   /**
-   * Finds user by username.
+   * Finds user by username, ignoring capitalisation.
    * @param username the username of the user
    */
   findByUsername(username: string): User | undefined;
@@ -141,7 +141,7 @@ export interface ContentRep {
    */
   getReadings(planetId: number): Reading[];
   /**
-   * Counts the number of questions for a planet.
+   * Counts the multiple-choice questions for a planet: the ones that are asked.
    * @param planetId the id of the planet
    */
   countQuestions(planetId: number): number;
@@ -156,11 +156,15 @@ export interface ContentRep {
    */
   getQuestions(planetId: number): Question[];
   /**
-   * The next unsolved question for a user on a planet, or undefined if all are solved.
+   * The next multiple-choice question on a planet that the user has not
+   * attempted at all, right or wrong, or undefined if none is left.
    * @param userId the id of the user
    * @param planetId the id of the planet
    */
-  nextUnsolvedQuestion(userId: number, planetId: number): Question | undefined;
+  nextUnansweredQuestion(
+    userId: number,
+    planetId: number,
+  ): Question | undefined;
   /**
    * Gets the public answer options for a question, ordered by label.
    * @param questionId the id of the question
@@ -190,6 +194,12 @@ export interface AnswerRep {
    */
   hasSolved(userId: number, questionId: number): boolean;
   /**
+   * Says whether the user has attempted the question at all, right or wrong.
+   * @param userId the id of the user
+   * @param questionId the id of the question
+   */
+  hasAnswered(userId: number, questionId: number): boolean;
+  /**
    * Inserts one attempt. Throws if the option doesn't belong to the question or if a
    * second correct answer is recorded. (so check hasSolved 1st)
    * @param userId the id of the user
@@ -203,6 +213,14 @@ export interface AnswerRep {
     optionId: number,
     correct: boolean,
   ): void;
+  /**
+   * Deletes every attempt the user has made on the planet's questions, so
+   * none of them count as solved any more.
+   * @param userId the id of the user
+   * @param planetId the id of the planet
+   * @returns the number of attempts deleted
+   */
+  clearForPlanet(userId: number, planetId: number): number;
 }
 
 /**
@@ -248,6 +266,13 @@ export interface ProgressRep {
    * @param status the new status of the planet
    */
   setStatus(userId: number, planetId: number, status: PlanetStatus): void;
+  /**
+   * Puts the row back to hostile with 0 correct, creating it if needed.
+   * @param userId the id of the user
+   * @param planetId the id of the planet
+   * @returns the reset row
+   */
+  reset(userId: number, planetId: number): PlanetProgress;
 }
 
 /**
