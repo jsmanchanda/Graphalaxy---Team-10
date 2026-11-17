@@ -100,7 +100,7 @@ export class GameManager {
   private resetPending = false;
   // True while a login is with the server, for the same reason.
   private loginPending = false;
-  // Blocks repeated completion actions while the reward and lesson are loading.
+  // Prevents handling the same minigame result twice.
   private minigamePending = false;
   // The planet load started by selectPlanet, awaited before its lesson opens.
   private planetLoad: Promise<unknown> | null = null;
@@ -162,7 +162,6 @@ export class GameManager {
    * @param action the type of button that is clicked
    */
   private handleAction(action: UiAction): void {
-    if (this.minigamePending) return;
     // update view (UIManager)
     if (this.stage === 'login') {
       // Nothing else works until the player is logged in.
@@ -200,9 +199,16 @@ export class GameManager {
         break;
       }
       case 'endMiniGame': {
-        if (this.stage === 'miniGame') {
-          void this.finishMinigame(action.addHint);
+        if (this.stage !== 'miniGame' || this.minigamePending) break;
+        this.minigamePending = true;
+        if (action.addHint) {
+          void this.session.awardHintCredits(1).catch(error => {
+            console.error(error);
+          });
         }
+        void this.openLesson().finally(() => {
+          this.minigamePending = false;
+        });
         break;
       }
       case 'enterPlanet': {
@@ -313,34 +319,11 @@ export class GameManager {
     this.show('title', {type: 'title', title: 'Graphalaxy'});
   }
 
-  /** Awards one earned credit, then opens the selected planet's lesson. */
-  private async finishMinigame(addHint: boolean): Promise<void> {
-    this.minigamePending = true;
-    let message: string | undefined;
-    try {
-      if (addHint) {
-        const hintQuota = await this.session.awardHintCredits(1);
-        message = `+1 hint earned! Available hints: ${hintQuota}`;
-      }
-    } catch (error) {
-      console.error(error);
-      // A failed response might still have awarded the credit. Do not retry
-      // automatically because the existing route adds credits on every call.
-      message = "Couldn't confirm your hint reward. Continuing to the lesson.";
-    }
-    try {
-      await this.openLesson(message);
-    } finally {
-      this.minigamePending = false;
-    }
-  }
-
   /**
    * Opens the lesson of the planet picked on the map, once its content has
    * arrived. Returns to the map if it cannot be loaded.
-   * @param message an optional minigame reward message for the intro
    */
-  private async openLesson(message?: string): Promise<void> {
+  private async openLesson(): Promise<void> {
     const screenId = this.screenId;
     try {
       await this.planetLoad;
@@ -353,7 +336,7 @@ export class GameManager {
     }
     if (screenId === this.screenId) {
       this.taskIndex = INTRO_INDEX;
-      this.showLesson(message);
+      this.showLesson();
     }
   }
 
@@ -370,9 +353,8 @@ export class GameManager {
   /**
    * Shows the lesson slide at `taskIndex`: the planet's intro with the
    * player's progress on it, or one of its readings.
-   * @param message an optional minigame reward message for the intro
    */
-  private showLesson(message?: string): void {
+  private showLesson(): void {
     const planet = this.session.currentPlanet;
     if (!planet) {
       return;
@@ -382,7 +364,7 @@ export class GameManager {
         'lesson',
         screenModelMaker.makeLessonIntroScreen(
           planet.name,
-          message ? `${planet.introText}\n\n${message}` : planet.introText,
+          planet.introText,
           this.session.progressFor(planet.planetId),
         ),
       );

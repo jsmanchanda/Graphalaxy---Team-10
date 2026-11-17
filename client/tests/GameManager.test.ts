@@ -484,17 +484,8 @@ describe('GameManager navigation', () => {
       expect(session.player?.hintQuota).toBe(addHint ? 4 : 3);
       if (addHint) {
         expect(gateway.awardHintCredits).toHaveBeenCalledWith(1);
-        expect(lastScreen()).toEqual(
-          expect.objectContaining({
-            type: 'intro',
-            description: expect.stringContaining(
-              '+1 hint earned! Available hints: 4',
-            ),
-          }),
-        );
-      } else {
-        expect(lastScreen()).toEqual(INTRO);
       }
+      expect(lastScreen()).toEqual(INTRO);
       act({type: 'next'});
       expect(lastScreen()).toEqual(READING);
       expect(gateway.submitAnswer).not.toHaveBeenCalled();
@@ -512,8 +503,6 @@ describe('GameManager navigation', () => {
     act({type: 'endMiniGame', addHint: true});
     act({type: 'endMiniGame', addHint: true});
     expect(gateway.awardHintCredits).toHaveBeenCalledExactlyOnceWith(1);
-    expect(lastScreen()?.type).toBe('radioWaveMinigame');
-
     pending.resolve({hintQuota: 4});
     await flush();
     expect(lastScreen()?.type).toBe('intro');
@@ -534,14 +523,7 @@ describe('GameManager navigation', () => {
 
     expect(gateway.awardHintCredits).toHaveBeenCalledExactlyOnceWith(1);
     expect(session.player?.hintQuota).toBe(3);
-    expect(lastScreen()).toEqual(
-      expect.objectContaining({
-        type: 'intro',
-        description: expect.stringContaining(
-          "Couldn't confirm your hint reward",
-        ),
-      }),
-    );
+    expect(lastScreen()).toEqual(INTRO);
     act({type: 'next'});
     expect(lastScreen()).toEqual(READING);
   });
