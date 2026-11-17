@@ -81,17 +81,28 @@ class FakeDataWriter implements Pick<
       this.readings
         .filter(reading => reading.planetId === planetId)
         .sort((a, b) => a.readingNumber - b.readingNumber),
-    countQuestions: planetId => this.content.getQuestions(planetId).length,
+    countQuestions: planetId =>
+      this.content
+        .getQuestions(planetId)
+        .filter(question => question.qtype === 'mcq').length,
     getQuestion: questionId =>
       this.questions.find(question => question.questionId === questionId),
     getQuestions: planetId =>
       this.questions
         .filter(question => question.planetId === planetId)
         .sort((a, b) => a.questionId - b.questionId),
-    nextUnsolvedQuestion: (userId, planetId) =>
+    nextUnansweredQuestion: (userId, planetId) =>
       this.content
         .getQuestions(planetId)
-        .find(question => !this.answers.hasSolved(userId, question.questionId)),
+        .find(
+          question =>
+            question.qtype === 'mcq' &&
+            !this.attempts.some(
+              attempt =>
+                attempt.userId === userId &&
+                attempt.questionId === question.questionId,
+            ),
+        ),
     // Include private properties at runtime to exercise response allowlisting.
     getPublicOptions: questionId =>
       this.options
@@ -125,6 +136,21 @@ class FakeDataWriter implements Pick<
       }
       this.attempts.push({userId, questionId, optionId, correct});
     },
+    hasAnswered: (userId, questionId) =>
+      this.attempts.some(
+        attempt =>
+          attempt.userId === userId && attempt.questionId === questionId,
+      ),
+    clearForPlanet: (userId, planetId) => {
+      const kept = this.attempts.filter(
+        attempt =>
+          attempt.userId !== userId ||
+          this.content.getQuestion(attempt.questionId)?.planetId !== planetId,
+      );
+      const cleared = this.attempts.length - kept.length;
+      this.attempts = kept;
+      return cleared;
+    },
   };
 
   transaction<T>(work: () => T): T {
@@ -154,8 +180,8 @@ describe('QuestionManager using Data Writer', () => {
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(1);
   });
 
-  it('uses the Data Writer next-unsolved operation and its question ID order', () => {
-    const next = vi.spyOn(writer.content, 'nextUnsolvedQuestion');
+  it('uses the Data Writer next-unanswered operation and its question ID order', () => {
+    const next = vi.spyOn(writer.content, 'nextUnansweredQuestion');
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(1);
     expect(next).toHaveBeenCalledWith(1, 1);
     manager.submit(1, 1, 11);
@@ -164,14 +190,18 @@ describe('QuestionManager using Data Writer', () => {
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(3);
   });
 
-  it("skips only this user's correct attempts", () => {
-    writer.attempts.push(
-      {userId: 1, questionId: 1, optionId: 12, correct: false},
-      {userId: 2, questionId: 1, optionId: 11, correct: true},
-    );
+  it("skips the questions this user has answered, right or wrong, and no one else's", () => {
+    writer.attempts.push({
+      userId: 2,
+      questionId: 1,
+      optionId: 11,
+      correct: true,
+    });
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(1);
-    manager.submit(1, 1, 11);
+    manager.submit(1, 1, 12);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
+    manager.submit(1, 2, 21);
+    expect(manager.nextQuestion(1, 1)?.questionId).toBe(3);
   });
 
   it('returns null after all questions are completed', () => {
@@ -179,6 +209,14 @@ describe('QuestionManager using Data Writer', () => {
       manager.submit(1, questionId, questionId * 10 + 1),
     );
     expect(manager.nextQuestion(1, 1)).toBeNull();
+  });
+
+  it('returns null after every question is answered, even when some answers were wrong', () => {
+    manager.submit(1, 1, 12);
+    manager.submit(1, 2, 21);
+    manager.submit(1, 3, 32);
+    expect(manager.nextQuestion(1, 1)).toBeNull();
+    expect(onAnswer).toHaveBeenCalledTimes(1);
   });
 
   it('returns empty content for an existing planet without readings or questions', () => {
@@ -224,13 +262,10 @@ describe('QuestionManager using Data Writer', () => {
       expect(() => manager.nextQuestion(1, 1)).toThrow(
         expect.objectContaining({code: 'INVALID_CONTENT'}),
       );
-      expect(() => manager.getPlanet(1, 1)).toThrow(
-        expect.objectContaining({code: 'INVALID_CONTENT'}),
-      );
     },
   );
 
-  it('returns a planet with ordered readings, then questions with options', () => {
+  it('returns a planet with its ordered readings and none of its questions', () => {
     expect(manager.getPlanet(1, 1)).toEqual({
       planetId: 1,
       name: 'Planet 1',
@@ -239,20 +274,21 @@ describe('QuestionManager using Data Writer', () => {
       tasks: [
         {type: 'Reading', text: 'Lines'},
         {type: 'Reading', text: 'Quadratics'},
-        ...[1, 2, 3].map(questionId => ({
-          type: 'Question',
-          question: expect.objectContaining({
-            questionId,
-            type: 'mcq',
-            options: [
-              {optionId: questionId * 10 + 1, label: 'a', text: '2'},
-              {optionId: questionId * 10 + 2, label: 'b', text: '3'},
-            ],
-          }),
-          // solved: false,
-        })),
       ],
     });
+  });
+
+  it('serves the questions left out of the planet one at a time, in question ID order', () => {
+    const served: number[] = [];
+    for (
+      let question = manager.nextQuestion(1, 1);
+      question;
+      question = manager.nextQuestion(1, 1)
+    ) {
+      served.push(question.questionId);
+      manager.submit(1, question.questionId, question.questionId * 10 + 1);
+    }
+    expect(served).toEqual([1, 2, 3]);
   });
 
   // it("marks only this user's correctly answered questions as solved", () => {
@@ -267,14 +303,12 @@ describe('QuestionManager using Data Writer', () => {
   //   expect(solved(2)).toEqual([false, false, true]);
   // });
 
-  it('skips non-MCQ questions when loading a planet', () => {
+  it('loads a planet without reading its questions, even malformed ones', () => {
     writer.questions[2].qtype = 'free_response';
-    const ids = manager
-      .getPlanet(1, 1)
-      .tasks.flatMap(task =>
-        task.type === 'Question' ? [task.question.questionId] : [],
-      );
-    expect(ids).toEqual([2, 3]);
+    writer.questions[1].graph = 'not json';
+    const getQuestions = vi.spyOn(writer.content, 'getQuestions');
+    expect(manager.getPlanet(1, 1).tasks).toHaveLength(2);
+    expect(getQuestions).not.toHaveBeenCalled();
   });
 
   it('returns an existing planet without readings or questions', () => {
@@ -299,15 +333,30 @@ describe('QuestionManager using Data Writer', () => {
     });
   });
 
-  it('records wrong attempts, reveals feedback, and allows retrying', () => {
+  it('records wrong attempts, reveals feedback, and moves on to the next question', () => {
     expect(manager.submit(1, 1, 12)).toMatchObject({
       correct: false,
       correctOption: {optionId: 11},
     });
     expect(writer.attempts[0]).toMatchObject({optionId: 12, correct: false});
     expect(onAnswer).not.toHaveBeenCalled();
-    expect(manager.nextQuestion(1, 1)?.questionId).toBe(1);
-    manager.submit(1, 1, 11);
+    expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
+  });
+
+  it('rejects a second answer, so a wrong answer cannot be turned into a correct one', () => {
+    manager.submit(1, 1, 12);
+    expect(() => manager.submit(1, 1, 11)).toThrow(
+      expect.objectContaining({code: 'ALREADY_ANSWERED'}),
+    );
+    expect(writer.attempts).toHaveLength(1);
+    expect(onAnswer).not.toHaveBeenCalled();
+    expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
+  });
+
+  it('accepts an answer again once the attempts on the planet are cleared', () => {
+    manager.submit(1, 1, 12);
+    writer.answers.clearForPlanet(1, 1);
+    expect(manager.submit(1, 1, 11).correct).toBe(true);
     expect(onAnswer).toHaveBeenCalledTimes(1);
   });
 
@@ -322,14 +371,14 @@ describe('QuestionManager using Data Writer', () => {
     },
   );
 
-  it('returns feedback for repeated correct submissions without duplicate writes or progress', () => {
+  it('rejects repeated submissions without duplicate writes or progress, per user', () => {
     manager.submit(1, 1, 11);
-    expect(
-      new QuestionManager(writer, {onAnswer}).submit(1, 1, 11).correct,
-    ).toBe(true);
-    manager.submit(1, 1, 12);
-    manager.submit(1, 1, 11);
-    expect(writer.attempts).toHaveLength(2);
+    for (const optionId of [11, 12]) {
+      expect(() =>
+        new QuestionManager(writer, {onAnswer}).submit(1, 1, optionId),
+      ).toThrow(expect.objectContaining({code: 'ALREADY_ANSWERED'}));
+    }
+    expect(writer.attempts).toHaveLength(1);
     expect(onAnswer).toHaveBeenCalledTimes(1);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
     manager.submit(2, 1, 11);
@@ -360,30 +409,37 @@ describe('QuestionManager using Data Writer', () => {
   // Options belonging to another question, duplicate option IDs and a second
   // correct option are ruled out by the queries and the schema, so they are
   // covered by the integration and data-writer tests rather than here.
-  it.each([
-    'no correct option',
-    'too few options',
-    'too many options',
-    'unsupported type',
-  ])('rejects malformed authored content: %s', scenario => {
-    if (scenario === 'no correct option') writer.options[4].isCorrect = false;
-    if (scenario === 'too few options') writer.options = [writer.options[4]];
-    if (scenario === 'too many options') {
-      writer.options.push(
-        ...[13, 14, 15].map(optionId => ({...writer.options[5], optionId})),
-      );
-    }
-    if (scenario === 'unsupported type') {
-      writer.questions[2].qtype = 'free_response';
-    }
+  it('never asks a question that is not multiple choice, and rejects answers to it', () => {
+    writer.questions[2].qtype = 'free_response';
+    expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
     expect(() => manager.submit(1, 1, 11)).toThrow(
       expect.objectContaining({code: 'INVALID_CONTENT'}),
     );
-    expect(() => manager.nextQuestion(1, 1)).toThrow(
-      expect.objectContaining({code: 'INVALID_CONTENT'}),
-    );
-    expect(writer.attempts).toEqual([]);
+    manager.submit(1, 2, 21);
+    manager.submit(1, 3, 31);
+    expect(manager.nextQuestion(1, 1)).toBeNull();
+    expect(writer.content.countQuestions(1)).toBe(2);
   });
+
+  it.each(['no correct option', 'too few options', 'too many options'])(
+    'rejects malformed authored content: %s',
+    scenario => {
+      if (scenario === 'no correct option') writer.options[4].isCorrect = false;
+      if (scenario === 'too few options') writer.options = [writer.options[4]];
+      if (scenario === 'too many options') {
+        writer.options.push(
+          ...[13, 14, 15].map(optionId => ({...writer.options[5], optionId})),
+        );
+      }
+      expect(() => manager.submit(1, 1, 11)).toThrow(
+        expect.objectContaining({code: 'INVALID_CONTENT'}),
+      );
+      expect(() => manager.nextQuestion(1, 1)).toThrow(
+        expect.objectContaining({code: 'INVALID_CONTENT'}),
+      );
+      expect(writer.attempts).toEqual([]);
+    },
+  );
 
   it('wraps dependency read failures and preserves their internal cause', () => {
     const cause = new Error('database unavailable');

@@ -52,12 +52,12 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     );
   });
 
-  it("loads planet questions by question ID and skips only this user's completed questions", () => {
+  it('loads planet questions by question ID and skips only the questions this user has answered', () => {
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
     writer.answers.record(2, 2, 21, true);
-    writer.answers.record(1, 2, 22, false);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
-    manager.submit(1, 2, 21);
+    // A wrong answer moves on too: each question is asked once.
+    manager.submit(1, 2, 22);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(3);
     manager.submit(1, 3, 31);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(7);
@@ -90,44 +90,23 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     );
   });
 
-  it('loads a planet as ordered readings then questions, no answer keys', () => {
+  it('loads a planet as its ordered readings, without questions or answer keys', () => {
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
     const planet = manager.getPlanet(1, 1);
     expect(planet).toMatchObject({planetId: 1, name: 'Lines'});
-    expect(planet.tasks.map(task => task.type)).toEqual([
-      'Reading',
-      'Reading',
-      'Question',
-      'Question',
-      'Question',
-    ]);
-    expect(planet.tasks.slice(0, 2)).toEqual([
+    expect(planet.tasks).toEqual([
       {type: 'Reading', text: 'Slopes'},
       {type: 'Reading', text: 'Intercepts'},
     ]);
     expect(JSON.stringify(planet)).not.toMatch(
       /is_correct|isCorrect|correctOption|"correct"/,
     );
-    // manager.submit(1, 3, 31);
-    // expect(
-    //   manager
-    //     .getPlanet(1, 1)
-    //     .tasks.flatMap(task =>
-    //       task.type === 'Question'
-    //         ? [[task.question.questionId, task.solved]]
-    //         : [],
-    //     ),
-    // ).toEqual([
-    //   [2, false],
-    //   [3, true],
-    //   [7, false],
-    // ]);
   });
 
   it('records selected option IDs and official attempt metadata for wrong and correct answers', () => {
     const onAnswer = vi.fn();
     const manager = new QuestionManager(writer, {onAnswer});
-    expect(manager.submit(1, 2, 22)).toMatchObject({
+    expect(manager.submit(2, 2, 22)).toMatchObject({
       correct: false,
       correctOption: {optionId: 21},
     });
@@ -160,15 +139,17 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     const first = new QuestionManager(writer, {onAnswer});
     const second = new QuestionManager(createDataWriter(db), {onAnswer});
     first.submit(1, 2, 21);
-    expect(second.submit(1, 2, 21).correct).toBe(true);
-    first.submit(1, 2, 22);
-    second.submit(1, 2, 21);
+    for (const optionId of [21, 22]) {
+      expect(() => second.submit(1, 2, optionId)).toThrow(
+        expect.objectContaining({code: 'ALREADY_ANSWERED'}),
+      );
+    }
     expect(
       db
         .prepare('SELECT correct FROM user_answer ORDER BY answer_id')
         .pluck()
         .all(),
-    ).toEqual([1, 0]);
+    ).toEqual([1]);
     expect(writer.progress.ensure(1, 1).correctCount).toBe(1);
     expect(onAnswer).toHaveBeenCalledTimes(1);
     expect(first.nextQuestion(1, 1)?.questionId).toBe(3);
@@ -180,7 +161,9 @@ describe('QuestionManager with the official migration and Data Writer', () => {
   it('does not award progress for a completion recorded before constructing the manager', () => {
     writer.answers.record(1, 2, 21, true);
     const onAnswer = vi.fn();
-    new QuestionManager(writer, {onAnswer}).submit(1, 2, 21);
+    expect(() =>
+      new QuestionManager(writer, {onAnswer}).submit(1, 2, 21),
+    ).toThrow(expect.objectContaining({code: 'ALREADY_ANSWERED'}));
     expect(onAnswer).not.toHaveBeenCalled();
     expect(db.prepare('SELECT COUNT(*) FROM user_answer').pluck().get()).toBe(
       1,
@@ -226,15 +209,14 @@ describe('QuestionManager with the official migration and Data Writer', () => {
     );
   });
 
-  it('rejects unsupported question types while leaving reading retrieval available', () => {
+  it('skips unsupported question types, rejects answers to them, and leaves readings available', () => {
     db.prepare(
       "UPDATE questions SET qtype = 'free_response' WHERE question_id = 2",
     ).run();
     const manager = new QuestionManager(writer, {onAnswer: vi.fn()});
     expect(readingCount(manager, 1)).toBe(2);
-    expect(() => manager.nextQuestion(1, 1)).toThrow(
-      expect.objectContaining({code: 'INVALID_CONTENT'}),
-    );
+    expect(manager.nextQuestion(1, 1)?.questionId).toBe(3);
+    expect(writer.content.countQuestions(1)).toBe(2);
     expect(() => manager.submit(1, 2, 21)).toThrow(
       expect.objectContaining({code: 'INVALID_CONTENT'}),
     );

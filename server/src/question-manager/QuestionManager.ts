@@ -4,7 +4,6 @@ import type {
   GraphSpec,
   Planet,
   Question,
-  QuestionTask,
   ReadingTask,
 } from '@graphalaxy/shared';
 import type {AnswerProgress} from './AnswerProgress';
@@ -20,6 +19,7 @@ import type {
 export type QuestionErrorCode =
   | 'INVALID_INPUT'
   | 'NOT_FOUND'
+  | 'ALREADY_ANSWERED'
   | 'INVALID_CONTENT'
   | 'STORAGE_ERROR'
   | 'PROGRESS_UPDATE_FAILED';
@@ -54,9 +54,9 @@ export class QuestionManager {
   ) {}
 
   /**
-   * Returns a planet as the client displays it: its readings, then its
-   * questions. Answer keys are not
-   * included; the client finds out through submit().
+   * Returns a planet's lesson as the client displays it: its readings in
+   * order. Questions are not included; the client loads them one at a time
+   * through nextQuestion().
    */
   getPlanet(userId: number, planetId: number): Planet {
     return this.withStorageError('Unable to load the planet.', () => {
@@ -64,32 +64,26 @@ export class QuestionManager {
       const readings: ReadingTask[] = this.dataWriter.content
         .getReadings(planetId)
         .map(reading => ({type: 'Reading', text: reading.text}));
-      const questions: QuestionTask[] = this.dataWriter.content
-        .getQuestions(planetId)
-        .filter(question => question.qtype === 'mcq')
-        .map(question => ({
-          type: 'Question',
-          question: this.toQuestion(question),
-          // solved: this.dataWriter.answers.hasSolved(
-          //   userId,
-          //   question.questionId,
-          // ),
-        }));
       return {
         planetId: planet.planetId,
         name: planet.name,
         introText: planet.introText,
         graphOrder: planet.graphOrder,
-        tasks: [...readings, ...questions],
+        tasks: readings,
       };
     });
   }
 
-  /** Returns the first question without a correct attempt, or null if complete. */
+  /**
+   * Returns the planet's first multiple-choice question, in question ID
+   * order, that this user has not answered yet, or null once they have
+   * answered every one. A wrong answer counts: each question is asked once,
+   * and the player moves on. Questions of other types are never asked.
+   */
   nextQuestion(userId: number, planetId: number): Question | null {
     return this.withStorageError('Unable to load the next question.', () => {
       this.requirePlanet(planetId);
-      const question = this.dataWriter.content.nextUnsolvedQuestion(
+      const question = this.dataWriter.content.nextUnansweredQuestion(
         userId,
         planetId,
       );
@@ -97,7 +91,11 @@ export class QuestionManager {
     });
   }
 
-  /** Records a valid attempt and notifies progress once, in one transaction. */
+  /**
+   * Records a valid attempt and notifies progress if it is correct, in one
+   * transaction. A question can be answered once: a second attempt throws
+   * ALREADY_ANSWERED, until the planet is reset.
+   */
   submit(userId: number, questionId: number, optionId: number): AnswerResult {
     return this.withStorageError('Unable to submit the answer.', () =>
       this.dataWriter.transaction(() => {
@@ -120,18 +118,21 @@ export class QuestionManager {
             'The selected option does not belong to this question.',
           );
         }
-        const completed = this.dataWriter.answers.hasSolved(userId, questionId);
-        // The schema allows only one correct row per user/question.
-        // Keep recording wrong attempts, including those after completion.
-        if (!selected.isCorrect || !completed) {
-          this.dataWriter.answers.record(
-            userId,
-            questionId,
-            optionId,
-            selected.isCorrect,
+        // Each question is answered once, so a wrong answer cannot be turned
+        // into a correct one by sending another request.
+        if (this.dataWriter.answers.hasAnswered(userId, questionId)) {
+          throw new QuestionManagerError(
+            'ALREADY_ANSWERED',
+            `Question ${questionId} has already been answered.`,
           );
         }
-        if (selected.isCorrect && !completed) {
+        this.dataWriter.answers.record(
+          userId,
+          questionId,
+          optionId,
+          selected.isCorrect,
+        );
+        if (selected.isCorrect) {
           try {
             this.progress.onAnswer({
               userId,

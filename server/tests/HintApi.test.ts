@@ -9,12 +9,15 @@ import {migrate} from '../src/db/migrate';
 import {seed} from '../src/db/seed';
 import {HintManager} from '../src/hint-manager/hintmanager';
 import {QuestionManager} from '../src/question-manager/QuestionManager';
+import {ProgressManager} from '../src/progress-manager/ProgressManager';
 import {TEST_PLANET} from './helpers/fixture';
 
 describe('Hint API with the official schema and Data Writer', () => {
   let db: Database;
   let writer: DataWriter;
   let app: Express;
+  // A planet with no hints of its own, for the "nothing to unlock" case.
+  let emptyPlanetId: number;
 
   beforeEach(() => {
     db = openDb(':memory:');
@@ -23,13 +26,20 @@ describe('Hint API with the official schema and Data Writer', () => {
     writer = createDataWriter(db);
     writer.users.create('first');
     writer.users.create('second');
+    emptyPlanetId = Number(
+      db
+        .prepare(
+          "INSERT INTO planets (name, intro_text) VALUES ('Empty', 'Intro')",
+        )
+        .run().lastInsertRowid,
+    );
     db.exec(`
-      INSERT INTO planets (planet_id, name, intro_text) VALUES (2, 'Empty', 'Intro');
       INSERT INTO planet_hints (planet_id, hint_number, text)
         VALUES (1, 4, 'Fourth hint');
     `);
     app = createApp({
       questions: new QuestionManager(writer, {onAnswer: vi.fn()}),
+      progress: new ProgressManager(writer),
       hints: new HintManager(writer),
       dataWriter: writer,
     });
@@ -178,7 +188,7 @@ describe('Hint API with the official schema and Data Writer', () => {
 
   it('returns null without charging on an empty or fully unlocked planet', async () => {
     const empty = await request(app).post(
-      '/api/users/1/planets/2/hints/unlock',
+      `/api/users/1/planets/${emptyPlanetId}/hints/unlock`,
     );
     expect(empty.status).toBe(200);
     expect(empty.body).toEqual({hint: null, hintQuota: 3});

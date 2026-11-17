@@ -4,7 +4,9 @@ import type {
   AnswerResult,
   HintBalanceResult,
   HintUnlockResult,
+  NextQuestion,
   Planet,
+  PlanetSummary,
   Player,
   Settings,
   UnlockedHint,
@@ -12,18 +14,18 @@ import type {
 import type {DataWriter, User} from './data-writer';
 import {HintManagerError} from './hint-manager/hintmanager';
 import type {HintErrorCode, HintManagerService} from './hint-manager/types';
+import type {ProgressManager} from './progress-manager/ProgressManager';
 import {
   QuestionManagerError,
   type QuestionErrorCode,
   type QuestionManager,
 } from './question-manager/QuestionManager';
 
-//MOCK APP FOR DEMO. REDO IN SPRINT 2.
-
 /**
  * Maps a manager error code to an HTTP status.
  * @param code the error code
- * @returns 400 for bad input, 404 for missing things, 409 for no credits, otherwise 500
+ * @returns 400 for bad input, 404 for missing things, 409 for a question that
+ * was already answered or when no hint credits are left, 500 for the rest
  */
 function statusFor(code: QuestionErrorCode | HintErrorCode): number {
   switch (code) {
@@ -31,6 +33,8 @@ function statusFor(code: QuestionErrorCode | HintErrorCode): number {
       return 400;
     case 'NOT_FOUND':
       return 404;
+    case 'ALREADY_ANSWERED':
+      return 409;
     case 'NO_HINTS_LEFT':
       return 409;
     default:
@@ -42,7 +46,11 @@ const MAX_USERNAME_LENGTH = 32;
 
 /** What the HTTP layer needs. Narrow types keep tests easy to fake. */
 export interface AppDeps {
-  questions: Pick<QuestionManager, 'submit' | 'getPlanet'>;
+  questions: Pick<QuestionManager, 'submit' | 'getPlanet' | 'nextQuestion'>;
+  progress: Pick<
+    ProgressManager,
+    'listPlanets' | 'getPlanetSummary' | 'resetPlanet'
+  >;
   hints: Pick<
     HintManagerService,
     'getBalance' | 'getUnlockedHints' | 'unlockNextHint' | 'awardHintCredits'
@@ -155,13 +163,15 @@ export function toPlayer(user: User): Player {
  * request and response bodies are listed in shared's api.ts.
  * Errors are returned as ApiErrorBody: {error: {code, message}}.
  * @param deps the services the routes use (or fakes in tests)
- * @param deps.questions loads planets and records and grades answers
+ * @param deps.questions loads planets and questions, and records and grades answers
+ * @param deps.progress reports and resets each player's progress on planets
  * @param deps.hints reads hint credits and loads and unlocks planet hints
  * @param deps.dataWriter reads and writes users
  * @returns the Express app, ready to listen
  */
 export function createApp({
   questions,
+  progress,
   hints,
   dataWriter,
 }: AppDeps): express.Express {
@@ -191,10 +201,37 @@ export function createApp({
     res.json(body);
   });
 
+  // The player's progress on every planet. The client loads this at login.
+  app.get('/api/users/:userId/planets', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const body: PlanetSummary[] = progress.listPlanets(user.userId);
+    res.json(body);
+  });
+
   app.get('/api/users/:userId/planets/:planetId', (req, res) => {
     const user = requireUser(req.params.userId);
     const planetId = parseId(req.params.planetId, 'planetId');
     const body: Planet = questions.getPlanet(user.userId, planetId);
+    res.json(body);
+  });
+
+  // Questions are served one at a time: the first one, in question ID order,
+  // that the player has not answered yet, right or wrong.
+  app.get('/api/users/:userId/planets/:planetId/questions/next', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const planetId = parseId(req.params.planetId, 'planetId');
+    const body: NextQuestion = {
+      question: questions.nextQuestion(user.userId, planetId),
+      progress: progress.getPlanetSummary(user.userId, planetId),
+    };
+    res.json(body);
+  });
+
+  // Redoes a planet: forgets the player's answers and progress on it.
+  app.delete('/api/users/:userId/planets/:planetId/progress', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const planetId = parseId(req.params.planetId, 'planetId');
+    const body: PlanetSummary = progress.resetPlanet(user.userId, planetId);
     res.json(body);
   });
 
