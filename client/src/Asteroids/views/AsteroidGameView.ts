@@ -8,6 +8,7 @@ import {
   type CoefficientInputsHandle,
   type CoefficientInputsOptions,
 } from '../components/CoefficientInputs';
+import {TargetingPreviewComponent} from '../components/TargetingPreviewComponent';
 import {
   EQUATION_ROW_HEIGHT,
   EQUATION_WIDTH,
@@ -27,6 +28,9 @@ import {
   PANEL_WIDTH,
   PANEL_X,
   PANEL_Y,
+  PREVIEW_SIZE,
+  PREVIEW_X,
+  PREVIEW_Y,
   SHOT_STATUS_HEIGHT,
   SHOT_STATUS_WIDTH,
   SHOT_STATUS_X,
@@ -68,6 +72,7 @@ export class AsteroidGameView implements View {
   private readonly group = new Konva.Group();
   private readonly controller: AsteroidMiniGameController;
   private readonly field: AsteroidFieldComponent;
+  private readonly preview: TargetingPreviewComponent;
   private readonly status: TextBoxComponent;
   private readonly fireButton: ButtonComponent;
   private readonly nextButton: ButtonComponent;
@@ -105,6 +110,13 @@ export class AsteroidGameView implements View {
       FIELD_Y,
       FIELD_SIZE,
       question.asteroids,
+    );
+
+    // Shows the curve while the player types; the window shows it after Fire.
+    this.preview = new TargetingPreviewComponent(
+      PREVIEW_X,
+      PREVIEW_Y,
+      PREVIEW_SIZE,
     );
 
     const header = new TextBoxComponent(
@@ -155,6 +167,7 @@ export class AsteroidGameView implements View {
     this.group.add(
       panel,
       this.field.getGroup(),
+      this.preview.getGroup(),
       header.getGroup(),
       template.getGroup(),
       this.status.getGroup(),
@@ -185,14 +198,18 @@ export class AsteroidGameView implements View {
   }
 
   /**
-   * Enables Fire exactly when every box holds a valid number.
+   * Redraws the targeting screen and enables Fire, both exactly when every
+   * box holds a valid number.
    * @param values what is typed in each box
    */
   private updateFire(values: string[]): void {
     if (this.fired) {
       return;
     }
-    this.canFire = this.controller.preview(values) !== null;
+    // One call drives both the targeting screen and the Fire button.
+    const expression = this.controller.preview(values);
+    this.preview.draw(expression);
+    this.canFire = expression !== null;
     this.fireButton.getGroup().opacity(this.canFire ? 1 : DISABLED_OPACITY);
     this.group.getLayer()?.batchDraw();
   }

@@ -179,6 +179,24 @@ describe('AsteroidGameView', () => {
     expect(fire.opacity()).toBe(0.5);
   });
 
+  it('draws the curve on the targeting screen while every box holds a number', () => {
+    const {screen, inputs} = setup();
+    const previewCurves = () => screen.find('.previewCurve');
+
+    expect(previewCurves()).toHaveLength(0);
+    inputs.type(['2', '1']);
+    expect(previewCurves()).toHaveLength(1);
+    inputs.type(['2', 'abc']);
+    expect(previewCurves()).toHaveLength(0);
+  });
+
+  it('keeps the shot on the targeting screen after Fire', () => {
+    const {screen, inputs} = setup();
+    inputs.type(HITS[0]);
+    findComponent(screen, 'Fire').fire('click');
+    expect(screen.find('.previewCurve')).toHaveLength(1);
+  });
+
   it('fires: draws the shot, locks the boxes and shows HIT! and Next', () => {
     const {screen, inputs, controller} = setup();
     inputs.type(HITS[0]);
