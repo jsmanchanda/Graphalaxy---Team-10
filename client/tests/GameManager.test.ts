@@ -117,7 +117,9 @@ function fakeGateway() {
     saveSettings: vi
       .fn<ServerGateway['saveSettings']>()
       .mockImplementation(async settings => ({...PLAYER, settings})),
-    awardHintCredits: vi.fn<ServerGateway['awardHintCredits']>(),
+    awardHintCredits: vi
+      .fn<ServerGateway['awardHintCredits']>()
+      .mockResolvedValue({hintQuota: 4}),
     submitAnswer: vi
       .fn<ServerGateway['submitAnswer']>()
       .mockImplementation(async (questionId, optionId) => {
@@ -466,21 +468,92 @@ describe('GameManager navigation', () => {
   });
 
   it.each([true, false])(
-    'shows the lesson intro when a minigame ends (addHint: %s)',
+    'connects Radio to the lesson and awards only earned hints (addHint: %s)',
     async addHint => {
-      await setup();
+      const {gateway, session} = await setup();
       act({type: 'start'});
       act({type: 'selectPlanet', planetId: 1});
+      act({type: 'startMiniGame', name: 'Radio'});
+      expect(lastScreen()).toEqual(
+        expect.objectContaining({type: 'radioWaveMinigame'}),
+      );
 
       await actAndWait({type: 'endMiniGame', addHint});
 
+      expect(gateway.awardHintCredits).toHaveBeenCalledTimes(addHint ? 1 : 0);
+      expect(session.player?.hintQuota).toBe(addHint ? 4 : 3);
+      if (addHint) {
+        expect(gateway.awardHintCredits).toHaveBeenCalledWith(1);
+      }
       expect(lastScreen()).toEqual(INTRO);
       act({type: 'next'});
       expect(lastScreen()).toEqual(READING);
+      expect(gateway.submitAnswer).not.toHaveBeenCalled();
     },
   );
 
-  it.each(['Asteroid', 'Radio'] as const)(
+  it('ignores duplicate completion events while saving and after entering the lesson', async () => {
+    const {gateway} = await setup();
+    const pending = deferred<{hintQuota: number}>();
+    gateway.awardHintCredits.mockReturnValueOnce(pending.promise);
+    act({type: 'start'});
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'startMiniGame', name: 'Radio'});
+
+    act({type: 'endMiniGame', addHint: true});
+    act({type: 'endMiniGame', addHint: true});
+    expect(gateway.awardHintCredits).toHaveBeenCalledExactlyOnceWith(1);
+    pending.resolve({hintQuota: 4});
+    await flush();
+    expect(lastScreen()?.type).toBe('intro');
+    await actAndWait({type: 'endMiniGame', addHint: true});
+    expect(gateway.awardHintCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it('continues to the lesson without retrying an unconfirmed reward', async () => {
+    const {gateway, session} = await setup();
+    gateway.awardHintCredits.mockRejectedValueOnce(
+      new ApiError('timeout', 'slow'),
+    );
+    act({type: 'start'});
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'startMiniGame', name: 'Radio'});
+
+    await actAndWait({type: 'endMiniGame', addHint: true});
+
+    expect(gateway.awardHintCredits).toHaveBeenCalledExactlyOnceWith(1);
+    expect(session.player?.hintQuota).toBe(3);
+    expect(lastScreen()).toEqual(INTRO);
+    act({type: 'next'});
+    expect(lastScreen()).toEqual(READING);
+  });
+
+  it('ignores completion events when no minigame is running', async () => {
+    const {gateway} = await setup();
+    act({type: 'start'});
+    await actAndWait({type: 'endMiniGame', addHint: true});
+    expect(gateway.awardHintCredits).not.toHaveBeenCalled();
+    expect(lastScreen()).toEqual(NAV);
+  });
+
+  it('waits for the selected planet before opening its lesson after the minigame', async () => {
+    const {gateway} = await setup();
+    const pending = deferred<Planet>();
+    gateway.getPlanet.mockReturnValueOnce(pending.promise);
+    act({type: 'start'});
+    act({type: 'selectPlanet', planetId: 2});
+    act({type: 'startMiniGame', name: 'Radio'});
+    await actAndWait({type: 'endMiniGame', addHint: false});
+    expect(lastScreen()?.type).toBe('radioWaveMinigame');
+
+    pending.resolve({...makePlanet(2), name: 'Second Planet'});
+    await flush();
+    expect(lastScreen()).toEqual(
+      expect.objectContaining({type: 'intro', title: 'Second Planet'}),
+    );
+  });
+
+  it.each(['Asteroid'] as const)(
     'does not change screens when the %s minigame starts',
     async name => {
       await setup();

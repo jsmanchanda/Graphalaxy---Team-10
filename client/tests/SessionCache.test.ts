@@ -431,3 +431,60 @@ describe('SessionCache questions', () => {
     expect(cache.progressFor(1)).toEqual(progress(1));
   });
 });
+
+describe('SessionCache hint rewards', () => {
+  it('calls the existing route and stores the server balance', async () => {
+    const gateway = fakeGateway();
+    gateway.awardHintCredits.mockResolvedValue({hintQuota: 8});
+    const cache = new SessionCache(gateway);
+    await cache.login('alice');
+
+    await expect(cache.awardHintCredits(1)).resolves.toBe(8);
+
+    expect(gateway.awardHintCredits).toHaveBeenCalledExactlyOnceWith(1);
+    expect(cache.player?.hintQuota).toBe(8);
+  });
+
+  it('keeps the cached balance unchanged if the request fails', async () => {
+    const gateway = fakeGateway();
+    gateway.awardHintCredits.mockRejectedValue(
+      new ApiError('network', 'offline'),
+    );
+    const cache = new SessionCache(gateway);
+    await cache.login('alice');
+
+    await expect(cache.awardHintCredits(1)).rejects.toMatchObject({
+      kind: 'network',
+    });
+    expect(cache.player?.hintQuota).toBe(3);
+    expect(gateway.awardHintCredits).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not award credits before login', async () => {
+    const gateway = fakeGateway();
+    const cache = new SessionCache(gateway);
+    await expect(cache.awardHintCredits(1)).rejects.toThrow('Must log in');
+    expect(gateway.awardHintCredits).not.toHaveBeenCalled();
+  });
+
+  it('does not apply an old reward response to a different player', async () => {
+    const gateway = fakeGateway();
+    let finishReward!: (balance: {hintQuota: number}) => void;
+    gateway.awardHintCredits.mockReturnValueOnce(
+      new Promise(resolve => {
+        finishReward = resolve;
+      }),
+    );
+    const cache = new SessionCache(gateway);
+    await cache.login('alice');
+    const pending = cache.awardHintCredits(1);
+
+    gateway.login.mockResolvedValue({...PLAYER, userId: 8, name: 'bob'});
+    await cache.login('bob');
+    finishReward({hintQuota: 4});
+    await pending;
+
+    expect(cache.player?.name).toBe('bob');
+    expect(cache.player?.hintQuota).toBe(3);
+  });
+});

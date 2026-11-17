@@ -63,6 +63,7 @@ type Stage =
   | 'settings'
   | 'navigation'
   | 'miniGameSelect'
+  | 'miniGame'
   | 'lesson'
   | 'question'
   | 'questionResult'
@@ -99,6 +100,8 @@ export class GameManager {
   private resetPending = false;
   // True while a login is with the server, for the same reason.
   private loginPending = false;
+  // Prevents handling the same minigame result twice.
+  private minigamePending = false;
   // The planet load started by selectPlanet, awaited before its lesson opens.
   private planetLoad: Promise<unknown> | null = null;
 
@@ -189,15 +192,23 @@ export class GameManager {
         break;
       }
       case 'startMiniGame': {
-        // TODO: run the minigame. Until one exists the screen does not change,
-        // so the player can still skip to the lesson.
+        if (this.stage === 'miniGameSelect' && action.name === 'Radio') {
+          this.show('miniGame', screenModelMaker.makeRadioWaveMinigameScreen());
+        }
+        // Asteroid remains a placeholder until its minigame is integrated.
         break;
       }
       case 'endMiniGame': {
+        if (this.stage !== 'miniGame' || this.minigamePending) break;
+        this.minigamePending = true;
         if (action.addHint) {
-          // TODO: award a hint credit once the hint manager is wired in.
+          void this.session.awardHintCredits(1).catch(error => {
+            console.error(error);
+          });
         }
-        void this.openLesson();
+        void this.openLesson().finally(() => {
+          this.minigamePending = false;
+        });
         break;
       }
       case 'enterPlanet': {

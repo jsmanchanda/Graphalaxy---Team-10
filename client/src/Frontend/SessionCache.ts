@@ -142,6 +142,21 @@ export class SessionCache {
   }
 
   /**
+   * Adds earned hint credits and stores the balance returned by the server.
+   * @param count how many credits the minigame earned
+   * @returns the updated hint balance
+   */
+  async awardHintCredits(count: number): Promise<number> {
+    const player = this.player;
+    if (!player) throw new Error('Must log in before awarding hint credits');
+    const result = await this.client.awardHintCredits(count);
+    if (this.player === player) {
+      this.player = {...player, hintQuota: result.hintQuota};
+    }
+    return result.hintQuota;
+  }
+
+  /**
    * Sends an answer to the server, which grades it. Once currentQuestion is
    * graded, right or wrong, forgets it: each question is answered once. Also
    * forgets it if the server says it was answered before, which happens when

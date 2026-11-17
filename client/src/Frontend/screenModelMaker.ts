@@ -20,6 +20,7 @@ import type {
   LessonResultScreenModel,
   LoginScreenModel,
   NavigationScreenModel,
+  RadioWaveMinigameScreenModel,
   RetryWarningScreenModel,
   SettingsScreenModel,
 } from '../UI/types';
@@ -217,5 +218,19 @@ export function makeNavScreen(
     // Guards against dividing by zero before any planet has loaded.
     overallStatus:
       allPlanets.length === 0 ? 0 : totalProgress / allPlanets.length,
+  };
+}
+
+/** Creates the radio-wave round for the navigation flow and standalone demo. */
+export function makeRadioWaveMinigameScreen(): RadioWaveMinigameScreenModel {
+  return {
+    type: 'radioWaveMinigame',
+    question: {
+      amplitude: 1,
+      frequency: 1,
+      horizontalShift: 0,
+      verticalShift: 0,
+    },
+    config: {timeLimitSeconds: 80, correctAnswersForHint: 5},
   };
 }

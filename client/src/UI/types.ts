@@ -140,6 +140,33 @@ export interface MiniGameSelectModel {
 }
 
 /**
+ * Data needed to create a radio-wave minigame question.
+ */
+export interface RadioWaveQuestion {
+  amplitude: number;
+  frequency: number;
+  horizontalShift: number;
+  verticalShift: number;
+}
+
+/**
+ * Rules for a radio-wave minigame round.
+ */
+export interface RadioWaveMinigameConfig {
+  timeLimitSeconds: number;
+  correctAnswersForHint: number;
+}
+
+/**
+ * Radio-wave minigame screen data.
+ */
+export interface RadioWaveMinigameScreenModel {
+  type: 'radioWaveMinigame';
+  question: RadioWaveQuestion;
+  config: RadioWaveMinigameConfig;
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -153,4 +180,5 @@ export type ScreenModel =
   | RetryWarningScreenModel
   | SettingsScreenModel
   | NavigationScreenModel
-  | MiniGameSelectModel;
+  | MiniGameSelectModel
+  | RadioWaveMinigameScreenModel;
