@@ -7,6 +7,7 @@ import {migrate} from '../../src/db/migrate';
 import {seed} from '../../src/db/seed';
 import {QuestionManager} from '../../src/question-manager/QuestionManager';
 import {HintManager} from '../../src/hint-manager/hintmanager';
+import {ProgressManager} from '../../src/progress-manager/ProgressManager';
 
 /** Fails clearly when seeded test content is missing a required value. */
 export function requireValue<T>(value: T | undefined): T {
@@ -28,11 +29,13 @@ export function createAppFixture(): {
     seed(db);
     const writer = createDataWriter(db);
     const hints = new HintManager(writer);
-    const questions = new QuestionManager(writer, {
-      // Production startup currently supplies a no-op progress handler.
-      onAnswer: () => undefined,
-    });
-    return {db, writer, app: createApp({questions, hints, dataWriter: writer})};
+    const progress = new ProgressManager(writer);
+    const questions = new QuestionManager(writer, progress);
+    return {
+      db,
+      writer,
+      app: createApp({questions, progress, hints, dataWriter: writer}),
+    };
   } catch (error) {
     db.close();
     throw error;

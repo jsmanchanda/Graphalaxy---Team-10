@@ -1,6 +1,19 @@
 import {test, expect, type Page} from '@playwright/test';
 import type Konva from 'konva';
-import type {Planet, QuestionTask} from '@graphalaxy/shared';
+import {randomUUID} from 'node:crypto';
+import type {
+  NextQuestion,
+  Planet,
+  PlanetSummary,
+  QuestionTask,
+} from '@graphalaxy/shared';
+import {PLANETS} from '../../server/src/db/seed';
+
+interface TestPlanet extends Planet {
+  username: string;
+  userId: number;
+  questionCount: number;
+}
 
 /** Reads the real Konva scene because canvas text is not a DOM locator. */
 async function screenTexts(page: Page): Promise<string[]> {
@@ -74,14 +87,62 @@ async function expectNavigation(page: Page): Promise<void> {
   await expect.poll(() => planetBounds(page, 1)).not.toBeNull();
 }
 
-/** Follows Start, the demo planet, and the supported Go to lesson choice. */
-async function enterLesson(page: Page, planet: Planet): Promise<void> {
+/** Logs in with real keyboard input and chooses an unlocked planet on the map. */
+async function openGame(
+  page: Page,
+  username = `e2e-${randomUUID().slice(0, 16)}`,
+): Promise<TestPlanet> {
+  await page.goto('/');
+  await expect.poll(() => screenTexts(page)).toContain('Type your username');
+  await expect(page.locator('canvas').first()).toBeVisible();
+  await page.keyboard.type(username);
+  const login = page.waitForResponse(
+    response =>
+      response.request().method() === 'POST' &&
+      response.url().endsWith('/api/users'),
+  );
+  const summaries = page.waitForResponse(
+    response =>
+      /\/api\/users\/\d+\/planets$/.test(response.url()) &&
+      response.status() === 200,
+  );
+  await clickLabel(page, 'Log In');
+  const loginResponse = await login;
+  expect(loginResponse.status()).toBe(200);
+  const player = await loginResponse.json();
+  const planets: PlanetSummary[] = await (await summaries).json();
+  const summary = planets.find(
+    planet => planet.unlocked && planet.questionCount > 0,
+  );
+  if (!summary) throw new Error('No unlocked seeded planet with questions');
   await clickLabel(page, 'Start');
   await expectNavigation(page);
-  const box = await planetBounds(page, planet.planetId);
-  if (!box) throw new Error(`Missing navigation planet ${planet.planetId}`);
+  await expect.poll(() => planetBounds(page, summary.planetId)).not.toBeNull();
+  const box = await planetBounds(page, summary.planetId);
+  if (!box) throw new Error('Selected planet not rendered');
+  const loaded = page.waitForResponse(response =>
+    response
+      .url()
+      .endsWith(`/users/${player.userId}/planets/${summary.planetId}`),
+  );
   await waitForCanvas(page);
   await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  const response = await loaded;
+  expect(response.status()).toBe(200);
+  const planet: Planet = await response.json();
+  expect(planet.planetId).toBe(summary.planetId);
+  expect(planet.tasks.length).toBeGreaterThan(0);
+  expect(planet.tasks.every(task => task.type === 'Reading')).toBe(true);
+  return {
+    ...planet,
+    username,
+    userId: player.userId,
+    questionCount: summary.questionCount,
+  };
+}
+
+/** Enters the selected planet through its supported skip-minigame choice. */
+async function enterLesson(page: Page, planet: Planet): Promise<void> {
   await expect
     .poll(() => screenTexts(page))
     .toEqual(
@@ -96,38 +157,100 @@ async function enterLesson(page: Page, planet: Planet): Promise<void> {
   await expect.poll(() => screenTexts(page)).toContain(planet.name);
 }
 
-/** Starts through the real login, API client, session, and screen bootstrap. */
-async function openGame(page: Page): Promise<Planet> {
+/** Waits for the real next-question response caused by a visible button. */
+async function nextQuestion(page: Page, label: string): Promise<NextQuestion> {
   const loaded = page.waitForResponse(
     response =>
-      /\/api\/users\/\d+\/planets\/1$/.test(response.url()) &&
-      response.status() === 200,
+      response.url().endsWith('/questions/next') &&
+      response.request().method() === 'GET',
   );
-  await page.goto('/');
+  await clickLabel(page, label);
   const response = await loaded;
-  const planet: Planet = await response.json();
-  await expect.poll(() => screenTexts(page)).toContain('Graphalaxy');
-  await expect(page.locator('canvas').first()).toBeVisible();
-  return planet;
+  expect(response.status()).toBe(200);
+  return response.json();
 }
 
-/** Enters through navigation and moves through readings using real canvas buttons. */
+/** Moves through readings, then observes the first dynamically loaded question. */
 async function reachFirstQuestion(
   page: Page,
   planet: Planet,
 ): Promise<QuestionTask> {
   await enterLesson(page, planet);
   for (const task of planet.tasks) {
+    expect(task.type).toBe('Reading');
+    if (task.type !== 'Reading') throw new Error('Expected readings only');
     await clickLabel(page, 'Next');
-    if (task.type === 'Question') {
-      await expect
-        .poll(() => screenTexts(page))
-        .toContain(task.question.prompt);
-      return task;
-    }
     await expect.poll(() => screenTexts(page)).toContain(task.text);
   }
-  throw new Error('Seed has no questions');
+  const next = await nextQuestion(page, 'Next');
+  if (!next.question) throw new Error('Seed has no unanswered questions');
+  const question = next.question;
+  await expect.poll(() => screenTexts(page)).toContain(question.prompt);
+  return {type: 'Question', question};
+}
+
+/** Uses the production seed as expected data; every answer is graded by the server. */
+function correctIndex(planet: Planet, task: QuestionTask): number {
+  const seed = PLANETS.find(item => item.name === planet.name)?.questions.find(
+    question => question.prompt === task.question.prompt,
+  );
+  if (!seed) throw new Error('Question missing from production seed');
+  expect(task.question.options.map(option => option.text)).toEqual(
+    seed.options,
+  );
+  return seed.correct;
+}
+
+/** Completes the remaining real questions and verifies the final persisted score. */
+async function finishPlanet(
+  page: Page,
+  planet: TestPlanet,
+  first: QuestionTask,
+  correctBefore = 0,
+  answeredBefore = 0,
+): Promise<void> {
+  let task: QuestionTask | null = first;
+  let correct = correctBefore;
+  let answered = answeredBefore;
+  const ids = new Set<number>();
+  while (task) {
+    const current = task;
+    expect(ids.has(current.question.questionId)).toBe(false);
+    ids.add(current.question.questionId);
+    await expect
+      .poll(() => screenTexts(page))
+      .toContain(current.question.prompt);
+    const response = await answer(page, current, correctIndex(planet, current));
+    expect(response.status()).toBe(200);
+    const result = await response.json();
+    expect(result.questionId).toBe(current.question.questionId);
+    expect(result.correct).toBe(true);
+    expect(result.correctOption.optionId).toBe(
+      current.question.options[correctIndex(planet, current)].optionId,
+    );
+    correct++;
+    answered++;
+    await expect.poll(() => screenTexts(page)).toContain('Correct');
+    const next = await nextQuestion(page, 'Ok');
+    expect(next.progress).toMatchObject({
+      planetId: planet.planetId,
+      correctCount: correct,
+      questionCount: planet.questionCount,
+      completionPct: correct / planet.questionCount,
+      status: correct === planet.questionCount ? 'peaceful' : 'hostile',
+    });
+    task = next.question ? {type: 'Question', question: next.question} : null;
+  }
+  expect(answered).toBe(planet.questionCount);
+  await expect.poll(() => screenTexts(page)).toContain('Redo Planet');
+  await expect
+    .poll(() => screenTexts(page))
+    .toContain(
+      `You answered ${correct} of ${planet.questionCount} questions correctly. ` +
+        (correct === planet.questionCount
+          ? `${planet.name} is now peaceful!`
+          : `${planet.name} is still hostile. Redo the planet to try again.`),
+    );
 }
 
 /** Selects and confirms an option, then reads the real grading response. */
@@ -165,61 +288,79 @@ test('plays the complete seeded planet with real server grading and returns to n
   page,
 }) => {
   const planet = await openGame(page);
-  await reachFirstQuestion(page, planet);
-  for (const task of planet.tasks) {
-    if (task.type !== 'Question') continue;
-    await expect.poll(() => screenTexts(page)).toContain(task.question.prompt);
-    // Any selected option must agree with the server verdict shown on screen.
-    const response = await answer(page, task, 0);
-    expect(response.status()).toBe(200);
-    const result = await response.json();
-    expect(result.questionId).toBe(task.question.questionId);
-    expect(result.correctOption.optionId).toBeGreaterThan(0);
-    await expect
-      .poll(() => screenTexts(page))
-      .toContain(result.correct ? 'Correct' : 'Wrong');
-    await clickLabel(page, 'Ok');
-  }
+  const first = await reachFirstQuestion(page, planet);
+  await finishPlanet(page, planet, first);
+  await clickLabel(page, 'Ok');
   await expectNavigation(page);
+  const summaries = await page.request.get(
+    `/api/users/${planet.userId}/planets`,
+  );
+  expect(summaries.status()).toBe(200);
+  const persisted: PlanetSummary[] = await summaries.json();
+  expect(
+    persisted.find(item => item.planetId === planet.planetId),
+  ).toMatchObject({
+    status: 'peaceful',
+    correctCount: planet.questionCount,
+    completionPct: 1,
+  });
 });
 
-test('shows wrong feedback, allows a retry, and reuses the account after reload', async ({
+test('shows wrong feedback, resumes after explicit login, and retries through confirmed planet reset', async ({
   page,
 }) => {
   const planet = await openGame(page);
   const question = await reachFirstQuestion(page, planet);
-  // The real API releases the correct option only after a valid submission.
-  const firstResponse = await answer(page, question, 0);
-  const first = await firstResponse.json();
+  const response = await answer(
+    page,
+    question,
+    (correctIndex(planet, question) + 1) % question.question.options.length,
+  );
+  expect(response.status()).toBe(200);
+  expect((await response.json()).correct).toBe(false);
+  await expect.poll(() => screenTexts(page)).toContain('Wrong');
+  const again = await openGame(page, planet.username);
+  expect(again.userId).toBe(planet.userId);
+  const second = await reachFirstQuestion(page, again);
+  expect(second.question.questionId).toBeGreaterThan(
+    question.question.questionId,
+  );
+  await finishPlanet(page, again, second, 0, 1);
+  const resets: string[] = [];
+  page.on('request', request => {
+    if (request.method() === 'DELETE' && request.url().endsWith('/progress')) {
+      resets.push(request.url());
+    }
+  });
+  await clickLabel(page, 'Redo Planet');
+  await clickLabel(page, 'Cancel');
+  await expect.poll(() => screenTexts(page)).toContain('Redo Planet');
+  expect(resets).toEqual([]);
+  await clickLabel(page, 'Redo Planet');
+  const reset = page.waitForResponse(
+    result =>
+      result.request().method() === 'DELETE' &&
+      result.url().endsWith('/progress'),
+  );
+  const next = page.waitForResponse(result =>
+    result.url().endsWith('/questions/next'),
+  );
+  await clickLabel(page, 'Confirm');
+  expect((await reset).status()).toBe(200);
+  expect(await (await reset).json()).toMatchObject({
+    correctCount: 0,
+    completionPct: 0,
+    status: 'hostile',
+  });
+  const restarted: NextQuestion = await (await next).json();
+  expect(restarted.question?.questionId).toBe(question.question.questionId);
+  expect(resets).toHaveLength(1);
   await expect
     .poll(() => screenTexts(page))
-    .toContain(first.correct ? 'Correct' : 'Wrong');
-  const account = await page.request.post('/api/users', {
-    data: {username: 'demo'},
-  });
-  const originalPlayer = await account.json();
-  const relogin = page.waitForResponse(
-    response =>
-      response.request().method() === 'POST' &&
-      response.url().endsWith('/api/users'),
-  );
-  await page.reload();
-  expect((await (await relogin).json()).userId).toBe(originalPlayer.userId);
-  await expect.poll(() => screenTexts(page)).toContain('Graphalaxy');
-  await reachFirstQuestion(page, planet);
-  const wrongIndex = question.question.options.findIndex(
-    option => option.optionId !== first.correctOption.optionId,
-  );
-  await answer(page, question, wrongIndex);
-  await expect.poll(() => screenTexts(page)).toContain('Wrong');
-  await page.reload();
-  await expect.poll(() => screenTexts(page)).toContain('Graphalaxy');
-  await reachFirstQuestion(page, planet);
-  const rightIndex = question.question.options.findIndex(
-    option => option.optionId === first.correctOption.optionId,
-  );
-  const response = await answer(page, question, rightIndex);
-  expect((await response.json()).correct).toBe(true);
+    .toContain(question.question.prompt);
+  const right = await answer(page, question, correctIndex(planet, question));
+  expect(right.status()).toBe(200);
+  expect((await right.json()).correct).toBe(true);
   await expect.poll(() => screenTexts(page)).toContain('Correct');
 });
 
@@ -329,17 +470,29 @@ test('does not replace the current reading with a late answer response', async (
   }
 });
 
-test('shows a connection failure and recovers when Start is pressed', async ({
+test('shows a connection failure and recovers when login is retried', async ({
   page,
 }) => {
   await page.route('**/api/users', route => route.abort('failed'));
   await page.goto('/');
+  await expect.poll(() => screenTexts(page)).toContain('Type your username');
+  const username = `offline-${randomUUID().slice(0, 16)}`;
+  await page.keyboard.type(username);
+  await clickLabel(page, 'Log In');
   await expect
     .poll(() => screenTexts(page))
-    .toContain('Server offline. Press Start to retry.');
+    .toContain('Server offline. Try again.');
   await page.unroute('**/api/users');
+  const login = page.waitForResponse(
+    result =>
+      result.request().method() === 'POST' &&
+      result.url().endsWith('/api/users'),
+  );
+  await clickLabel(page, 'Log In');
+  expect((await login).status()).toBe(200);
+  await expect.poll(() => screenTexts(page)).toContain('Start');
   await clickLabel(page, 'Start');
-  await expect.poll(() => screenTexts(page)).toContain('Graphalaxy');
+  await expectNavigation(page);
 });
 
 test('shows submission failure instead of claiming success when the request fails', async ({
@@ -352,7 +505,7 @@ test('shows submission failure instead of claiming success when the request fail
   await clickLabel(page, 'Confirm');
   await expect
     .poll(() => screenTexts(page))
-    .toContain("We couldn't confirm your answer.");
+    .toContain('Server offline. Press Ok to try again.');
 });
 
 test('keeps canvas controls usable after resizing to a smaller viewport', async ({

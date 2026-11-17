@@ -49,12 +49,19 @@ describe('Frontend session and API client against the real HTTP server', () => {
     expect(fixture.writer.users.findById(player.userId)?.username).toBe(
       'integration',
     );
+    expect(session.planets).toHaveLength(
+      fixture.writer.content.listPlanets().length,
+    );
+    expect(session.progressFor(1)).toMatchObject({
+      correctCount: 0,
+      status: 'hostile',
+      unlocked: true,
+    });
     expect(planet.tasks.length).toBeGreaterThan(0);
     for (const task of planet.tasks) {
       const screen = taskToScreen(task);
-      expect(screen.type).toBe(
-        task.type === 'Reading' ? 'reading' : 'question',
-      );
+      expect(task.type).toBe('Reading');
+      expect(screen.type).toBe('reading');
     }
   });
 
@@ -67,12 +74,18 @@ describe('Frontend session and API client against the real HTTP server', () => {
     expect(again.settings).toEqual(settings);
   });
 
-  it('grades every seeded question and persists the submitted option IDs', async () => {
+  it('loads and grades every seeded question once, then resets and completes it correctly', async () => {
     const player = await session.login('answers');
     const planet = await session.loadPlanet(1);
-    for (const task of planet.tasks) {
-      if (task.type !== 'Question') continue;
-      const question = task.question;
+    const expected = fixture.writer.content.getQuestions(planet.planetId);
+    expect(expected.length).toBeGreaterThan(0);
+    const recorded: Array<{questionId: number; optionId: number}> = [];
+    for (const row of expected) {
+      const question = await session.loadNextQuestion();
+      expect(question?.questionId).toBe(row.questionId);
+      if (!question) throw new Error('Question unexpectedly missing');
+      expect(session.currentQuestion).toBe(question);
+      expect(taskToScreen({type: 'Question', question}).type).toBe('question');
       const correct = requireValue(
         fixture.writer.content.getCorrectOption(question.questionId),
       );
@@ -83,19 +96,66 @@ describe('Frontend session and API client against the real HTTP server', () => {
         (await session.submitAnswer(question.questionId, wrong.optionId))
           .correct,
       ).toBe(false);
-      expect(
-        (await session.submitAnswer(question.questionId, correct.optionId))
-          .correct,
-      ).toBe(true);
-      await session.submitAnswer(question.questionId, correct.optionId);
-      expect(
-        fixture.writer.answers.hasSolved(player.userId, question.questionId),
-      ).toBe(true);
+      expect(session.currentQuestion).toBeNull();
+      await expect(
+        session.submitAnswer(question.questionId, correct.optionId),
+      ).rejects.toMatchObject({
+        kind: 'http',
+        status: 409,
+        code: 'ALREADY_ANSWERED',
+      });
+      recorded.push({
+        questionId: question.questionId,
+        optionId: wrong.optionId,
+      });
     }
-    const count = fixture.writer.content.countQuestions(1);
+    expect(await session.loadNextQuestion()).toBeNull();
+    expect(session.progressFor(1)).toMatchObject({
+      correctCount: 0,
+      status: 'hostile',
+    });
+    expect(
+      fixture.db
+        .prepare(
+          'SELECT question_id AS questionId, selected_option_id AS optionId FROM user_answer ORDER BY answer_id',
+        )
+        .all(),
+    ).toEqual(recorded);
+    expect(recorded).toHaveLength(expected.length);
+    expect(await session.resetPlanet()).toMatchObject({
+      correctCount: 0,
+      status: 'hostile',
+    });
     expect(
       fixture.db.prepare('SELECT COUNT(*) FROM user_answer').pluck().get(),
-    ).toBe(count * 2);
+    ).toBe(0);
+    for (const row of expected) {
+      const question = await session.loadNextQuestion();
+      expect(question?.questionId).toBe(row.questionId);
+      const correct = requireValue(
+        fixture.writer.content.getCorrectOption(row.questionId),
+      );
+      expect(
+        (await session.submitAnswer(row.questionId, correct.optionId)).correct,
+      ).toBe(true);
+      expect(
+        fixture.writer.answers.hasSolved(player.userId, row.questionId),
+      ).toBe(true);
+    }
+    expect(await session.loadNextQuestion()).toBeNull();
+    expect(session.progressFor(1)).toMatchObject({
+      correctCount: expected.length,
+      questionCount: expected.length,
+      completionPct: 1,
+      status: 'peaceful',
+    });
+    expect(
+      fixture.db.prepare('SELECT COUNT(*) FROM user_answer').pluck().get(),
+    ).toBe(expected.length);
+    await session.login('answers');
+    expect(session.progressFor(1)?.status).toBe('peaceful');
+    await session.loadPlanet(1);
+    expect(await session.loadNextQuestion()).toBeNull();
   });
 
   it('turns server rejections into API errors without discarding the current planet', async () => {
@@ -120,8 +180,11 @@ describe('Frontend session and API client against the real HTTP server', () => {
     await session.loadPlanet(1);
     const correct = requireValue(fixture.writer.content.getCorrectOption(1));
     await session.submitAnswer(1, correct.optionId);
+    await session.loadNextQuestion();
     const second = await session.login('second');
     expect(session.currentPlanet).toBeNull();
+    expect(session.currentQuestion).toBeNull();
+    expect(session.progressFor(1)?.correctCount).toBe(0);
     expect(session.player).toEqual(second);
     expect(fixture.writer.answers.hasSolved(first.userId, 1)).toBe(true);
     expect(fixture.writer.answers.hasSolved(second.userId, 1)).toBe(false);
