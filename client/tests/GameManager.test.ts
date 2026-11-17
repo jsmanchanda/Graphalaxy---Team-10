@@ -231,10 +231,14 @@ describe('GameManager navigation', () => {
   /** Matches any navigation map screen; the planet list is demo data for now. */
   const NAV = expect.objectContaining({type: 'navigation'});
 
-  /** Presses Start, then enters the demo planet from the map. */
+  /**
+   * Presses Start, picks the demo planet on the map, then skips the
+   * minigame and goes straight to the lesson.
+   */
   function enterPlanet() {
     act({type: 'start'});
-    act({type: 'enterPlanet', planetId: 1});
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'enterPlanet'});
   }
 
   it('shows the navigation map on start', async () => {
@@ -245,6 +249,15 @@ describe('GameManager navigation', () => {
     expect(lastScreen()).toEqual(NAV);
   });
 
+  it('shows the minigame select screen on selecting a planet', async () => {
+    await setup();
+    act({type: 'start'});
+
+    act({type: 'selectPlanet', planetId: 1});
+
+    expect(lastScreen()).toEqual({type: 'miniGameSelect'});
+  });
+
   it('shows the lesson intro on entering a planet', async () => {
     await setup();
 
@@ -252,6 +265,35 @@ describe('GameManager navigation', () => {
 
     expect(lastScreen()).toEqual(INTRO);
   });
+
+  it.each([true, false])(
+    'shows the lesson intro when a minigame ends (addHint: %s)',
+    async addHint => {
+      await setup();
+      act({type: 'start'});
+      act({type: 'selectPlanet', planetId: 1});
+
+      act({type: 'endMiniGame', addHint});
+
+      expect(lastScreen()).toEqual(INTRO);
+      act({type: 'next'});
+      expect(lastScreen()).toEqual(READING);
+    },
+  );
+
+  it.each(['Asteroid', 'Radio'] as const)(
+    'does not change screens when the %s minigame starts',
+    async name => {
+      await setup();
+      act({type: 'start'});
+      act({type: 'selectPlanet', planetId: 1});
+      ui.displayScreen.mockClear();
+
+      act({type: 'startMiniGame', name});
+
+      expect(ui.displayScreen).not.toHaveBeenCalled();
+    },
+  );
 
   it('steps through the tasks in order', async () => {
     await setup();
