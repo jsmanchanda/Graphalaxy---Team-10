@@ -45,16 +45,18 @@ export class RadioWaveMinigameView implements View {
   };
   private removeControls?: () => void;
   private correctAnswers = 0;
+  private resultReported = false;
+  private readonly correctAnswersForHint: number;
   private screen: 'instructions' | 'gameplay' | 'results' = 'instructions';
 
   /**
    * Builds the minigame screen.
    */
   constructor(
-    onAction: (action: UiAction) => void,
+    private readonly onAction: (action: UiAction) => void,
     model: RadioWaveMinigameScreenModel,
   ) {
-    void onAction;
+    this.correctAnswersForHint = model.config.correctAnswersForHint;
     this.currentQuestion = model.question;
     this.group = new Konva.Group();
     // UIManager destroys this group when it switches to another view.
@@ -83,10 +85,11 @@ export class RadioWaveMinigameView implements View {
         y: 135,
         width: GRAPH_WIDTH,
         text:
-          'Change the equation values to match your blue wave to the white wave.\n\n' +
+          "We're losing our ship signal! Change the equation values to match the ship's radio wave to the desired white wave.\n\n" +
           'Use y = A sin(B(x - h)) + k, then submit your answer.\n\n' +
-          `You have ${model.config.timeLimitSeconds} seconds. There are no skips.\n\n` +
-          `Goal: ${model.config.correctAnswersForHint} correct answers for a hint.`,
+          `You have ${model.config.timeLimitSeconds} seconds.\n\n` +
+          `Goal: ${model.config.correctAnswersForHint} correct answers to regain signal.` +
+          '\n\n Reward: +1 Hint',
         align: 'center',
         fontSize: 20,
         lineHeight: 1.3,
@@ -335,6 +338,33 @@ export class RadioWaveMinigameView implements View {
         fill: 'white',
       }),
     );
+    const addHint = this.correctAnswers >= this.correctAnswersForHint;
+    this.group.add(
+      new Konva.Text({
+        x: GRAPH_X,
+        y: 290,
+        width: GRAPH_WIDTH,
+        text: addHint
+          ? 'Signal restored! Hint reward earned.'
+          : 'No hint earned this round.',
+        align: 'center',
+        fontSize: 20,
+        fill: 'white',
+      }),
+    );
+    const continueButton = new ButtonComponent(
+      CHECK_BUTTON_X,
+      CHECK_BUTTON_Y,
+      CHECK_BUTTON_WIDTH,
+      CHECK_BUTTON_HEIGHT,
+      'Go to lesson',
+      () => {
+        if (this.resultReported) return;
+        this.resultReported = true;
+        this.onAction({type: 'endMiniGame', addHint});
+      },
+    );
+    this.group.add(continueButton.getGroup());
   }
 
   /**

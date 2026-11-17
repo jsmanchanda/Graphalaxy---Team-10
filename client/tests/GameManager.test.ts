@@ -281,7 +281,7 @@ describe('GameManager navigation', () => {
     },
   );
 
-  it.each(['Asteroid', 'Radio'] as const)(
+  it.each(['Asteroid'] as const)(
     'does not change screens when the %s minigame starts',
     async name => {
       await setup();
@@ -292,6 +292,24 @@ describe('GameManager navigation', () => {
       act({type: 'startMiniGame', name});
 
       expect(ui.displayScreen).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([true, false])(
+    'connects Radio to the lesson (reward decision: %s)',
+    async addHint => {
+      const {gateway} = await setup();
+      act({type: 'start'});
+      act({type: 'selectPlanet', planetId: 1});
+      act({type: 'startMiniGame', name: 'Radio'});
+      expect(lastScreen()).toEqual(
+        expect.objectContaining({type: 'radioWaveMinigame'}),
+      );
+      act({type: 'endMiniGame', addHint});
+      expect(lastScreen()).toEqual(INTRO);
+      act({type: 'next'});
+      expect(lastScreen()).toEqual(READING);
+      expect(gateway.submitAnswer).not.toHaveBeenCalled();
     },
   );
 

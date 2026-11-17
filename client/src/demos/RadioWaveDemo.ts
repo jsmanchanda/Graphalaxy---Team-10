@@ -1,20 +1,8 @@
 import {FONT_CONTHRAX, FONT_PLANET_KOSMOS} from '../UI/constants';
 import {UiManager} from '../UI/UIManager';
-import {RadioWaveMinigameScreenModel} from '../UI/types';
+import {makeRadioWaveMinigameScreen} from '../Frontend/screenModelMaker';
 
-const model: RadioWaveMinigameScreenModel = {
-  type: 'radioWaveMinigame',
-  question: {
-    amplitude: 2,
-    frequency: 1,
-    horizontalShift: 0,
-    verticalShift: 0,
-  },
-  config: {
-    timeLimitSeconds: 120,
-    correctAnswersForHint: 5,
-  },
-};
+const model = makeRadioWaveMinigameScreen();
 
 const fonts = [
   new FontFace(FONT_PLANET_KOSMOS, 'url(/assets/fonts/Planet-Kosmos.ttf)'),

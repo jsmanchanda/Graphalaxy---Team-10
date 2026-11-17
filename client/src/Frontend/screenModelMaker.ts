@@ -19,6 +19,7 @@ import type {
   LessonIntroScreenModel,
   NavigationScreenModel,
   VisualReadingScreenModel,
+  RadioWaveMinigameScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
 
@@ -136,5 +137,19 @@ export function visualReadingTaskToScreen(
     type: 'visualReading',
     readingText: task.text,
     mathFunction: task.mathFunction,
+  };
+}
+
+/** Creates the radio-wave round for the navigation flow and standalone demo. */
+export function makeRadioWaveMinigameScreen(): RadioWaveMinigameScreenModel {
+  return {
+    type: 'radioWaveMinigame',
+    question: {
+      amplitude: 1,
+      frequency: 1,
+      horizontalShift: 0,
+      verticalShift: 0,
+    },
+    config: {timeLimitSeconds: 2, correctAnswersForHint: 0},
   };
 }

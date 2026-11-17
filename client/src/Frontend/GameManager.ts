@@ -106,8 +106,7 @@ export class GameManager {
           // run asteroid minigame
           // AsteroidMiniGame.start();
         } else if (action.name === 'Radio') {
-          // run radio minigame
-          // RadioMiniGame.start();
+          this.ui.displayScreen(screenModelMaker.makeRadioWaveMinigameScreen());
         } else {
           // minigame not supported
         }
