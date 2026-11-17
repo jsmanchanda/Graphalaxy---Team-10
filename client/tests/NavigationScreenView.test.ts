@@ -18,6 +18,8 @@ function planet(unlocked: boolean): PlanetSummary {
     prereqIds: [1],
     unlocked,
     status: 'hostile',
+    correctCount: 3,
+    questionCount: 6,
     completionPct: 0.5,
   };
 }
