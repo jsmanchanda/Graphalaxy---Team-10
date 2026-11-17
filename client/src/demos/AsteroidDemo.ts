@@ -11,7 +11,15 @@ import {AsteroidFieldComponent} from '../Asteroids/components/AsteroidFieldCompo
 import {FIELD_SIZE} from '../Asteroids/constants';
 import {FORMS} from '../Asteroids/math/forms';
 import type {MiniGameResult, Screen} from '../Asteroids/types';
+import {AsteroidIntroView} from '../Asteroids/views/AsteroidIntroView';
 import {GraphComponent} from '../Graphing/GraphComponent';
+import {ImageComponent} from '../UI/components';
+import {
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
+  FONT_CONTHRAX,
+  FONT_PLANET_KOSMOS,
+} from '../UI/constants';
 
 // Stand-in preview with a grid, until TargetingPreviewComponent (4d) exists.
 const DEMO_PREVIEW_SIZE = 200;
@@ -32,11 +40,20 @@ const status = byId('status');
 const action = byId<HTMLButtonElement>('action');
 const log = byId('log');
 
-const stage = new Konva.Stage({
-  container: 'container',
+const fonts = [
+  new FontFace(FONT_PLANET_KOSMOS, 'url(/assets/fonts/Planet-Kosmos.ttf)'),
+  new FontFace(FONT_CONTHRAX, 'url(/assets/fonts/Conthrax.otf)'),
+];
+
+// The debug game and result screens use a small canvas; the real views
+// (so far only the intro) use the full 800×500 design canvas.
+const DEBUG_SIZE = {
   width: FIELD_SIZE + GAP + DEMO_PREVIEW_SIZE,
   height: FIELD_SIZE,
-});
+};
+const DESIGN_SIZE = {width: DESIGN_WIDTH, height: DESIGN_HEIGHT};
+
+const stage = new Konva.Stage({container: 'container', ...DEBUG_SIZE});
 const layer = new Konva.Layer();
 stage.add(layer);
 
@@ -58,14 +75,26 @@ function clearScreen() {
   inputsBox.replaceChildren();
   inputs = [];
   status.textContent = '';
+  action.hidden = false;
+  stage.size(DEBUG_SIZE);
 }
 
+// The real intro view from step 4f, on the game's background.
 function showIntro() {
   title.textContent = 'Asteroid minigame (debug)';
-  info.textContent =
-    'Type coefficients so the curve passes through every asteroid.\n' +
-    'One shot per question. 3/3 earns a hint.';
-  setAction('Launch', () => controller.launch());
+  info.textContent = 'Intro: the real AsteroidIntroView.';
+  action.hidden = true;
+  stage.size(DESIGN_SIZE);
+  const background = new ImageComponent(
+    0,
+    0,
+    DESIGN_WIDTH,
+    DESIGN_HEIGHT,
+    '/assets/background.jpeg',
+  );
+  const intro = new AsteroidIntroView(() => controller.launch());
+  layer.add(background.getGroup(), intro.getGroup());
+  layer.batchDraw();
 }
 
 function showGame() {
@@ -175,4 +204,10 @@ function finish(result: MiniGameResult) {
 }
 
 const controller = new AsteroidMiniGameController(show, finish);
-controller.start();
+
+// Load the fonts first so the real views look like the game. Start anyway
+// if they fail, with the browser's fallback font.
+Promise.all(fonts.map(font => font.load()))
+  .then(loaded => loaded.forEach(font => document.fonts.add(font)))
+  .catch(error => console.error('Font loading failed:', error))
+  .finally(() => controller.start());
