@@ -109,8 +109,8 @@ export function makeNavScreen(
 ): NavigationScreenModel {
   // Compute total planet completion
   let totalProgress = 0;
-  const totalPlanets = allPlanets.length - 1; // home planet doesnt count
-  for (let i = 1; i < allPlanets.length; ++i) {
+  const totalPlanets = allPlanets.length;
+  for (let i = 0; i < allPlanets.length; ++i) {
     totalProgress += allPlanets[i].completionPct;
   }
   return {
