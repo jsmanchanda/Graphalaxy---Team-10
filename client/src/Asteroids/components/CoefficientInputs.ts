@@ -27,6 +27,21 @@ export interface CoefficientInputsOptions {
 }
 
 /**
+ * What a view uses from the input row. The game view takes a factory that
+ * returns one, so its tests can pass a fake (Vitest has no DOM).
+ */
+export interface CoefficientInputsHandle {
+  /** What is typed in each box, one string per letter, in order. */
+  values(): string[];
+  /** Puts the cursor in the first box. */
+  focus(): void;
+  /** Locks every box after Fire; they stay visible. */
+  disable(): void;
+  /** Removes the boxes from the page. Safe to call twice. */
+  remove(): void;
+}
+
+/**
  * The row of boxes the player types coefficients into: `a = [ ] h = [ ]`.
  * Konva has no text input, so these are HTML inputs placed over the canvas,
  * the same way the radio wave minigame does it.
@@ -34,7 +49,7 @@ export interface CoefficientInputsOptions {
  * The values are raw text: the controller parses them with
  * parseCoefficient, so typed text never reaches `new Function`.
  */
-export class CoefficientInputs {
+export class CoefficientInputs implements CoefficientInputsHandle {
   private readonly row: HTMLDivElement;
   private readonly inputs: HTMLInputElement[];
   private readonly x: number;
