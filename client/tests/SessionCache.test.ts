@@ -94,6 +94,7 @@ function fakeGateway() {
       .fn<ServerGateway['resetPlanet']>()
       .mockResolvedValue(progress(0)),
     saveSettings: vi.fn<ServerGateway['saveSettings']>(),
+    awardHintCredits: vi.fn<ServerGateway['awardHintCredits']>(),
     submitAnswer: vi.fn<ServerGateway['submitAnswer']>(),
   };
 }

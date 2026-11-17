@@ -53,7 +53,7 @@ export interface AppDeps {
   >;
   hints: Pick<
     HintManagerService,
-    'getBalance' | 'getUnlockedHints' | 'unlockNextHint'
+    'getBalance' | 'getUnlockedHints' | 'unlockNextHint' | 'awardHintCredits'
   >;
   dataWriter: Pick<DataWriter, 'users'>;
 }
@@ -238,6 +238,23 @@ export function createApp({
   app.get('/api/users/:userId/hints/balance', (req, res) => {
     const user = requireUser(req.params.userId);
     const body: HintBalanceResult = {hintQuota: hints.getBalance(user.userId)};
+    res.json(body);
+  });
+
+  // Demo integration: accepts a credit count, not proof of a minigame win.
+  // Replace with verified, duplicate-safe completion handling when available.
+  app.post('/api/users/:userId/hints/award', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const count: unknown = req.body?.count;
+    if (typeof count !== 'number') {
+      throw new HintManagerError(
+        'INVALID_INPUT',
+        'count must be a positive safe integer.',
+      );
+    }
+    const body: HintBalanceResult = {
+      hintQuota: hints.awardHintCredits(user.userId, count),
+    };
     res.json(body);
   });
 

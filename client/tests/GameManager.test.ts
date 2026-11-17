@@ -117,6 +117,7 @@ function fakeGateway() {
     saveSettings: vi
       .fn<ServerGateway['saveSettings']>()
       .mockImplementation(async settings => ({...PLAYER, settings})),
+    awardHintCredits: vi.fn<ServerGateway['awardHintCredits']>(),
     submitAnswer: vi
       .fn<ServerGateway['submitAnswer']>()
       .mockImplementation(async (questionId, optionId) => {

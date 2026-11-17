@@ -10,6 +10,7 @@ import type {
   AnswerResult,
   GraphSpec,
   NextQuestion,
+  HintBalanceResult,
   Planet,
   PlanetSummary,
   Player,
@@ -333,4 +334,10 @@ export function parseNextQuestion(json: unknown): NextQuestion {
     question: json.question === null ? null : parseQuestion(json.question),
     progress: parsePlanetSummary(json.progress),
   };
+}
+
+/** Parses the authoritative hint credit balance returned by the server. */
+export function parseHintBalanceResult(json: unknown): HintBalanceResult {
+  assertHasFields(json, ['hintQuota']);
+  return {hintQuota: requireInteger(json.hintQuota, 'hintQuota', 0)};
 }
