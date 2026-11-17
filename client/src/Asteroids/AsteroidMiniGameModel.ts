@@ -112,7 +112,7 @@ export class AsteroidMiniGameModel {
     const expression = toExpression(this.currentQuestion.formId, coeffs);
     const fn = expressionToFunction(expression);
 
-    const {asteroids} = this.currentQuestion;
+    const asteroids = this.currentQuestion.asteroids;
     const hits = asteroids.map(asteroid => curveHitsAsteroid(fn, asteroid));
     asteroids.forEach((asteroid, i) => {
       if (hits[i]) {
