@@ -1,7 +1,17 @@
 import express from 'express';
 import type {ErrorRequestHandler} from 'express';
-import type {AnswerResult, Planet, Player, Settings} from '@graphalaxy/shared';
+import type {
+  AnswerResult,
+  HintBalanceResult,
+  HintUnlockResult,
+  Planet,
+  Player,
+  Settings,
+  UnlockedHint,
+} from '@graphalaxy/shared';
 import type {DataWriter, User} from './data-writer';
+import {HintManagerError} from './hint-manager/hintmanager';
+import type {HintErrorCode, HintManagerService} from './hint-manager/types';
 import {
   QuestionManagerError,
   type QuestionErrorCode,
@@ -11,16 +21,18 @@ import {
 //MOCK APP FOR DEMO. REDO IN SPRINT 2.
 
 /**
- * Maps a QuestionManager error code to an HTTP status.
+ * Maps a manager error code to an HTTP status.
  * @param code the error code
- * @returns 400 for bad input, 404 for missing things, 500 for the rest
+ * @returns 400 for bad input, 404 for missing things, 409 for no credits, otherwise 500
  */
-function statusFor(code: QuestionErrorCode): number {
+function statusFor(code: QuestionErrorCode | HintErrorCode): number {
   switch (code) {
     case 'INVALID_INPUT':
       return 400;
     case 'NOT_FOUND':
       return 404;
+    case 'NO_HINTS_LEFT':
+      return 409;
     default:
       return 500;
   }
@@ -31,12 +43,16 @@ const MAX_USERNAME_LENGTH = 32;
 /** What the HTTP layer needs. Narrow types keep tests easy to fake. */
 export interface AppDeps {
   questions: Pick<QuestionManager, 'submit' | 'getPlanet'>;
+  hints: Pick<
+    HintManagerService,
+    'getBalance' | 'getUnlockedHints' | 'unlockNextHint'
+  >;
   dataWriter: Pick<DataWriter, 'users'>;
 }
 
 /**
  * Turns thrown errors into {error: {code, message}} responses.
- * The internal cause of a QuestionManagerError is logged, never sent.
+ * The internal cause of a manager error is logged, never sent.
  */
 const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   // Express only treats a function as an error handler if it takes 4 arguments.
@@ -45,7 +61,7 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
     next(err);
     return;
   }
-  if (err instanceof QuestionManagerError) {
+  if (err instanceof QuestionManagerError || err instanceof HintManagerError) {
     if (err.cause) console.error(err.code, err.cause);
     res
       .status(statusFor(err.code))
@@ -140,10 +156,15 @@ export function toPlayer(user: User): Player {
  * Errors are returned as ApiErrorBody: {error: {code, message}}.
  * @param deps the services the routes use (or fakes in tests)
  * @param deps.questions loads planets and records and grades answers
+ * @param deps.hints reads hint credits and loads and unlocks planet hints
  * @param deps.dataWriter reads and writes users
  * @returns the Express app, ready to listen
  */
-export function createApp({questions, dataWriter}: AppDeps): express.Express {
+export function createApp({
+  questions,
+  hints,
+  dataWriter,
+}: AppDeps): express.Express {
   const app = express();
   app.use(express.json());
 
@@ -174,6 +195,27 @@ export function createApp({questions, dataWriter}: AppDeps): express.Express {
     const user = requireUser(req.params.userId);
     const planetId = parseId(req.params.planetId, 'planetId');
     const body: Planet = questions.getPlanet(user.userId, planetId);
+    res.json(body);
+  });
+
+  app.get('/api/users/:userId/hints/balance', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const body: HintBalanceResult = {hintQuota: hints.getBalance(user.userId)};
+    res.json(body);
+  });
+
+  // Only previously unlocked hint text is returned; reviewing it is free.
+  app.get('/api/users/:userId/planets/:planetId/hints', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const planetId = parseId(req.params.planetId, 'planetId');
+    const body: UnlockedHint[] = hints.getUnlockedHints(user.userId, planetId);
+    res.json(body);
+  });
+
+  app.post('/api/users/:userId/planets/:planetId/hints/unlock', (req, res) => {
+    const user = requireUser(req.params.userId);
+    const planetId = parseId(req.params.planetId, 'planetId');
+    const body: HintUnlockResult = hints.unlockNextHint(user.userId, planetId);
     res.json(body);
   });
 
