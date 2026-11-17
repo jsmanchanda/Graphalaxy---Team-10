@@ -124,6 +124,34 @@ intro, reading, question, question result, and lesson result. Its mock
 the displayed score. `client/src/main.ts` is empty, so the normal index page does
 not bootstrap the game yet.
 
+### Locked planets, planet aliens, and graph equations
+
+**Locked planets.** `ProgressManager.listPlanets` marks a planet unlocked when
+every planet in its `planet_prereqs` is peaceful for that player, so a planet
+with no prerequisites is always unlocked. `seed.ts` sets each planet's
+`prereqs` by name: Quadratic Quay and Sine Shores need Linear Land, and Phase
+Planet needs both. When the current planet turns peaceful or hostile,
+`SessionCache` reloads every planet's summary so newly unlocked (or re-locked)
+planets show without logging in again.
+
+On the navigation map, a planet whose `unlocked` flag is false is drawn in
+greyscale, shows "Locked" instead of its progress on hover, uses a
+`not-allowed` cursor, and ignores clicks. `GameManager` also refuses
+`selectPlanet` for a locked planet.
+
+**Planet aliens.** Each planet's question screen shows the alien from its story.
+`ALIEN_BY_PLANET` in
+[screenModelMaker.ts](../client/src/Frontend/screenModelMaker.ts) maps planet
+IDs to images: 1 Linear Land → dog, 2 Quadratic Quay → cat, 3 Sine Shores →
+seal, 4 Phase Planet → hamster. It sets `alienImage` on the question screen
+model, and `QuestionScreenView` falls back to the cat when none is set.
+
+**Graph equations.** `GraphComponent.stringToMathFunction` compiles a question's
+`graph.fn` string with `new Function`, so it must be a JavaScript expression in
+`x`. It may use `sin cos tan sqrt abs exp log PI` without the `Math.` prefix
+(e.g. `3*sin(2*x)+1`). Write powers as `**`, not `^`, and write multiplication
+explicitly (`2*x`, not `2x`).
+
 ### Parsing models
 
 [SessionCacheModels.ts](../client/src/Frontend/SessionCacheModels.ts) validates
