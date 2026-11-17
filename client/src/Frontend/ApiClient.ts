@@ -1,28 +1,40 @@
 import type {
   AnswerRequest,
   AnswerResult,
+  AwardHintCreditsRequest,
+  HintBalanceResult,
   LoginRequest,
+  NextQuestion,
   Planet,
+  PlanetSummary,
   Player,
   Settings,
 } from '@graphalaxy/shared';
 import {ApiError} from './ApiError';
 import {
   parseAnswerResult,
+  parseNextQuestion,
+  parseHintBalanceResult,
   parsePlanet,
+  parsePlanetSummaries,
+  parsePlanetSummary,
   parsePlayer,
-} from './SessionCacheModels';
+} from './SessionCacheParse';
 
-type Method = 'GET' | 'POST' | 'PATCH';
+type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
 /**
  * Interface for any client that communicates with the backend.
  */
 export interface ServerGateway {
   login(username: string): Promise<Player>;
+  getPlanets(): Promise<PlanetSummary[]>;
   getPlanet(planetId: number): Promise<Planet>;
+  getNextQuestion(planetId: number): Promise<NextQuestion>;
+  resetPlanet(planetId: number): Promise<PlanetSummary>;
   saveSettings(settings: Settings): Promise<Player>;
   submitAnswer(questionId: number, optionId: number): Promise<AnswerResult>;
+  awardHintCredits(count: number): Promise<HintBalanceResult>;
 }
 
 const DEFAULT_OPTIONS = {baseUrl: '/api', timeoutMs: 5000, retries: 2};
@@ -58,6 +70,16 @@ export class ApiClient implements ServerGateway {
   }
 
   /**
+   * Gets the player's progress on every planet.
+   * @returns One summary per planet, in graph order.
+   * @throws {ApiError} An error if the request or parsing fails.
+   */
+  async getPlanets(): Promise<PlanetSummary[]> {
+    const text = await this.request('GET', this.userPath('/planets'));
+    return parseWith(text, parsePlanetSummaries);
+  }
+
+  /**
    * Gets a planet with its ordered tasks.
    * @param planetId The planet's ID.
    * @returns The planet.
@@ -69,6 +91,35 @@ export class ApiClient implements ServerGateway {
       this.userPath(`/planets/${planetId}`),
     );
     return parseWith(text, parsePlanet);
+  }
+
+  /**
+   * Gets the next question the player has not answered yet on a planet, with
+   * their progress there.
+   * @param planetId The planet's ID.
+   * @returns The question, or null in its place once none are left.
+   * @throws {ApiError} An error if the request or parsing fails.
+   */
+  async getNextQuestion(planetId: number): Promise<NextQuestion> {
+    const text = await this.request(
+      'GET',
+      this.userPath(`/planets/${planetId}/questions/next`),
+    );
+    return parseWith(text, parseNextQuestion);
+  }
+
+  /**
+   * Erases the player's answers and progress on a planet so they can redo it.
+   * @param planetId The planet's ID.
+   * @returns The player's progress on the planet after the reset.
+   * @throws {ApiError} An error if the request or parsing fails.
+   */
+  async resetPlanet(planetId: number): Promise<PlanetSummary> {
+    const text = await this.request(
+      'DELETE',
+      this.userPath(`/planets/${planetId}/progress`),
+    );
+    return parseWith(text, parsePlanetSummary);
   }
 
   /**
@@ -84,6 +135,17 @@ export class ApiClient implements ServerGateway {
       settings,
     );
     return parseWith(text, parsePlayer);
+  }
+
+  /** Requests demo hint credits. Never retried because each request adds credits. */
+  async awardHintCredits(count: number): Promise<HintBalanceResult> {
+    const body: AwardHintCreditsRequest = {count};
+    const text = await this.request(
+      'POST',
+      this.userPath('/hints/award'),
+      body,
+    );
+    return parseWith(text, parseHintBalanceResult);
   }
 
   /**
@@ -108,7 +170,7 @@ export class ApiClient implements ServerGateway {
   }
 
   /**
-   * Sends a request, retries failed GET and PATCH requests.
+   * Sends a request, retries failed GET, PATCH and DELETE requests.
    * Never retries POST.
    * @param method The HTTP method.
    * @param path The request path, relative to the base URL.
@@ -162,11 +224,12 @@ export class ApiClient implements ServerGateway {
       });
       const text = await response.text();
       if (!response.ok) {
-        // TODO(#99): Parse server error body in ApiClient instead of using generic status text
+        const {code, message} = parseErrorBody(text);
         throw new ApiError(
           'http',
-          `Request failed with status ${response.status}`,
+          message ?? `Request failed with status ${response.status}`,
           response.status,
+          code,
         );
       }
       return text;
@@ -194,6 +257,30 @@ export class ApiClient implements ServerGateway {
       throw new Error('Must log in before making this request');
     }
     return `/users/${this.userId}${path}`;
+  }
+}
+
+/**
+ * Reads the server's error code and message from an error response, which
+ * the server sends as ApiErrorBody: {error: {code, message}}.
+ * @param text The response body.
+ * @returns The code and message, each undefined if the body does not have it,
+ * e.g. when a proxy answered instead of the server.
+ */
+function parseErrorBody(text: string): {code?: string; message?: string} {
+  try {
+    const error: unknown = (JSON.parse(text) as {error?: unknown} | null)
+      ?.error;
+    if (typeof error !== 'object' || error === null) {
+      return {};
+    }
+    const {code, message} = error as Record<string, unknown>;
+    return {
+      code: typeof code === 'string' ? code : undefined,
+      message: typeof message === 'string' ? message : undefined,
+    };
+  } catch {
+    return {};
   }
 }
 

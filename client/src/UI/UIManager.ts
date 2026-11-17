@@ -5,6 +5,9 @@ import {QuestionScreenView} from './screens/QuestionScreenView';
 import {QuestionResultScreenView} from './screens/QuestionResultView';
 import {LessonIntroScreenView} from './screens/LessonIntroScreenView';
 import {LessonResultScreenView} from './screens/LessonResultScreenView';
+import {LoginScreenView} from './screens/LoginScreenView';
+import {RetryWarningScreenView} from './screens/RetryWarningScreenView';
+import {SettingsScreenView} from './screens/SettingsScreenView';
 
 import {DESIGN_HEIGHT, DESIGN_WIDTH} from './constants';
 import {ScreenModel, UiAction, View} from './types';
@@ -70,9 +73,13 @@ export class UiManager {
    */
   displayScreen(model: ScreenModel): void {
     if (this.currentView != null) {
+      this.currentView.destroy?.();
       this.currentView.getGroup().destroy();
     }
     switch (model.type) {
+      case 'login':
+        this.currentView = new LoginScreenView(this.onAction, model);
+        break;
       case 'title':
         this.currentView = new TitleScreenView(this.onAction, model);
         break;
@@ -96,6 +103,12 @@ export class UiManager {
         break;
       case 'lessonResult':
         this.currentView = new LessonResultScreenView(this.onAction, model);
+        break;
+      case 'retryWarning':
+        this.currentView = new RetryWarningScreenView(this.onAction, model);
+        break;
+      case 'settings':
+        this.currentView = new SettingsScreenView(this.onAction, model);
         break;
       default: {
         // Fails to compile if a new screen type is added without a case

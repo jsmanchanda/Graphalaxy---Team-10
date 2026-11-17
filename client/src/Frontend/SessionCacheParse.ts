@@ -9,7 +9,10 @@ import type {
   AnswerOption,
   AnswerResult,
   GraphSpec,
+  NextQuestion,
+  HintBalanceResult,
   Planet,
+  PlanetSummary,
   Player,
   Question,
   QuestionTask,
@@ -260,4 +263,81 @@ export function parseAnswerResult(json: unknown): AnswerResult {
     correct: json.correct,
     correctOption: parseAnswerOption(json.correctOption),
   };
+}
+
+/**
+ * Parses a player's progress on one planet.
+ * @param json The parsed JSON value.
+ * @returns The planet summary.
+ */
+export function parsePlanetSummary(json: unknown): PlanetSummary {
+  assertHasFields(json, [
+    'planetId',
+    'name',
+    'graphOrder',
+    'prereqIds',
+    'unlocked',
+    'status',
+    'correctCount',
+    'questionCount',
+    'completionPct',
+  ]);
+  if (!Array.isArray(json.prereqIds)) {
+    throw new Error(TYPE_ERROR('prereqIds', 'array'));
+  }
+  if (typeof json.unlocked !== 'boolean') {
+    throw new Error(TYPE_ERROR('unlocked', 'boolean'));
+  }
+  if (json.status !== 'hostile' && json.status !== 'peaceful') {
+    throw new Error(`Unknown planet status: ${json.status}`);
+  }
+  const completionPct = json.completionPct;
+  if (
+    typeof completionPct !== 'number' ||
+    !(completionPct >= 0 && completionPct <= 1)
+  ) {
+    throw new Error(FIELD_RANGE_ERROR('completionPct', 0, 1));
+  }
+  return {
+    planetId: requireInteger(json.planetId, 'planetId', 1),
+    name: requireString(json.name, 'name'),
+    graphOrder: requireInteger(json.graphOrder, 'graphOrder', 0),
+    prereqIds: json.prereqIds.map(id => requireInteger(id, 'prereqIds', 1)),
+    unlocked: json.unlocked,
+    status: json.status,
+    correctCount: requireInteger(json.correctCount, 'correctCount', 0),
+    questionCount: requireInteger(json.questionCount, 'questionCount', 0),
+    completionPct,
+  };
+}
+
+/**
+ * Parses a player's progress on every planet.
+ * @param json The parsed JSON value.
+ * @returns The planet summaries, in the order the server sent them.
+ */
+export function parsePlanetSummaries(json: unknown): PlanetSummary[] {
+  if (!Array.isArray(json)) {
+    throw new Error(TYPE_ERROR('planets', 'array'));
+  }
+  return json.map(parsePlanetSummary);
+}
+
+/**
+ * Parses the next question on a planet, which is null once none are left.
+ * @param json The parsed JSON value.
+ * @returns The question (or null) and the player's progress on the planet.
+ */
+export function parseNextQuestion(json: unknown): NextQuestion {
+  assertHasFields(json, ['question', 'progress']);
+  return {
+    question: json.question === null ? null : parseQuestion(json.question),
+    progress: parsePlanetSummary(json.progress),
+  };
+}
+
+/** Parses the authoritative hint credit balance returned by the server. */
+export function parseHintBalanceResult(json: unknown): HintBalanceResult {
+  assertHasFields(json, ['hintQuota']);
+  return {hintQuota: requireInteger(json.hintQuota, 'hintQuota', 0)};
 }

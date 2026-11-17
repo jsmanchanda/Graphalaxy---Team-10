@@ -27,10 +27,12 @@ const HOME_PLANET: PlanetSummary = {
   planetId: 0,
   name: 'Home',
   graphOrder: 0,
-  prereqIds: null,
+  prereqIds: [],
   unlocked: true,
-  status: 'friendly',
+  status: 'peaceful',
   completionPct: 1,
+  correctCount: 0,
+  questionCount: 0,
 };
 
 const HOVER_TEXT_WIDTH = 150;

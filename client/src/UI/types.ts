@@ -1,5 +1,5 @@
 import type {Group} from 'konva/lib/Group';
-import type {PlanetSummary} from '@graphalaxy/shared';
+import type {PlanetSummary, Settings} from '@graphalaxy/shared';
 
 /**
  * Data being displayed
@@ -7,17 +7,27 @@ import type {PlanetSummary} from '@graphalaxy/shared';
  */
 export interface View {
   getGroup(): Group;
+  /**
+   * Cleans up anything the view holds outside its Konva group, such as a
+   * keyboard listener. UiManager calls it before it removes the view.
+   */
+  destroy?(): void;
 }
 
 /**
  * User interaction types
  */
 export type UiAction =
+  | {type: 'login'; username: string}
   | {type: 'start'}
   | {type: 'answer'; option: number}
   | {type: 'next'}
   | {type: 'back'}
   | {type: 'retryLesson'}
+  | {type: 'confirmRetry'}
+  | {type: 'cancelRetry'}
+  | {type: 'openSettings'}
+  | {type: 'saveSettings'; settings: Settings}
   | {type: 'enterPlanet'}
   | {type: 'selectPlanet'; planetId: number}
   | {type: 'navigate'}
@@ -25,6 +35,16 @@ export type UiAction =
   | {type: 'endMiniGame'; addHint: boolean};
 
 // ================== Screens Models ===================
+/**
+ * Login Screen Data. `username` is what the input starts with, and `message`
+ * reports progress or the outcome of the last attempt to log in.
+ */
+export interface LoginScreenModel {
+  type: 'login';
+  username: string;
+  message?: string;
+}
+
 /**
  * Title Screen Data
  */
@@ -86,7 +106,25 @@ export interface LessonResultScreenModel {
 }
 
 /**
- * Data for navigation screen
+ * Retry Warning Screen Data: the warning shown before a planet is redone
+ */
+export interface RetryWarningScreenModel {
+  type: 'retryWarning';
+  message: string;
+}
+
+/**
+ * Settings Screen Data. `message` reports the outcome of the last save.
+ */
+export interface SettingsScreenModel {
+  type: 'settings';
+  settings: Settings;
+  message?: string;
+}
+
+/**
+ * Data for the navigation screen: the map of planets and how far the player
+ * has got overall, from 0 to 1.
  */
 export interface NavigationScreenModel {
   type: 'navigation';
@@ -95,7 +133,7 @@ export interface NavigationScreenModel {
 }
 
 /**
- * Data for navigation screen
+ * Data for the minigame select screen, shown after a planet is picked.
  */
 export interface MiniGameSelectModel {
   type: 'miniGameSelect';
@@ -105,11 +143,14 @@ export interface MiniGameSelectModel {
  * Generic Screen Model Type
  */
 export type ScreenModel =
+  | LoginScreenModel
   | TitleScreenModel
   | LessonIntroScreenModel
   | ReadingScreenModel
   | QuestionScreenModel
   | QuestionResultScreenModel
   | LessonResultScreenModel
+  | RetryWarningScreenModel
+  | SettingsScreenModel
   | NavigationScreenModel
   | MiniGameSelectModel;
