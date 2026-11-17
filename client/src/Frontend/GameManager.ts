@@ -192,10 +192,13 @@ export class GameManager {
         break;
       }
       case 'startMiniGame': {
-        if (this.stage === 'miniGameSelect' && action.name === 'Radio') {
+        if (this.stage !== 'miniGameSelect') break;
+        if (action.name === 'Radio') {
           this.show('miniGame', screenModelMaker.makeRadioWaveMinigameScreen());
+        } else if (action.name === 'Asteroid') {
+          // The minigame sends endMiniGame when the player leaves it.
+          this.show('miniGame', {type: 'asteroidMinigame'});
         }
-        // Asteroid remains a placeholder until its minigame is integrated.
         break;
       }
       case 'endMiniGame': {

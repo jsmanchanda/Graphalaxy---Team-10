@@ -218,9 +218,10 @@ describe('Real HTTP API, Question Manager, Data Writer, and SQLite', () => {
   });
 
   it('persists peaceful completion, unlocks a prerequisite planet, and resets only the selected user and planet', async () => {
-    // Production seed currently has no prerequisite edges: add test data using
-    // the official relationship, without changing the schema or production seed.
-    fixture.db.prepare('INSERT INTO planet_prereqs VALUES (?, ?)').run(2, 1);
+    // Ensure planet 2 requires planet 1 regardless of what the seed contains.
+    fixture.db
+      .prepare('INSERT OR IGNORE INTO planet_prereqs VALUES (?, ?)')
+      .run(2, 1);
     const initial = await request(fixture.app)
       .get('/api/users/1/planets')
       .expect(200);

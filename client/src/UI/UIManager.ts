@@ -15,6 +15,7 @@ import {ScreenModel, UiAction, View} from './types';
 import {ImageComponent} from './components';
 import {NavigationScreenView} from './screens/NavigationScreenView';
 import {MiniGameSelectView} from './screens/MiniGameSelectView';
+import {AsteroidMiniGameView} from '../Asteroids/views/AsteroidMiniGameView';
 
 /** Renders different Konva screens */
 export class UiManager {
@@ -92,6 +93,9 @@ export class UiManager {
         break;
       case 'miniGameSelect':
         this.currentView = new MiniGameSelectView(this.onAction);
+        break;
+      case 'asteroidMinigame':
+        this.currentView = new AsteroidMiniGameView(this.onAction);
         break;
       case 'reading':
         this.currentView = new ReadingScreenView(this.onAction, model);

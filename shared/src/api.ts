@@ -2,7 +2,6 @@
  * The HTTP API contract shared by the client and the server. Every request and
  * response body is one of these types; neither side keeps its own copy.
  *
-<<<<<<< HEAD
  *   POST   /api/users: LoginRequest -> Player
  *   GET    /api/users/:userId/planets -> PlanetSummary[]
  *   GET    /api/users/:userId/planets/:planetId -> Planet
@@ -13,16 +12,7 @@
  *   GET    /api/users/:userId/hints/balance -> HintBalanceResult
  *   GET    /api/users/:userId/planets/:planetId/hints -> UnlockedHint[]
  *   POST   /api/users/:userId/planets/:planetId/hints/unlock -> HintUnlockResult
-=======
- *   POST  /api/users: LoginRequest -> Player
- *   GET   /api/users/:userId/planets/:planetId -> Planet
- *   PATCH /api/users/:userId/settings: Settings -> Player
- *   POST  /api/users/:userId/questions/:questionId/answer: AnswerRequest -> AnswerResult
- *   GET   /api/users/:userId/hints/balance -> HintBalanceResult
- *   POST  /api/users/:userId/hints/award: AwardHintCreditsRequest -> HintBalanceResult
- *   GET   /api/users/:userId/planets/:planetId/hints -> UnlockedHint[]
- *   POST  /api/users/:userId/planets/:planetId/hints/unlock -> HintUnlockResult
->>>>>>> bcac7de43438fc447915421d230a67280db772ab
+ *  POST  /api/users/:userId/hints/award: AwardHintCreditsRequest -> HintBalanceResult
  *
  * Errors are sent as ApiErrorBody with a 4xx or 5xx status.
  */
