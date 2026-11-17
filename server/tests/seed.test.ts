@@ -6,6 +6,7 @@ import {migrate} from '../src/db/migrate';
 import {PLANETS, seed} from '../src/db/seed';
 import {createDataWriter} from '../src/data-writer';
 import {QuestionManager} from '../src/question-manager/QuestionManager';
+import {ProgressManager} from '../src/progress-manager/ProgressManager';
 
 const PLACEHOLDER =
   /placeholder|lorem|ipsum|\btodo\b|\btbd\b|\bxxx\b|\bfixme\b/i;
@@ -147,6 +148,42 @@ describe('seed', () => {
     expect(count('planet_hints')).toBe(PLANETS.flatMap(p => p.hints).length);
     expect(count('questions')).toBe(questions.length);
     expect(count('answer_options')).toBe(questions.length * 4);
+  });
+
+  it('stores the unlock prerequisites by planet name', () => {
+    const edges = db
+      .prepare(
+        `SELECT p.name AS planet, r.name AS prereq FROM planet_prereqs pp
+         JOIN planets p ON p.planet_id = pp.planet_id
+         JOIN planets r ON r.planet_id = pp.prereq_planet_id
+         ORDER BY planet, prereq`,
+      )
+      .all();
+    expect(edges).toEqual([
+      {planet: 'Phase Planet', prereq: 'Quadratic Quay'},
+      {planet: 'Phase Planet', prereq: 'Sine Shores'},
+      {planet: 'Quadratic Quay', prereq: 'Linear Land'},
+      {planet: 'Sine Shores', prereq: 'Linear Land'},
+    ]);
+  });
+
+  it('starts a new player with only Linear Land unlocked', () => {
+    const dataWriter = createDataWriter(db);
+    const user = dataWriter.users.create('newbie');
+    const unlocked = new ProgressManager(dataWriter)
+      .listPlanets(user.userId)
+      .filter(planet => planet.unlocked)
+      .map(planet => planet.name);
+    expect(unlocked).toEqual(['Linear Land']);
+  });
+
+  it('rejects a prerequisite that names no planet', () => {
+    const fresh = openDb(':memory:');
+    migrate(fresh);
+    const broken = [{...PLANETS[0], prereqs: ['Nowhere']}];
+    expect(() => seed(fresh, broken)).toThrow(/unknown planet Nowhere/);
+    // The transaction rolled back, so nothing was half-seeded.
+    expect(fresh.prepare('SELECT COUNT(*) FROM planets').pluck().get()).toBe(0);
   });
 
   it('stores options a-d with exactly one correct, matching the content', () => {

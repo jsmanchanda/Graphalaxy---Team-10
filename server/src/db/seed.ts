@@ -27,6 +27,12 @@ export interface SeedPlanet {
   introText: string;
   /** Position of the planet in the game, 0 first. */
   graphOrder: number;
+  /**
+   * Names of the planets that must be peaceful before this one unlocks
+   * (stored in `planet_prereqs`). Omitted or empty means unlocked from the
+   * start.
+   */
+  prereqs?: string[];
   /** Lesson readings, shown in this order. */
   readings: string[];
   hints: string[];
@@ -99,6 +105,7 @@ export const PLANETS: SeedPlanet[] = [
     introText:
       'The cats of Quadratic Quay pounce on everything that moves, and keep missing. Help them plan their leaps.',
     graphOrder: 1,
+    prereqs: ['Linear Land'],
     readings: [
       'Every pounce of a Quadratic Quay cat traces a curve called a parabola. It is the graph of a quadratic function, y = ax^2 + bx + c, where a is not 0.',
       'If a < 0, the parabola opens downward, like a cat leaping up and coming back down. If a > 0, it opens upward. The constant c is the y-intercept, the value of y when x = 0.',
@@ -160,6 +167,7 @@ export const PLANETS: SeedPlanet[] = [
     introText:
       'The seals of Sine Shores are seasick from the rolling waves. Help them understand their sea.',
     graphOrder: 2,
+    prereqs: ['Linear Land'],
     readings: [
       'The seals of Sine Shores float on waves that rise and fall forever. A wave like this is drawn by the sine function y = sin(x). It moves between -1 and 1, and sin(0) = 0. Here x is measured in radians.',
       'In y = a*sin(x), |a| is the amplitude: how far the waves lift a seal above calm sea level and drop it below. A bigger amplitude means a bumpier ride.',
@@ -218,6 +226,7 @@ export const PLANETS: SeedPlanet[] = [
     introText:
       'The hamsters of Phase Planet power their world with running wheels, but no two spin in time. Help them find their rhythm.',
     graphOrder: 3,
+    prereqs: ['Quadratic Quay', 'Sine Shores'],
     readings: [
       'A hamster running in its wheel goes round and round. Follow one spot on the wheel and its height makes a sine wave, one full cycle for every turn.',
       'The period is the length of one full cycle, one turn of the wheel. y = sin(b*x) has period 2π / |b|. A bigger |b| means a faster hamster and a shorter period, so y = sin(2*x) repeats every π.',
@@ -320,13 +329,18 @@ export function seed(db: Database, planets: readonly SeedPlanet[] = PLANETS) {
   const insOpt = db.prepare(
     'INSERT INTO answer_options (question_id, label, text, is_correct) VALUES (?, ?, ?, ?)',
   );
+  const insPrereq = db.prepare(
+    'INSERT INTO planet_prereqs (planet_id, prereq_planet_id) VALUES (?, ?)',
+  );
 
   db.transaction(() => {
+    const idByName = new Map<string, number>();
     for (const planet of planets) {
       const planetId = Number(
         insPlanet.run(planet.name, planet.introText, planet.graphOrder)
           .lastInsertRowid,
       );
+      idByName.set(planet.name, planetId);
       planet.readings.forEach((text, i) =>
         insReading.run(planetId, i + 1, text),
       );
@@ -339,6 +353,16 @@ export function seed(db: Database, planets: readonly SeedPlanet[] = PLANETS) {
         q.options.forEach((text, i) =>
           insOpt.run(qid, 'abcd'[i], text, i === q.correct ? 1 : 0),
         );
+      }
+    }
+    // Prereqs go in once every planet has an ID.
+    for (const planet of planets) {
+      for (const prereq of planet.prereqs ?? []) {
+        const prereqId = idByName.get(prereq);
+        if (prereqId === undefined) {
+          throw new Error(`${planet.name} requires unknown planet ${prereq}.`);
+        }
+        insPrereq.run(idByName.get(planet.name), prereqId);
       }
     }
   })();

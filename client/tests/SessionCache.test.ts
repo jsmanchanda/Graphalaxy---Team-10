@@ -297,6 +297,52 @@ describe('SessionCache questions', () => {
     expect(cache.progressFor(1)).toEqual(progress(1));
   });
 
+  it('reloads every planet when the current one turns peaceful, so newly unlocked planets show', async () => {
+    const {gateway, cache} = await setup();
+    await cache.loadNextQuestion(); // hostile, 1 of 2
+    const nextPlanet: PlanetSummary = {
+      ...progress(0),
+      planetId: 2,
+      name: 'Quadratic Quay',
+      prereqIds: [1],
+      unlocked: true,
+    };
+    gateway.getPlanets.mockResolvedValue([progress(2), nextPlanet]);
+    gateway.getPlanets.mockClear();
+    gateway.getNextQuestion.mockResolvedValue({
+      question: null,
+      progress: progress(2), // now peaceful
+    });
+
+    await cache.loadNextQuestion();
+
+    expect(gateway.getPlanets).toHaveBeenCalledOnce();
+    expect(cache.progressFor(2)?.unlocked).toBe(true);
+  });
+
+  it('does not reload the planets while the status stays the same', async () => {
+    const {gateway, cache} = await setup();
+    gateway.getPlanets.mockClear();
+
+    await cache.loadNextQuestion(); // hostile before and after
+
+    expect(gateway.getPlanets).not.toHaveBeenCalled();
+  });
+
+  it('keeps the old planets and the question when the reload fails', async () => {
+    const {gateway, cache} = await setup();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    gateway.getPlanets.mockRejectedValue(new ApiError('network', 'offline'));
+    gateway.getNextQuestion.mockResolvedValue({
+      question: QUESTION,
+      progress: progress(2),
+    });
+
+    await expect(cache.loadNextQuestion()).resolves.toBe(QUESTION);
+
+    expect(cache.progressFor(1)).toEqual(progress(2));
+  });
+
   it('stores no question once none are left', async () => {
     const {gateway, cache} = await setup();
     await cache.loadNextQuestion();
@@ -304,6 +350,8 @@ describe('SessionCache questions', () => {
       question: null,
       progress: progress(2),
     });
+    // Turning peaceful reloads every planet; the server reports it peaceful.
+    gateway.getPlanets.mockResolvedValue([progress(2)]);
 
     await expect(cache.loadNextQuestion()).resolves.toBeNull();
 

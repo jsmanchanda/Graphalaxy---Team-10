@@ -51,7 +51,9 @@ export class PlanetComponent extends Component {
     super(positionX, positionY);
 
     // hover text
-    const hoverText = `${planet.name}\nProgress: ${String(Math.round(planet.completionPct * 100))}%`;
+    const hoverText = planet.unlocked
+      ? `${planet.name}\nProgress: ${String(Math.round(planet.completionPct * 100))}%`
+      : `${planet.name}\nLocked`;
     const planetNameText = new TextBoxComponent(
       (-1 * (HOVER_TEXT_WIDTH - PLANET_DIAMETER)) / 2,
       (-1 * PLANET_DIAMETER) / 2,
@@ -78,7 +80,11 @@ export class PlanetComponent extends Component {
     // Handle actions
     planetImage.on('mouseenter', e => {
       const stage = e.target.getStage();
-      if (stage && onClick) stage.container().style.cursor = 'pointer';
+      if (stage && onClick) {
+        stage.container().style.cursor = planet.unlocked
+          ? 'pointer'
+          : 'not-allowed';
+      }
 
       planetNameText.getGroup().show();
       this.group.getLayer()?.batchDraw();
@@ -92,6 +98,7 @@ export class PlanetComponent extends Component {
 
     if (onClick) {
       this.group.on('click tap', e => {
+        if (!planet.unlocked) return; // locked planets ignore clicks
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = 'default';
         onClick();

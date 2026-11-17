@@ -7,6 +7,18 @@ const DEFAULT_INTERVAL_X = new Interval(-10, 10, 1);
 const DEFAULT_INTERVAL_Y = new Interval(-10, 10, 1);
 
 const LABEL_FONTSIZE = 8;
+
+/** Math names an equation string may use without the "Math." prefix. */
+const MATH_NAMES = [
+  'sin',
+  'cos',
+  'tan',
+  'sqrt',
+  'abs',
+  'exp',
+  'log',
+  'PI',
+] as const;
 /**
  * Renders graph in the screen
  */
@@ -175,15 +187,18 @@ export class GraphComponent extends Component {
   }
 
   /**
-   * Converts a string to the function it corresponds to
-   * TODO: make parse sin and cos to Math.sin and Math.cos
+   * Converts a string to the function it corresponds to. The equation may use
+   * x and the names in MATH_NAMES (e.g. "3*sin(2*x)+cos(x)"), which are bound
+   * to their Math versions.
    */
   stringToMathFunction(equation: string): (x: number) => number {
     const functionBody = `return ${equation};`;
-    const dynamicMathFunc = new Function('x', functionBody) as (
+    const dynamicMathFunc = new Function('x', ...MATH_NAMES, functionBody) as (
       x: number,
+      ...math: unknown[]
     ) => number;
-    return dynamicMathFunc;
+    const mathValues = MATH_NAMES.map(name => Math[name]);
+    return x => dynamicMathFunc(x, ...mathValues);
   }
 
   /**

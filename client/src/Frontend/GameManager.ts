@@ -421,10 +421,10 @@ export class GameManager {
   private showQuestion(question: Question): void {
     this.show(
       'question',
-      screenModelMaker.questionTaskToQuestionScreen({
-        type: 'Question',
-        question,
-      }),
+      screenModelMaker.questionTaskToQuestionScreen(
+        {type: 'Question', question},
+        this.session.currentPlanet?.planetId,
+      ),
     );
   }
 
