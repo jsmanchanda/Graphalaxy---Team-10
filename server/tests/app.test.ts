@@ -30,6 +30,7 @@ describe('progress and question routes', () => {
       getBalance: () => 0,
       getUnlockedHints: () => [],
       unlockNextHint: () => ({hint: null, hintQuota: 0}),
+      awardHintCredits: () => 0,
     };
     app = createApp({questions, progress, hints, dataWriter: writer});
 
