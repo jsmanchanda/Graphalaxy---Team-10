@@ -43,7 +43,6 @@ const stage = new Konva.Stage({
 const layer = new Konva.Layer();
 stage.add(layer);
 
-let controller: AsteroidMiniGameController;
 let inputs: HTMLInputElement[] = [];
 
 function setAction(label: string, onClick: () => void, disabled = false) {
@@ -180,15 +179,16 @@ function show(screen: Screen) {
   }
 }
 
+// No retry: the player gets one run per trigger, then control goes back to
+// the game. Reload the page to play again.
 function finish(result: MiniGameResult) {
+  title.textContent = 'Minigame over';
+  info.textContent =
+    'In the real game, control goes back to the planet now.\n' +
+    'Reload the page to play again.';
+  action.hidden = true;
   log.textContent = `finish() was called with:\n${JSON.stringify(result, null, 2)}`;
-  setAction('Play again', newRun);
 }
 
-function newRun() {
-  log.textContent = '';
-  controller = new AsteroidMiniGameController(show, finish);
-  controller.start();
-}
-
-newRun();
+const controller = new AsteroidMiniGameController(show, finish);
+controller.start();
