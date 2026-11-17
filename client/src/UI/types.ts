@@ -168,6 +168,14 @@ export interface RadioWaveMinigameScreenModel {
 }
 
 /**
+ * Asteroid minigame screen. It needs no data: the minigame makes its own
+ * questions.
+ */
+export interface AsteroidMiniGameScreenModel {
+  type: 'asteroidMinigame';
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -182,4 +190,5 @@ export type ScreenModel =
   | SettingsScreenModel
   | NavigationScreenModel
   | MiniGameSelectModel
-  | RadioWaveMinigameScreenModel;
+  | RadioWaveMinigameScreenModel
+  | AsteroidMiniGameScreenModel;

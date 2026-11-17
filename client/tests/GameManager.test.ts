@@ -555,19 +555,15 @@ describe('GameManager navigation', () => {
     );
   });
 
-  it.each(['Asteroid'] as const)(
-    'does not change screens when the %s minigame starts',
-    async name => {
-      await setup();
-      act({type: 'start'});
-      act({type: 'selectPlanet', planetId: 1});
-      ui.displayScreen.mockClear();
+  it('shows the asteroid minigame when it starts', async () => {
+    await setup();
+    act({type: 'start'});
+    act({type: 'selectPlanet', planetId: 1});
 
-      act({type: 'startMiniGame', name});
+    act({type: 'startMiniGame', name: 'Asteroid'});
 
-      expect(ui.displayScreen).not.toHaveBeenCalled();
-    },
-  );
+    expect(lastScreen()).toEqual({type: 'asteroidMinigame'});
+  });
 
   it('loads the picked planet while the player chooses a minigame', async () => {
     const {gateway} = await setup();
