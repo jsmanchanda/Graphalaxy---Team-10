@@ -2,8 +2,19 @@ import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../UI/constants';
 
 // Layout for the asteroid minigame on the 800×500 design canvas. Kept apart
 // from UI/constants.ts so the team's shared file doesn't change.
-// The intro and result screens reuse UI/constants.ts (TITLE_TEXT_*,
-// START_BUTTON_*, RESULT_TEXT_*, OK_BUTTON_*), so only the cockpit is here.
+// The intro's Launch button and the result screen reuse UI/constants.ts
+// (START_BUTTON_*, RESULT_TEXT_*, OK_BUTTON_*).
+
+// ============== Intro screen ==============
+export const INTRO_TITLE_WIDTH = 400;
+export const INTRO_TITLE_HEIGHT = 70;
+export const INTRO_TITLE_X = (DESIGN_WIDTH - INTRO_TITLE_WIDTH) * 0.5;
+export const INTRO_TITLE_Y = 40;
+
+export const INTRO_RULES_WIDTH = 600;
+export const INTRO_RULES_HEIGHT = 160;
+export const INTRO_RULES_X = (DESIGN_WIDTH - INTRO_RULES_WIDTH) * 0.5;
+export const INTRO_RULES_Y = INTRO_TITLE_Y + INTRO_TITLE_HEIGHT + 20;
 
 // ============== Window (the view out of the ship) ==============
 // Must stay square: GraphComponent scales x and y separately, so a
