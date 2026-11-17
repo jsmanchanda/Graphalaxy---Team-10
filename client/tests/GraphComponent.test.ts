@@ -169,6 +169,20 @@ describe('GraphComponent equations', () => {
     expect(f(Math.PI / 2)).toBeCloseTo(1);
   });
 
+  it('can use sin, cos and PI without the Math prefix', () => {
+    const graph = makeGraph();
+
+    expect(graph.stringToMathFunction('3*sin(x)')(Math.PI / 2)).toBeCloseTo(3);
+    expect(graph.stringToMathFunction('4*cos(x)')(0)).toBeCloseTo(4);
+    expect(graph.stringToMathFunction('sin(x-PI)')(0)).toBeCloseTo(0);
+  });
+
+  it('draws the seeded sine and cosine equations without throwing', () => {
+    for (const fn of ['2*sin(2*x-2)+3', '3*sin(x+2)', '4*cos(x)']) {
+      expect(() => makeGraph().addFunction(fn)).not.toThrow();
+    }
+  });
+
   it('throws on an equation that is not valid code', () => {
     expect(() => makeGraph().stringToMathFunction('2**')).toThrow(SyntaxError);
   });
