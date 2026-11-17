@@ -45,8 +45,11 @@ export const PREVIEW_CURVE_COLOR = '#4ade80';
 export const EQUATION_X = PANEL_X + PANEL_PADDING;
 export const EQUATION_WIDTH = PREVIEW_X - EQUATION_X - PANEL_PADDING;
 export const EQUATION_ROW_HEIGHT = 30;
-// Gap between the four rows: header, template, inputs, "Your equation:".
-const EQUATION_ROW_GAP = (PREVIEW_SIZE - 4 * EQUATION_ROW_HEIGHT) / 3;
+// Rows on the equation side: header, template, inputs. Spread evenly over
+// the panel's height. (Set to 4 if the "Your equation:" row comes back.)
+const EQUATION_ROWS = 3;
+const EQUATION_ROW_GAP =
+  (PREVIEW_SIZE - EQUATION_ROWS * EQUATION_ROW_HEIGHT) / (EQUATION_ROWS - 1);
 
 // "Question 2/3 · Vertex form"
 export const HEADER_Y = PREVIEW_Y;
@@ -56,9 +59,6 @@ export const TEMPLATE_Y = HEADER_Y + EQUATION_ROW_HEIGHT + EQUATION_ROW_GAP;
 export const INPUTS_Y = TEMPLATE_Y + EQUATION_ROW_HEIGHT + EQUATION_ROW_GAP;
 export const INPUT_WIDTH = 56;
 export const INPUT_GAP = 12;
-// "Your equation: y = 2(x + 3)² - 1"
-export const YOUR_EQUATION_Y =
-  INPUTS_Y + EQUATION_ROW_HEIGHT + EQUATION_ROW_GAP;
 
 // ============== Fire side (right of the preview) ==============
 export const FIRE_SIDE_X = PREVIEW_X + PREVIEW_SIZE + PANEL_PADDING;

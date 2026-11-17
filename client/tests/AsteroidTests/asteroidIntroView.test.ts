@@ -1,7 +1,11 @@
 import {describe, expect, it, vi} from 'vitest';
 import Konva from 'konva';
 import {installKonvaStubs} from '../helpers/konvaStubs';
-import {AsteroidIntroView} from '../../src/Asteroids/views/AsteroidIntroView';
+import {
+  AsteroidIntroView,
+  INTRO_RULES_TEXT,
+  INTRO_TITLE_TEXT,
+} from '../../src/Asteroids/views/AsteroidIntroView';
 import {
   INTRO_RULES_X,
   INTRO_RULES_Y,
@@ -33,8 +37,8 @@ describe('AsteroidIntroView', () => {
   it('shows the title, the rules and a Launch button in place', () => {
     const screen = new AsteroidIntroView(() => {}).getGroup();
 
-    const title = findComponent(screen, 'Asteroids');
-    const rules = findComponent(screen, 'rules go here');
+    const title = findComponent(screen, INTRO_TITLE_TEXT);
+    const rules = findComponent(screen, INTRO_RULES_TEXT);
     const launch = findComponent(screen, 'Launch');
 
     expect([title.x(), title.y()]).toEqual([INTRO_TITLE_X, INTRO_TITLE_Y]);

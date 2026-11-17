@@ -8,6 +8,7 @@ import type {
 } from '../../src/Asteroids/components/CoefficientInputs';
 import {ASTEROID_RADIUS} from '../../src/Asteroids/math/asteroids';
 import type {Asteroid, AsteroidQuestion} from '../../src/Asteroids/types';
+import {INTRO_TITLE_TEXT} from '../../src/Asteroids/views/AsteroidIntroView';
 import {AsteroidMiniGameView} from '../../src/Asteroids/views/AsteroidMiniGameView';
 
 // Build the real components in Node; see helpers/konvaStubs.ts
@@ -123,7 +124,7 @@ function play(
 describe('AsteroidMiniGameView', () => {
   it('opens on the intro screen', () => {
     const {screen} = setup();
-    expect(findText(screen, 'Asteroids')).toBeDefined();
+    expect(findText(screen, INTRO_TITLE_TEXT)).toBeDefined();
     expect(findText(screen, 'Launch')).toBeDefined();
   });
 

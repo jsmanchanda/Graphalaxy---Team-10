@@ -19,9 +19,15 @@ import {
   INTRO_TITLE_Y,
 } from '../constants';
 
-// Placeholders until the real text is written.
-const TITLE_TEXT = 'Asteroids';
-const RULES_TEXT = 'rules go here';
+/** The intro's title. */
+export const INTRO_TITLE_TEXT = 'Asteroid Defense';
+/** The intro's rules; wrapped to fit the rules box. */
+export const INTRO_RULES_TEXT =
+  'Asteroids are headed straight for your ship! Fill in the equation so ' +
+  'its curve passes through every asteroid. You get one shot per ' +
+  'question. Clear all 3 questions to earn a hint.';
+// Slightly smaller than the default 20 so the rules have room to breathe.
+const RULES_FONT_SIZE = 18;
 
 /**
  * The asteroid minigame's first screen: a title, the rules and a Launch
@@ -42,7 +48,7 @@ export class AsteroidIntroView implements View {
       INTRO_TITLE_Y,
       INTRO_TITLE_WIDTH,
       INTRO_TITLE_HEIGHT,
-      TITLE_TEXT,
+      INTRO_TITLE_TEXT,
     ).setFontFamily(FONT_PLANET_KOSMOS);
 
     const rules = new TextBoxComponent(
@@ -50,8 +56,8 @@ export class AsteroidIntroView implements View {
       INTRO_RULES_Y,
       INTRO_RULES_WIDTH,
       INTRO_RULES_HEIGHT,
-      RULES_TEXT,
-    );
+      INTRO_RULES_TEXT,
+    ).setFontSize(RULES_FONT_SIZE);
 
     const launchButton = new ButtonComponent(
       START_BUTTON_X,
