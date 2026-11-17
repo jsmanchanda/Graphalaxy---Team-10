@@ -9,6 +9,7 @@ import {migrate} from '../src/db/migrate';
 import {seed} from '../src/db/seed';
 import {HintManager} from '../src/hint-manager/hintmanager';
 import {QuestionManager} from '../src/question-manager/QuestionManager';
+import {TEST_PLANET} from './helpers/fixture';
 
 describe('Hint API with the official schema and Data Writer', () => {
   let db: Database;
@@ -18,7 +19,7 @@ describe('Hint API with the official schema and Data Writer', () => {
   beforeEach(() => {
     db = openDb(':memory:');
     migrate(db);
-    seed(db);
+    seed(db, [TEST_PLANET]);
     writer = createDataWriter(db);
     writer.users.create('first');
     writer.users.create('second');
@@ -59,7 +60,7 @@ describe('Hint API with the official schema and Data Writer', () => {
         hintId: 1,
         planetId: 1,
         hintNumber: 1,
-        text: 'The slope is the number multiplied by x.',
+        text: TEST_PLANET.hints[0],
       },
       hintQuota: 2,
     });

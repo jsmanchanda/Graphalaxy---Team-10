@@ -49,10 +49,18 @@ account is shared within the disposable backend run because the application
 currently logs in as `demo`; tests must not assume it has no prior answers.
 Start a new run for a fresh database. The suites do not depend on test order.
 
-Canvas text is not normal DOM text. The browser helper reads the actual Konva
-scene to locate labels and calculate their scaled positions, then sends real
-mouse clicks. It does not call GameManager methods or fire synthetic Konva
-events. This also exercises layout at smaller viewport sizes.
+Canvas text is not normal DOM text. The browser helper reads visible labels in
+the actual Konva scene and calculates their scaled positions, then sends real
+mouse clicks. Planet selection uses the loaded planet image's bounds because
+planet names are hidden hover labels. It does not call GameManager methods or
+fire synthetic Konva events. This also exercises smaller viewport sizes.
+Text clicks target groups with click handlers, so numeric graph-axis labels
+cannot be mistaken for answer buttons with the same text.
+
+Lesson tests follow Start, select planet 1 on the navigation map, choose
+`Go to lesson` on the minigame-choice screen, and then advance through the intro
+and readings. The complete-planet test checks that finishing returns to the map.
+Reload tests repeat this navigation instead of assuming Start opens a lesson.
 
 Success-path tests use the real backend. Failure tests deliberately abort a
 request, while pending-request tests delay and then forward the real request.
@@ -66,13 +74,20 @@ and ESLint. Failed browser tests retain a screenshot and a trace. Open the HTML
 report with `npx playwright show-report`, or inspect a trace with
 `npx playwright show-trace <path-to-trace.zip>`.
 
-These tests cover the implemented flows on `feature/CI_Testing`. This branch
-does not contain Hint Manager, Progress Manager, Asteroids, Radio Waves, or
-planet-selection integration. Add real suites for those features when their
-implementations are brought into the branch; do not count placeholder or
-skipped tests as coverage. Current browser coverage is Chromium only.
+These tests cover the implemented flows on `feature/CI_Testing`, including
+navigation into the demo lesson. Hint Manager has its own service and API tests;
+the shared integration fixture also supplies the real Hint Manager, matching
+production startup. Hint API tests seed the stable `TEST_PLANET` fixture so
+changes to the production planets do not collide with their empty-planet setup.
+The regular API and browser integration fixtures still use the production seed.
 
-The browser suite tests the current application, including its placeholder end
-screen. It does not prove accessibility, pixel-perfect rendering, or production
+The navigation data is currently a demo list and GameManager still loads planet
+1 regardless of selection. Browser tests select planet 1; they do not claim that
+arbitrary planet loading, Progress Manager, or minigame gameplay is integrated.
+Add suites as those flows are implemented; do not count placeholders or skipped
+tests as coverage. Current browser coverage is Chromium only.
+
+The browser suite tests the current application and return-to-navigation flow.
+It does not prove accessibility, pixel-perfect rendering, or production
 deployment behavior. Existing application warnings, such as the alien image's
 `public/assets` path, are not repaired by this testing-only change.

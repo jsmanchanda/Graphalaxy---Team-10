@@ -9,7 +9,10 @@ async function screenTexts(page: Page): Promise<string[]> {
       .Konva;
     return (
       konva?.stages.flatMap(stage =>
-        stage.find('Text').map(node => (node as Konva.Text).text()),
+        stage
+          .find('Text')
+          .filter(node => node.isVisible())
+          .map(node => (node as Konva.Text).text()),
       ) ?? []
     );
   });
@@ -22,19 +25,75 @@ async function clickLabel(page: Page, label: string): Promise<void> {
     const konva = (window as unknown as Record<'Konva', typeof Konva>).Konva;
     const node = konva.stages
       .flatMap(stage => stage.find('Text'))
-      .find(item => (item as Konva.Text).text() === text);
-    if (!node) throw new Error(`Missing canvas label: ${text}`);
+      .find(
+        item =>
+          item.isVisible() &&
+          (item as Konva.Text).text() === text &&
+          !!item.getParent()?.eventListeners.click?.length,
+      );
+    if (!node) throw new Error(`Missing clickable canvas label: ${text}`);
     const box = node.getClientRect();
     return {x: box.x + box.width / 2, y: box.y + box.height / 2};
   }, label);
-  // Wait for Konva's scheduled hit-canvas draw before a real pointer event.
+  await waitForCanvas(page);
+  await page.mouse.click(center.x, center.y);
+}
+
+/** Waits for Konva's scheduled hit-canvas draw before a real pointer event. */
+async function waitForCanvas(page: Page): Promise<void> {
   await page.evaluate(
     () =>
       new Promise<void>(resolve => {
         requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
       }),
   );
-  await page.mouse.click(center.x, center.y);
+}
+
+/** Finds a visible, loaded planet image without depending on hover text. */
+async function planetBounds(page: Page, planetId: number) {
+  return page.evaluate(id => {
+    const konva = (window as unknown as Partial<Record<'Konva', typeof Konva>>)
+      .Konva;
+    const planet = konva?.stages
+      .flatMap(stage => stage.find('Image'))
+      .find(node => {
+        const image = (node as Konva.Image).image();
+        return (
+          node.isVisible() &&
+          image instanceof HTMLImageElement &&
+          new URL(image.src).pathname === `/assets/planet-${id}.png`
+        );
+      });
+    return planet?.getClientRect() ?? null;
+  }, planetId);
+}
+
+/** Confirms that the map is rendered rather than the old placeholder end screen. */
+async function expectNavigation(page: Page): Promise<void> {
+  await expect.poll(() => planetBounds(page, 0)).not.toBeNull();
+  await expect.poll(() => planetBounds(page, 1)).not.toBeNull();
+}
+
+/** Follows Start, the demo planet, and the supported Go to lesson choice. */
+async function enterLesson(page: Page, planet: Planet): Promise<void> {
+  await clickLabel(page, 'Start');
+  await expectNavigation(page);
+  const box = await planetBounds(page, planet.planetId);
+  if (!box) throw new Error(`Missing navigation planet ${planet.planetId}`);
+  await waitForCanvas(page);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect
+    .poll(() => screenTexts(page))
+    .toEqual(
+      expect.arrayContaining([
+        'Do you want to play minigame?',
+        'Asteroid Defense',
+        'Radio Wave',
+        'Go to lesson',
+      ]),
+    );
+  await clickLabel(page, 'Go to lesson');
+  await expect.poll(() => screenTexts(page)).toContain(planet.name);
 }
 
 /** Starts through the real login, API client, session, and screen bootstrap. */
@@ -52,13 +111,12 @@ async function openGame(page: Page): Promise<Planet> {
   return planet;
 }
 
-/** Moves through the planet intro and readings using the real canvas buttons. */
+/** Enters through navigation and moves through readings using real canvas buttons. */
 async function reachFirstQuestion(
   page: Page,
   planet: Planet,
 ): Promise<QuestionTask> {
-  await clickLabel(page, 'Start');
-  await expect.poll(() => screenTexts(page)).toContain(planet.name);
+  await enterLesson(page, planet);
   for (const task of planet.tasks) {
     await clickLabel(page, 'Next');
     if (task.type === 'Question') {
@@ -92,7 +150,7 @@ test('loads the real game and supports reading navigation in both directions', a
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));
   const planet = await openGame(page);
-  await clickLabel(page, 'Start');
+  await enterLesson(page, planet);
   await clickLabel(page, 'Next');
   const reading = planet.tasks[0];
   expect(reading.type).toBe('Reading');
@@ -103,7 +161,7 @@ test('loads the real game and supports reading navigation in both directions', a
   expect(errors).toEqual([]);
 });
 
-test('plays the complete seeded planet with real server grading and reaches the end', async ({
+test('plays the complete seeded planet with real server grading and returns to navigation', async ({
   page,
 }) => {
   const planet = await openGame(page);
@@ -122,9 +180,7 @@ test('plays the complete seeded planet with real server grading and reaches the 
       .toContain(result.correct ? 'Correct' : 'Wrong');
     await clickLabel(page, 'Ok');
   }
-  await expect
-    .poll(async () => (await screenTexts(page)).join(' '))
-    .toContain('reached the end');
+  await expectNavigation(page);
 });
 
 test('shows wrong feedback, allows a retry, and reuses the account after reload', async ({
