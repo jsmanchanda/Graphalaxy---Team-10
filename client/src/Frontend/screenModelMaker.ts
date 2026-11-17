@@ -26,15 +26,27 @@ import type {
 } from '../UI/types';
 
 /**
+ * The alien that lives on each planet, by planet ID. Matches the animals in
+ * each planet's story in the server's seed data.
+ */
+const ALIEN_BY_PLANET: Record<number, string> = {
+  1: '/assets/alien-dog.png', // Linear Land
+  2: '/assets/alien-cat.png', // Quadratic Quay
+  3: '/assets/alien-seal.png', // Sine Shores
+  4: '/assets/alien-hamster.png', // Phase Planet
+};
+
+/**
  * Converts a task into the screen model for that task's type.
  * Hands reading tasks and question tasks to their own mappers.
  * @param task The current task from the planet.
+ * @param planetId The planet the task is on, used to pick its alien.
  * @returns The reading or question screen model for the UI.
  */
-export function taskToScreen(task: Task): ScreenModel {
+export function taskToScreen(task: Task, planetId?: number): ScreenModel {
   switch (task.type) {
     case 'Question':
-      return questionTaskToQuestionScreen(task);
+      return questionTaskToQuestionScreen(task, planetId);
     case 'Reading':
       return readingTaskToScreen(task);
   }
@@ -64,10 +76,12 @@ export function readingTaskToScreen(
  * option texts in order. The UI reports the chosen option by its index, and
  * GameManager maps that index back to an optionId.
  * @param questionTask The question task to display.
+ * @param planetId The planet the question is on, used to pick its alien.
  * @returns The question screen model for the UI.
  */
 export function questionTaskToQuestionScreen(
   questionTask: QuestionTask,
+  planetId?: number,
 ): QuestionScreenModel {
   const {prompt, options} = questionTask.question;
   const model: QuestionScreenModel = {
@@ -78,6 +92,12 @@ export function questionTaskToQuestionScreen(
   // If question has a graph component add it to the model
   if (questionTask.question.graph) {
     model.equation = questionTask.question.graph['fn'];
+  }
+
+  const alienImage =
+    planetId === undefined ? undefined : ALIEN_BY_PLANET[planetId];
+  if (alienImage) {
+    model.alienImage = alienImage;
   }
   return model;
 }

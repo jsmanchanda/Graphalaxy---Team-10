@@ -87,6 +87,7 @@ export interface QuestionScreenModel {
   type: 'question';
   question: QuestionDisplay;
   equation?: string;
+  alienImage?: string; // path of the planet's alien; defaults to the cat
 }
 
 /**

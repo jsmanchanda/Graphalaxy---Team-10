@@ -8,6 +8,7 @@ import {
   CONFIRM_BUTTON_WIDTH,
   CONFIRM_BUTTON_X,
   CONFIRM_BUTTON_Y,
+  DEFAULT_ALIEN_IMAGE,
   DESIGN_WIDTH,
   MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
   MULTIPLE_CHOICE_OPTION_HEIGHT,
@@ -96,12 +97,12 @@ export class QuestionScreenView implements View {
       },
     );
 
-    const alienCat = new ImageComponent(
+    const alien = new ImageComponent(
       DESIGN_WIDTH - ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_Y,
       ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_WIDTH,
-      '/assets/alien-cat.png',
+      model.alienImage ?? DEFAULT_ALIEN_IMAGE,
     );
 
     const backButton = new ButtonComponent(
@@ -142,7 +143,7 @@ export class QuestionScreenView implements View {
     }
 
     this.group.add(backButton.getGroup());
-    this.group.add(alienCat.getGroup());
+    this.group.add(alien.getGroup());
     this.group.add(prompt.getGroup());
     this.group.add(confirmButton.getGroup());
     options.forEach(option => this.group.add(option.getGroup()));

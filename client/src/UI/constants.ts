@@ -7,6 +7,7 @@ export const DESIGN_HEIGHT = 500;
 // Alien picture
 export const ALIEN_FRIEND_WIDTH = 150;
 export const ALIEN_FRIEND_Y = 0;
+export const DEFAULT_ALIEN_IMAGE = '/assets/alien-cat.png';
 
 // Font
 export const FONT_PLANET_KOSMOS = 'PlanetKosmos';
