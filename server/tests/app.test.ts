@@ -6,9 +6,9 @@ import {createApp} from '../src/app';
 import {createDataWriter, type DataWriter} from '../src/data-writer';
 import {openDb} from '../src/db/connection';
 import {migrate} from '../src/db/migrate';
-import {seed} from '../src/db/seed';
 import {ProgressManager} from '../src/progress-manager/ProgressManager';
 import {QuestionManager} from '../src/question-manager/QuestionManager';
+import {addTestContent} from './helpers/fixture2';
 
 const ANSWER_KEY = /is_correct|isCorrect|correctOption|"correct"/;
 
@@ -21,7 +21,7 @@ describe('progress and question routes', () => {
   beforeEach(async () => {
     db = openDb(':memory:');
     migrate(db);
-    seed(db); // one planet (id 1) with 2 readings and questions 1 to 5
+    addTestContent(db); // one planet (id 1), 2 readings, questions 1 to 5
     writer = createDataWriter(db);
     const progress = new ProgressManager(writer);
     const questions = new QuestionManager(writer, progress);

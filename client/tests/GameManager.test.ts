@@ -155,7 +155,7 @@ const TITLE: ScreenModel = {type: 'title', title: 'Graphalaxy'};
 const intro = (progress: string): ScreenModel => ({
   type: 'intro',
   title: 'Linear Land',
-  description: `A hostile world of straight lines.\n\nYour progress: ${progress}`,
+  description: `A hostile world of straight lines.\n\nCurrent progress: ${progress}`,
 });
 const INTRO = intro('0 of 2 questions correct (0%), hostile');
 const READING: ScreenModel = {
@@ -178,8 +178,8 @@ const LESSON_RESULT: ScreenModel = {
     'You answered 2 of 2 questions correctly. Linear Land is now peaceful!',
 };
 const WARNING =
-  'Redo Linear Land? This resets your progress here. ' +
-  'Right now: 2 of 2 questions correct (100%), peaceful. ' +
+  'Redo Linear Land? Current progress: 2 of 2 questions correct (100%), peaceful.' +
+  ' This resets all progress here. ' +
   'The planet turns hostile again and you answer every question from the start.';
 const RETRY_WARNING: ScreenModel = {type: 'retryWarning', message: WARNING};
 const RIGHT_OPTION = 0;
@@ -276,7 +276,7 @@ describe('GameManager login', () => {
       await actAndWait({type: 'login', username});
 
       expect(lastScreen()).toEqual(
-        loginScreen('', 'Type a username to log in.'),
+        loginScreen('', 'Enter username to log in.'),
       );
       expect(gateway.login).not.toHaveBeenCalled();
     },
@@ -575,8 +575,8 @@ describe('GameManager questions, one at a time', () => {
     expect(lastScreen()).toEqual({
       type: 'retryWarning',
       message:
-        'Redo Linear Land? This resets your progress here. ' +
-        'Right now: 1 of 2 questions correct (50%), hostile. ' +
+        'Redo Linear Land? Current progress: 1 of 2 questions correct (50%), hostile.' +
+        ' This resets all progress here. ' +
         'You answer every question from the start.',
     });
     await actAndWait({type: 'confirmRetry'});
@@ -630,7 +630,7 @@ describe('GameManager questions, one at a time', () => {
     {
       name: 'the server fails',
       error: new ApiError('http', 'boom', 500),
-      message: "We couldn't load the next question. Press Ok to retry.",
+      message: "Couldn't load next question. Press Ok to retry.",
     },
   ])(
     'says that $name when the next question cannot be loaded, and loads it on Ok',
@@ -770,7 +770,7 @@ describe('GameManager answers', () => {
     {
       name: 'the server fails',
       error: new ApiError('http', 'boom', 500, 'STORAGE_ERROR'),
-      message: "We couldn't confirm your answer. Press Ok to try again.",
+      message: "Couldn't confirm answer. Press Ok to try again.",
     },
   ])(
     'says that $name when the answer cannot be submitted, then asks again',
@@ -801,7 +801,7 @@ describe('GameManager answers', () => {
     await actAndWait({type: 'answer', option: RIGHT_OPTION});
     expect(lastScreen()).toEqual({
       type: 'questionResult',
-      result: 'You already answered this question. Press Ok to move on.',
+      result: 'Question has already been answered. Press Ok to continue.',
     });
 
     await actAndWait({type: 'next'});
@@ -956,7 +956,7 @@ describe('GameManager redoing a planet', () => {
     {
       name: 'the server fails',
       error: new ApiError('http', 'boom', 500),
-      message: "We couldn't reset this planet.",
+      message: "Couldn't reset planet.",
     },
   ])(
     'keeps the warning, saying that $name, when the reset fails, and can retry',
@@ -1013,12 +1013,12 @@ describe('GameManager settings', () => {
     {
       name: 'the server is offline',
       error: new ApiError('timeout', 'slow'),
-      message: 'Server offline. Your settings were not saved.',
+      message: 'Server offline. Settings were not saved.',
     },
     {
       name: 'the server fails',
       error: new ApiError('http', 'boom', 500),
-      message: "We couldn't save your settings.",
+      message: "Couldn't save settings.",
     },
   ])(
     'keeps the chosen settings on screen, saying that $name, when saving fails',

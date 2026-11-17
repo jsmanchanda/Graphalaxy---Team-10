@@ -3,14 +3,14 @@ import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {createDataWriter, type DataWriter} from '../src/data-writer';
 import {openDb} from '../src/db/connection';
 import {migrate} from '../src/db/migrate';
-import {seed} from '../src/db/seed';
 import {
   PEACEFUL_THRESHOLD,
   ProgressManager,
 } from '../src/progress-manager/ProgressManager';
 import {QuestionManager} from '../src/question-manager/QuestionManager';
+import {addTestContent} from './helpers/fixture2';
 
-const PLANET_ID = 1; // the seeded planet, "Linear Land", with questions 1 to 5
+const PLANET_ID = 1; // the fixture's planet, "Linear Land", with questions 1 to 5
 const QUESTION_IDS = [1, 2, 3, 4, 5];
 
 describe('ProgressManager subscribed to QuestionManager', () => {
@@ -24,7 +24,7 @@ describe('ProgressManager subscribed to QuestionManager', () => {
   beforeEach(() => {
     db = openDb(':memory:');
     migrate(db);
-    seed(db);
+    addTestContent(db);
     writer = createDataWriter(db);
     progress = new ProgressManager(writer);
     // The same wiring as server/src/index.ts.
@@ -44,7 +44,7 @@ describe('ProgressManager subscribed to QuestionManager', () => {
     return questions.submit(user, questionId, option.optionId);
   }
 
-  /** Adds a second planet that requires the seeded one, and returns its id. */
+  /** Adds a second planet that requires the fixture's one, and returns its id. */
   function addLockedPlanet(): number {
     const planetId = Number(
       db

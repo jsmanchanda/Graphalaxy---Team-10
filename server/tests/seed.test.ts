@@ -1,4 +1,5 @@
 import {describe, it, expect, beforeEach} from 'vitest';
+import type {Question} from '@graphalaxy/shared';
 import type {Database} from 'better-sqlite3';
 import {openDb} from '../src/db/connection';
 import {migrate} from '../src/db/migrate';
@@ -202,12 +203,22 @@ describe('seed', () => {
       const content = PLANETS.find(p => p.name === name);
       if (!content) throw new Error(`unexpected planet ${name}`);
       const {tasks} = manager.getPlanet(user.userId, planetId);
-      expect(tasks.filter(t => t.type === 'Reading')).toEqual(
+      expect(tasks).toEqual(
         content.readings.map(text => ({type: 'Reading', text})),
       );
-      const questions = tasks.flatMap(t =>
-        t.type === 'Question' ? [t.question] : [],
-      );
+      const questions: Question[] = [];
+      for (
+        let question = manager.nextQuestion(user.userId, planetId);
+        question;
+        question = manager.nextQuestion(user.userId, planetId)
+      ) {
+        questions.push(question);
+        manager.submit(
+          user.userId,
+          question.questionId,
+          question.options[0].optionId,
+        );
+      }
       expect(questions.map(q => q.prompt)).toEqual(
         content.questions.map(q => q.prompt),
       );

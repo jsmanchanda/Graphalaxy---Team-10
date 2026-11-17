@@ -159,7 +159,7 @@ export function makeRetryWarningScreen(
       ? 'The planet turns hostile again and you answer every question from the start.'
       : 'You answer every question from the start.';
   const warning =
-    `Redo ${progress.name}?` +
+    `Redo ${progress.name}? ` +
     `Current progress: ${describeProgress(progress)}. This resets all progress here. ${consequence}`;
   return {
     type: 'retryWarning',
