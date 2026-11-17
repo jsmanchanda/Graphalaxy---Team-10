@@ -9,8 +9,6 @@ import {ApiError} from './ApiError';
 // --- screenModelMaker ---
 import * as screenModelMaker from './screenModelMaker';
 
-// for MVP: there is no planet selection yet, so everyone plays this planet
-const DEMO_PLANET_ID = 1;
 const INTRO_INDEX = -1;
 
 /**
@@ -63,6 +61,8 @@ type Stage =
   | 'login'
   | 'title'
   | 'settings'
+  | 'navigation'
+  | 'miniGameSelect'
   | 'lesson'
   | 'question'
   | 'questionResult'
@@ -76,10 +76,13 @@ type Stage =
  * The game opens on the login screen. Logging in loads the player's settings
  * and progress, and the planet, and leads to the title screen.
  *
+ * From the title screen the player opens the navigation map, picks a planet,
+ * and chooses or skips a minigame before entering its lesson.
+ *
  * A planet is played as its intro, its readings, then its questions. The
  * questions are loaded from the server one at a time and each is answered
  * once. After the last one the lesson result shows the score, from where the
- * planet can be redone.
+ * planet can be redone or the map reopened.
  */
 export class GameManager {
   private ui: UiManager;
@@ -96,6 +99,8 @@ export class GameManager {
   private resetPending = false;
   // True while a login is with the server, for the same reason.
   private loginPending = false;
+  // The planet load started by selectPlanet, awaited before its lesson opens.
+  private planetLoad: Promise<unknown> | null = null;
 
   /**
    * Creates a new GameManager instance.
@@ -117,9 +122,10 @@ export class GameManager {
 
   /**
    * Logs the player in under the username they typed, which loads their
-   * settings and progress, then loads the planet and shows the title. Stays
-   * on the login screen, with a message, if the username is empty or anything
-   * fails, so the player can try again.
+   * settings and progress, then shows the title. A planet's content is loaded
+   * later, when the player picks it on the map. Stays on the login screen,
+   * with a message, if the username is empty or anything fails, so the player
+   * can try again.
    * @param username the username as typed on the login screen
    */
   private async login(username: string): Promise<void> {
@@ -135,7 +141,6 @@ export class GameManager {
     this.show('login', screenModelMaker.makeLoginScreen(name, 'Logging in...'));
     try {
       await this.session.login(name);
-      await this.session.loadPlanet(DEMO_PLANET_ID);
     } catch (error) {
       console.error(error);
       this.show(
@@ -162,14 +167,41 @@ export class GameManager {
       }
       return;
     }
-    const planet = this.session.currentPlanet;
-    if (!planet) {
-      return;
-    }
     switch (action.type) {
-      case 'start': {
+      case 'start':
+      case 'navigate': {
+        this.showNavigation();
+        break;
+      }
+      case 'selectPlanet': {
+        const summary = this.session.progressFor(action.planetId);
+        if (summary && !summary.unlocked) {
+          // Locked planets are not playable yet.
+          return;
+        }
+        // Loads while the player chooses a minigame; openLesson waits for it.
+        this.planetLoad = this.session.loadPlanet(action.planetId);
+        // Keeps a failed load from becoming an unhandled rejection; the error
+        // is reported when the player tries to enter the planet.
+        this.planetLoad.catch(() => undefined);
         this.taskIndex = INTRO_INDEX;
-        this.showLesson();
+        this.show('miniGameSelect', {type: 'miniGameSelect'});
+        break;
+      }
+      case 'startMiniGame': {
+        // TODO: run the minigame. Until one exists the screen does not change,
+        // so the player can still skip to the lesson.
+        break;
+      }
+      case 'endMiniGame': {
+        if (action.addHint) {
+          // TODO: award a hint credit once the hint manager is wired in.
+        }
+        void this.openLesson();
+        break;
+      }
+      case 'enterPlanet': {
+        void this.openLesson();
         break;
       }
       case 'answer': {
@@ -181,6 +213,10 @@ export class GameManager {
         break;
       }
       case 'next': {
+        const planet = this.session.currentPlanet;
+        if (!planet) {
+          return;
+        }
         if (this.stage === 'lesson') {
           if (this.taskIndex + 1 < planet.tasks.length) {
             this.taskIndex++;
@@ -192,19 +228,27 @@ export class GameManager {
         } else if (this.stage === 'questionResult') {
           void this.showNextQuestion();
         } else if (this.stage === 'lessonResult') {
-          this.showTitle();
+          this.showNavigation();
         }
         break;
       }
       case 'back': {
-        if (this.stage === 'lesson') {
-          this.taskIndex = Math.max(this.taskIndex - 1, INTRO_INDEX);
-          this.showLesson();
-        } else if (this.stage === 'question') {
+        const planet = this.session.currentPlanet;
+        if (this.stage === 'lesson' && planet) {
+          if (this.taskIndex === INTRO_INDEX) {
+            // Back from the planet's intro leaves it for the map.
+            this.showNavigation();
+          } else {
+            this.taskIndex--;
+            this.showLesson();
+          }
+        } else if (this.stage === 'question' && planet) {
           // Back to the last reading, or the intro if there are none.
           this.taskIndex = planet.tasks.length - 1;
           this.showLesson();
-        } else if (this.stage === 'settings') {
+        } else if (this.stage === 'miniGameSelect') {
+          this.showNavigation();
+        } else if (this.stage === 'navigation' || this.stage === 'settings') {
           this.showTitle();
         }
         break;
@@ -262,6 +306,37 @@ export class GameManager {
    */
   private showTitle(): void {
     this.show('title', {type: 'title', title: 'Graphalaxy'});
+  }
+
+  /**
+   * Opens the lesson of the planet picked on the map, once its content has
+   * arrived. Returns to the map if it cannot be loaded.
+   */
+  private async openLesson(): Promise<void> {
+    const screenId = this.screenId;
+    try {
+      await this.planetLoad;
+    } catch (error) {
+      console.error(error);
+      if (screenId === this.screenId) {
+        this.showNavigation();
+      }
+      return;
+    }
+    if (screenId === this.screenId) {
+      this.taskIndex = INTRO_INDEX;
+      this.showLesson();
+    }
+  }
+
+  /**
+   * Shows the navigation map, built from the progress loaded at login.
+   */
+  private showNavigation(): void {
+    this.show(
+      'navigation',
+      screenModelMaker.makeNavScreen(this.session.planets),
+    );
   }
 
   /**
@@ -368,7 +443,7 @@ export class GameManager {
         ? screenModelMaker.makeRetryWarningScreen(progress, error)
         : {
             type: 'retryWarning',
-            message: 'Redo planet? Progress will be reset.',
+            message: 'Redo this planet? Your progress on it will be reset.',
           },
     );
   }

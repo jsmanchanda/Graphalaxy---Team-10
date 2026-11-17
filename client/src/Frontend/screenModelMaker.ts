@@ -19,6 +19,7 @@ import type {
   LessonIntroScreenModel,
   LessonResultScreenModel,
   LoginScreenModel,
+  NavigationScreenModel,
   RetryWarningScreenModel,
   SettingsScreenModel,
 } from '../UI/types';
@@ -195,4 +196,26 @@ export function makeLoginScreen(
   return message
     ? {type: 'login', username, message}
     : {type: 'login', username};
+}
+
+/**
+ * Creates the navigation screen model: the planets on the map and how far the
+ * player has got across all of them.
+ * @param allPlanets The player's progress on every planet.
+ * @returns The navigation screen model for the UI.
+ */
+export function makeNavScreen(
+  allPlanets: PlanetSummary[],
+): NavigationScreenModel {
+  const totalProgress = allPlanets.reduce(
+    (sum, planet) => sum + planet.completionPct,
+    0,
+  );
+  return {
+    type: 'navigation',
+    planets: allPlanets,
+    // Guards against dividing by zero before any planet has loaded.
+    overallStatus:
+      allPlanets.length === 0 ? 0 : totalProgress / allPlanets.length,
+  };
 }

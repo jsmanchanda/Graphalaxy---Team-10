@@ -1,5 +1,5 @@
 import type {Group} from 'konva/lib/Group';
-import type {Settings} from '@graphalaxy/shared';
+import type {PlanetSummary, Settings} from '@graphalaxy/shared';
 
 /**
  * Data being displayed
@@ -27,7 +27,12 @@ export type UiAction =
   | {type: 'confirmRetry'}
   | {type: 'cancelRetry'}
   | {type: 'openSettings'}
-  | {type: 'saveSettings'; settings: Settings};
+  | {type: 'saveSettings'; settings: Settings}
+  | {type: 'enterPlanet'}
+  | {type: 'selectPlanet'; planetId: number}
+  | {type: 'navigate'}
+  | {type: 'startMiniGame'; name: 'Asteroid' | 'Radio'}
+  | {type: 'endMiniGame'; addHint: boolean};
 
 // ================== Screens Models ===================
 /**
@@ -118,6 +123,23 @@ export interface SettingsScreenModel {
 }
 
 /**
+ * Data for the navigation screen: the map of planets and how far the player
+ * has got overall, from 0 to 1.
+ */
+export interface NavigationScreenModel {
+  type: 'navigation';
+  planets: PlanetSummary[];
+  overallStatus: number;
+}
+
+/**
+ * Data for the minigame select screen, shown after a planet is picked.
+ */
+export interface MiniGameSelectModel {
+  type: 'miniGameSelect';
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -129,4 +151,6 @@ export type ScreenModel =
   | QuestionResultScreenModel
   | LessonResultScreenModel
   | RetryWarningScreenModel
-  | SettingsScreenModel;
+  | SettingsScreenModel
+  | NavigationScreenModel
+  | MiniGameSelectModel;

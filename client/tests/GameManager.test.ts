@@ -182,6 +182,9 @@ const WARNING =
   ' This resets all progress here. ' +
   'The planet turns hostile again and you answer every question from the start.';
 const RETRY_WARNING: ScreenModel = {type: 'retryWarning', message: WARNING};
+/** Matches any navigation map screen; its planet list is checked separately. */
+const NAV = expect.objectContaining({type: 'navigation'});
+const MINI_GAME_SELECT: ScreenModel = {type: 'miniGameSelect'};
 const RIGHT_OPTION = 0;
 const WRONG_OPTION = 1;
 
@@ -205,10 +208,20 @@ async function setup(gateway = fakeGateway()) {
   return ctx;
 }
 
+/**
+ * Opens the map, picks the demo planet, and skips the minigame, which leaves
+ * the player on the planet's lesson intro.
+ */
+async function enterPlanet() {
+  act({type: 'start'});
+  act({type: 'selectPlanet', planetId: 1});
+  await actAndWait({type: 'enterPlanet'});
+}
+
 /** Starts the lesson and moves forward to the first question. */
 async function setupAtQuestion1() {
   const ctx = await setup();
-  act({type: 'start'});
+  await enterPlanet();
   act({type: 'next'});
   await actAndWait({type: 'next'});
   ui.displayScreen.mockClear();
@@ -239,20 +252,27 @@ describe('GameManager login', () => {
     expect(gateway.login).not.toHaveBeenCalled();
   });
 
-  it('logs in under the typed username, which loads their settings and progress, loads the planet and shows the title', async () => {
+  it('logs in under the typed username, which loads their settings and progress, and shows the title', async () => {
     const {gateway, session} = setupAtLogin();
 
     await actAndWait({type: 'login', username: '  amy  '});
 
     expect(gateway.login).toHaveBeenCalledExactlyOnceWith('amy');
     expect(gateway.getPlanets).toHaveBeenCalledTimes(1);
-    expect(gateway.getPlanet).toHaveBeenCalledWith(1);
     expect(gateway.login.mock.invocationCallOrder[0]).toBeLessThan(
-      gateway.getPlanet.mock.invocationCallOrder[0],
+      gateway.getPlanets.mock.invocationCallOrder[0],
     );
     expect(session.player?.settings).toEqual(PLAYER.settings);
     expect(session.progressFor(1)).toMatchObject({correctCount: 0});
     expect(lastScreen()).toEqual(TITLE);
+  });
+
+  it('loads no planet content until one is picked on the map', async () => {
+    const {gateway} = setupAtLogin();
+
+    await actAndWait({type: 'login', username: 'amy'});
+
+    expect(gateway.getPlanet).not.toHaveBeenCalled();
   });
 
   it('shows that it is logging in while it waits for the server', async () => {
@@ -309,24 +329,6 @@ describe('GameManager login', () => {
     );
   });
 
-  it.each([
-    {name: 'an http ApiError', error: new ApiError('http', 'boom', 500)},
-    {name: 'a plain Error', error: new Error('boom')},
-  ])(
-    'shows the generic failure message when the planet fails with $name',
-    async ({error}) => {
-      const gateway = fakeGateway();
-      gateway.getPlanet.mockRejectedValue(error);
-      setupAtLogin(gateway);
-
-      await actAndWait({type: 'login', username: 'amy'});
-
-      expect(lastScreen()).toEqual(
-        loginScreen('amy', "Couldn't load the game. Try again."),
-      );
-    },
-  );
-
   it('shows the generic failure message when the progress cannot be loaded', async () => {
     const gateway = fakeGateway();
     gateway.getPlanets.mockRejectedValue(new ApiError('http', 'boom', 500));
@@ -338,16 +340,6 @@ describe('GameManager login', () => {
     expect(lastScreen()).toEqual(
       loginScreen('amy', "Couldn't load the game. Try again."),
     );
-  });
-
-  it('does not load the planet when login fails', async () => {
-    const gateway = fakeGateway();
-    gateway.login.mockRejectedValue(new ApiError('network', 'down'));
-    setupAtLogin(gateway);
-
-    await actAndWait({type: 'login', username: 'amy'});
-
-    expect(gateway.getPlanet).not.toHaveBeenCalled();
   });
 
   it('logs in on another try after a failure', async () => {
@@ -402,6 +394,11 @@ describe('GameManager login', () => {
     {type: 'confirmRetry'},
     {type: 'openSettings'},
     {type: 'saveSettings', settings: {musicVolume: 1, sfxVolume: 1}},
+    {type: 'navigate'},
+    {type: 'selectPlanet', planetId: 1},
+    {type: 'enterPlanet'},
+    {type: 'startMiniGame', name: 'Asteroid'},
+    {type: 'endMiniGame', addHint: false},
   ])('ignores $type until the player is logged in', async action => {
     const gateway = await setupFailed();
 
@@ -415,11 +412,149 @@ describe('GameManager login', () => {
   });
 });
 
-describe('GameManager lesson', () => {
-  it("shows the lesson intro with the player's progress on start", async () => {
-    await setup();
+describe('GameManager navigation', () => {
+  it('shows the navigation map on start, built from the loaded progress', async () => {
+    const {gateway, session} = await setup();
 
     act({type: 'start'});
+
+    expect(lastScreen()).toEqual({
+      type: 'navigation',
+      planets: session.planets,
+      overallStatus: 0,
+    });
+    expect(gateway.getPlanets).toHaveBeenCalledTimes(1);
+  });
+
+  it('reopens the map on navigate', async () => {
+    await setup();
+    await enterPlanet();
+
+    act({type: 'navigate'});
+
+    expect(lastScreen()).toEqual(NAV);
+  });
+
+  it('shows how far the player has got across all planets', async () => {
+    const gateway = fakeGateway();
+    gateway.answers.set(1, true);
+    await setup(gateway);
+
+    act({type: 'start'});
+
+    expect(lastScreen()).toEqual(
+      expect.objectContaining({type: 'navigation', overallStatus: 0.5}),
+    );
+  });
+
+  it('shows the minigame select screen on selecting a planet', async () => {
+    await setup();
+    act({type: 'start'});
+
+    act({type: 'selectPlanet', planetId: 1});
+
+    expect(lastScreen()).toEqual(MINI_GAME_SELECT);
+  });
+
+  it('shows the lesson intro on entering a planet', async () => {
+    await setup();
+
+    await enterPlanet();
+
+    expect(lastScreen()).toEqual(INTRO);
+  });
+
+  it.each([true, false])(
+    'shows the lesson intro when a minigame ends (addHint: %s)',
+    async addHint => {
+      await setup();
+      act({type: 'start'});
+      act({type: 'selectPlanet', planetId: 1});
+
+      await actAndWait({type: 'endMiniGame', addHint});
+
+      expect(lastScreen()).toEqual(INTRO);
+      act({type: 'next'});
+      expect(lastScreen()).toEqual(READING);
+    },
+  );
+
+  it.each(['Asteroid', 'Radio'] as const)(
+    'does not change screens when the %s minigame starts',
+    async name => {
+      await setup();
+      act({type: 'start'});
+      act({type: 'selectPlanet', planetId: 1});
+      ui.displayScreen.mockClear();
+
+      act({type: 'startMiniGame', name});
+
+      expect(ui.displayScreen).not.toHaveBeenCalled();
+    },
+  );
+
+  it('loads the picked planet while the player chooses a minigame', async () => {
+    const {gateway} = await setup();
+    act({type: 'start'});
+
+    act({type: 'selectPlanet', planetId: 1});
+    expect(gateway.getPlanet).toHaveBeenCalledExactlyOnceWith(1);
+    expect(lastScreen()).toEqual(MINI_GAME_SELECT);
+
+    await actAndWait({type: 'enterPlanet'});
+    expect(lastScreen()).toEqual(INTRO);
+  });
+
+  it.each([
+    {name: 'an http ApiError', error: new ApiError('http', 'boom', 500)},
+    {name: 'a plain Error', error: new Error('boom')},
+  ])(
+    'returns to the map when the planet fails to load with $name',
+    async ({error}) => {
+      const gateway = fakeGateway();
+      gateway.getPlanet.mockRejectedValue(error);
+      await setup(gateway);
+      act({type: 'start'});
+      act({type: 'selectPlanet', planetId: 1});
+
+      await actAndWait({type: 'enterPlanet'});
+
+      expect(lastScreen()).toEqual(NAV);
+    },
+  );
+
+  it('does not open a locked planet', async () => {
+    const gateway = fakeGateway();
+    gateway.getPlanets.mockImplementation(async () => [
+      {...gateway.progress(), unlocked: false},
+    ]);
+    await setup(gateway);
+    act({type: 'start'});
+    ui.displayScreen.mockClear();
+
+    act({type: 'selectPlanet', planetId: 1});
+
+    expect(ui.displayScreen).not.toHaveBeenCalled();
+    expect(gateway.getPlanet).not.toHaveBeenCalled();
+  });
+
+  it('goes back from the minigame select to the map, and from the map to the title', async () => {
+    await setup();
+    act({type: 'start'});
+    act({type: 'selectPlanet', planetId: 1});
+
+    act({type: 'back'});
+    expect(lastScreen()).toEqual(NAV);
+    act({type: 'back'});
+    expect(lastScreen()).toEqual(TITLE);
+  });
+});
+
+describe('GameManager lesson', () => {
+  it("shows the lesson intro with the player's progress on entering a planet", async () => {
+    await setup();
+
+    await enterPlanet();
 
     expect(lastScreen()).toEqual(INTRO);
   });
@@ -429,7 +564,7 @@ describe('GameManager lesson', () => {
     gateway.answers.set(1, true);
     await setup(gateway);
 
-    act({type: 'start'});
+    await enterPlanet();
 
     expect(lastScreen()).toEqual(
       intro('1 of 2 questions correct (50%), hostile'),
@@ -438,7 +573,7 @@ describe('GameManager lesson', () => {
 
   it('steps through the readings, then loads the first question', async () => {
     const {gateway} = await setup();
-    act({type: 'start'});
+    await enterPlanet();
 
     act({type: 'next'});
     expect(lastScreen()).toEqual(READING);
@@ -449,25 +584,23 @@ describe('GameManager lesson', () => {
     expect(lastScreen()).toEqual(QUESTION_1);
   });
 
-  it('goes back to the previous slide, then the intro, and stays there', async () => {
+  it('goes back to the previous slide, then the intro, then the map', async () => {
     await setup();
-    act({type: 'start'});
+    await enterPlanet();
     act({type: 'next'});
 
     act({type: 'back'});
     expect(lastScreen()).toEqual(INTRO);
     act({type: 'back'});
-    expect(lastScreen()).toEqual(INTRO);
-    act({type: 'next'});
-    expect(lastScreen()).toEqual(READING);
+    expect(lastScreen()).toEqual(NAV);
   });
 
-  it('resets to the intro when Start is pressed mid-lesson', async () => {
+  it('restarts the lesson when the planet is re-entered mid-lesson', async () => {
     await setup();
-    act({type: 'start'});
+    await enterPlanet();
     act({type: 'next'});
 
-    act({type: 'start'});
+    await enterPlanet();
     expect(lastScreen()).toEqual(INTRO);
     act({type: 'next'});
     expect(lastScreen()).toEqual(READING);
@@ -488,7 +621,7 @@ describe('GameManager lesson', () => {
     const gateway = fakeGateway();
     gateway.getPlanet.mockResolvedValue({...makePlanet(), tasks: []});
     await setup(gateway);
-    act({type: 'start'});
+    await enterPlanet();
 
     await actAndWait({type: 'next'});
     expect(lastScreen()).toEqual(QUESTION_1);
@@ -574,6 +707,7 @@ describe('GameManager questions, one at a time', () => {
     act({type: 'retryLesson'});
     expect(lastScreen()).toEqual({
       type: 'retryWarning',
+      // One answer of two was correct, so the planet is still hostile.
       message:
         'Redo Linear Land? Current progress: 1 of 2 questions correct (50%), hostile.' +
         ' This resets all progress here. ' +
@@ -590,7 +724,7 @@ describe('GameManager questions, one at a time', () => {
     const gateway = fakeGateway();
     gateway.answers.set(1, false);
     await setup(gateway);
-    act({type: 'start'});
+    await enterPlanet();
     act({type: 'next'});
 
     await actAndWait({type: 'next'});
@@ -613,12 +747,12 @@ describe('GameManager questions, one at a time', () => {
     });
   });
 
-  it('returns to the title from the lesson result', async () => {
+  it('returns to the map from the lesson result', async () => {
     await setupAtLessonResult();
 
     act({type: 'next'});
 
-    expect(lastScreen()).toEqual(TITLE);
+    expect(lastScreen()).toEqual(NAV);
   });
 
   it.each([
@@ -637,7 +771,7 @@ describe('GameManager questions, one at a time', () => {
     async ({error, message}) => {
       const {gateway} = await setup();
       gateway.getNextQuestion.mockRejectedValueOnce(error);
-      act({type: 'start'});
+      await enterPlanet();
       act({type: 'next'});
 
       await actAndWait({type: 'next'});
@@ -652,7 +786,7 @@ describe('GameManager questions, one at a time', () => {
     const {gateway} = await setup();
     const pending = deferred<NextQuestion>();
     gateway.getNextQuestion.mockReturnValueOnce(pending.promise);
-    act({type: 'start'});
+    await enterPlanet();
     act({type: 'next'});
 
     act({type: 'next'});
@@ -667,7 +801,7 @@ describe('GameManager questions, one at a time', () => {
     const {gateway} = await setup();
     const pending = deferred<NextQuestion>();
     gateway.getNextQuestion.mockReturnValueOnce(pending.promise);
-    act({type: 'start'});
+    await enterPlanet();
     act({type: 'next'});
     ui.displayScreen.mockClear();
 
@@ -681,7 +815,7 @@ describe('GameManager questions, one at a time', () => {
 
   it('shows the question once for a double click on Next', async () => {
     const {gateway} = await setup();
-    act({type: 'start'});
+    await enterPlanet();
     act({type: 'next'});
     ui.displayScreen.mockClear();
 
@@ -712,18 +846,23 @@ describe('GameManager answers', () => {
     expect(lastScreen()).toEqual(WRONG);
   });
 
-  it('ignores answers on the title, intro, reading and result screens', async () => {
+  it('ignores answers on every screen but a question', async () => {
     const {gateway} = await setup();
 
-    act({type: 'answer', option: 0});
+    act({type: 'answer', option: 0}); // title
     act({type: 'start'});
-    act({type: 'answer', option: 0});
+    act({type: 'answer', option: 0}); // navigation map
+    await enterPlanet();
+    act({type: 'answer', option: 0}); // lesson intro
     act({type: 'next'});
-    act({type: 'answer', option: 0});
+    act({type: 'answer', option: 0}); // reading
+    expect(gateway.submitAnswer).not.toHaveBeenCalled();
+
     await actAndWait({type: 'next'});
     await actAndWait({type: 'answer', option: WRONG_OPTION});
     expect(gateway.submitAnswer).toHaveBeenCalledTimes(1);
 
+    // The question result screen: the answer is already in.
     await actAndWait({type: 'answer', option: RIGHT_OPTION});
     expect(gateway.submitAnswer).toHaveBeenCalledTimes(1);
   });
@@ -891,7 +1030,7 @@ describe('GameManager redoing a planet', () => {
     const gateway = fakeGateway();
     QUESTIONS.forEach(q => gateway.answers.set(q.questionId, true));
     await setup(gateway);
-    act({type: 'start'});
+    await enterPlanet();
     expect(lastScreen()).toEqual(
       intro('2 of 2 questions correct (100%), peaceful'),
     );
@@ -903,13 +1042,13 @@ describe('GameManager redoing a planet', () => {
     await actAndWait({type: 'confirmRetry'});
 
     expect(lastScreen()).toEqual(QUESTION_1);
-    act({type: 'start'});
+    await enterPlanet();
     expect(lastScreen()).toEqual(INTRO);
   });
 
   it('ignores retryLesson away from the lesson result', async () => {
     await setup();
-    act({type: 'start'});
+    await enterPlanet();
     ui.displayScreen.mockClear();
 
     act({type: 'retryLesson'});

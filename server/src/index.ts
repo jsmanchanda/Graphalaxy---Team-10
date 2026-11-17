@@ -5,6 +5,7 @@ import {migrate} from './db/migrate';
 import {seed} from './db/seed';
 import {ProgressManager} from './progress-manager/ProgressManager';
 import {QuestionManager} from './question-manager/QuestionManager';
+import {HintManager} from './hint-manager/hintmanager';
 
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -13,10 +14,12 @@ migrate(db);
 seed(db);
 
 const dataWriter = createDataWriter(db);
+
 // Progress Manager subscribes to Question Manager's first-correct-answer event.
 const progress = new ProgressManager(dataWriter);
 const questions = new QuestionManager(dataWriter, progress);
+const hints = new HintManager(dataWriter);
 
-createApp({questions, progress, dataWriter}).listen(PORT, () => {
+createApp({questions, progress, hints, dataWriter}).listen(PORT, () => {
   console.log(`API listening on http://localhost:${PORT}`);
 });

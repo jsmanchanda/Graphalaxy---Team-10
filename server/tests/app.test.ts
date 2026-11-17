@@ -25,7 +25,13 @@ describe('progress and question routes', () => {
     writer = createDataWriter(db);
     const progress = new ProgressManager(writer);
     const questions = new QuestionManager(writer, progress);
-    app = createApp({questions, progress, dataWriter: writer});
+    // Hints have their own tests; these routes are not exercised here.
+    const hints = {
+      getBalance: () => 0,
+      getUnlockedHints: () => [],
+      unlockNextHint: () => ({hint: null, hintQuota: 0}),
+    };
+    app = createApp({questions, progress, hints, dataWriter: writer});
 
     const login = await request(app).post('/api/users').send({username: 'amy'});
     user = `/api/users/${login.body.userId}`;

@@ -9,6 +9,9 @@
  *   DELETE /api/users/:userId/planets/:planetId/progress -> PlanetSummary
  *   PATCH  /api/users/:userId/settings: Settings -> Player
  *   POST   /api/users/:userId/questions/:questionId/answer: AnswerRequest -> AnswerResult
+ *   GET    /api/users/:userId/hints/balance -> HintBalanceResult
+ *   GET    /api/users/:userId/planets/:planetId/hints -> UnlockedHint[]
+ *   POST   /api/users/:userId/planets/:planetId/hints/unlock -> HintUnlockResult
  *
  * Errors are sent as ApiErrorBody with a 4xx or 5xx status.
  */
@@ -127,4 +130,24 @@ export interface AnswerResult {
 /** The body of every error response. */
 export interface ApiErrorBody {
   error: {code: string; message: string};
+}
+
+/** A hint the player has unlocked and can review. */
+export interface UnlockedHint {
+  hintId: number;
+  planetId: number;
+  hintNumber: number;
+  text: string;
+}
+
+/** The player's available hint credits. */
+export interface HintBalanceResult {
+  hintQuota: number;
+}
+
+/** The result of unlocking the next hint. */
+export interface HintUnlockResult {
+  /** Null when there are no more hints to unlock. */
+  hint: UnlockedHint | null;
+  hintQuota: number;
 }
