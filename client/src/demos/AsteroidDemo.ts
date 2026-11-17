@@ -7,18 +7,15 @@
  */
 import Konva from 'konva';
 import {AsteroidMiniGameController} from '../Asteroids/AsteroidMiniGameController';
-import {WINDOW_MAX, WINDOW_MIN} from '../Asteroids/math/asteroids';
+import {AsteroidFieldComponent} from '../Asteroids/components/AsteroidFieldComponent';
+import {FIELD_SIZE} from '../Asteroids/constants';
 import {FORMS} from '../Asteroids/math/forms';
 import type {MiniGameResult, Screen} from '../Asteroids/types';
 import {GraphComponent} from '../Graphing/GraphComponent';
 
-const GRAPH_SIZE = 600;
-const PREVIEW_SIZE = 200;
+// Stand-in preview with a grid, until TargetingPreviewComponent (4d) exists.
+const DEMO_PREVIEW_SIZE = 200;
 const GAP = 20;
-const PIXELS_PER_UNIT = GRAPH_SIZE / (WINDOW_MAX - WINDOW_MIN);
-
-const ASTEROID_STYLE = {stroke: 'orange', fill: 'rgba(255, 165, 0, 0.25)'};
-const DESTROYED_STYLE = {stroke: 'red', fill: 'rgba(239, 68, 68, 0.6)'};
 
 function byId<T extends HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -37,8 +34,8 @@ const log = byId('log');
 
 const stage = new Konva.Stage({
   container: 'container',
-  width: GRAPH_SIZE + GAP + PREVIEW_SIZE,
-  height: GRAPH_SIZE,
+  width: FIELD_SIZE + GAP + DEMO_PREVIEW_SIZE,
+  height: FIELD_SIZE,
 });
 const layer = new Konva.Layer();
 stage.add(layer);
@@ -82,27 +79,20 @@ function showGame() {
   title.textContent = `Question ${model.questionNumber}/${model.questionCount} · level ${question.difficulty}`;
   info.textContent = `${form.name}: ${form.template}\nAsteroids: ${asteroidList}`;
 
-  // GraphComponent's default window is -10..10, the same as WINDOW_MIN/MAX.
-  const field = new GraphComponent(0, 0, GRAPH_SIZE, GRAPH_SIZE);
-  const preview = new GraphComponent(
-    GRAPH_SIZE + GAP,
+  // The real window from step 4c, at its real size.
+  const field = new AsteroidFieldComponent(
     0,
-    PREVIEW_SIZE,
-    PREVIEW_SIZE,
+    0,
+    FIELD_SIZE,
+    question.asteroids,
+  );
+  const preview = new GraphComponent(
+    FIELD_SIZE + GAP,
+    0,
+    DEMO_PREVIEW_SIZE,
+    DEMO_PREVIEW_SIZE,
   );
   layer.add(field.getGroup(), preview.getGroup());
-
-  const circles = question.asteroids.map(asteroid => {
-    const circle = new Konva.Circle({
-      x: field.convertToPixelsX(asteroid.position.x),
-      y: field.convertToPixelsY(asteroid.position.y),
-      radius: asteroid.radius * PIXELS_PER_UNIT,
-      strokeWidth: 2,
-      ...ASTEROID_STYLE,
-    });
-    field.getGroup().add(circle);
-    return circle;
-  });
   layer.batchDraw();
 
   const updatePreview = () => {
@@ -122,13 +112,7 @@ function showGame() {
     if (result === null) {
       return;
     }
-    field.addFunction(result.expression, 'shot');
-    result.hits.forEach((hit, i) => {
-      if (hit) {
-        circles[i].setAttrs(DESTROYED_STYLE);
-      }
-    });
-    layer.batchDraw();
+    field.showShot(result);
     inputs.forEach(input => (input.disabled = true));
     status.textContent =
       `${result.hit ? 'HIT' : 'MISS'}: hits [${result.hits.join(', ')}]\n` +
