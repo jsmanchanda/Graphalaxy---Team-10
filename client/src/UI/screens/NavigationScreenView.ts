@@ -135,7 +135,7 @@ export class NavigationScreenView implements View {
 
       // draw planets
       const newPlanet = new PlanetComponent(planet, () =>
-        onAction({type: 'enterPlanet', planetId: planet.planetId}),
+        onAction({type: 'selectPlanet', planetId: planet.planetId}),
       );
       this.group.add(newPlanet.getGroup());
     }

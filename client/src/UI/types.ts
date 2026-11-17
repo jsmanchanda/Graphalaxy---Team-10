@@ -18,8 +18,11 @@ export type UiAction =
   | {type: 'next'}
   | {type: 'back'}
   | {type: 'retryLesson'}
-  | {type: 'enterPlanet'; planetId: number}
-  | {type: 'navigate'};
+  | {type: 'enterPlanet'}
+  | {type: 'selectPlanet'; planetId: number}
+  | {type: 'navigate'}
+  | {type: 'startMiniGame'; name: 'Asteroid' | 'Radio'}
+  | {type: 'endMiniGame'; addHint: boolean};
 
 // ================== Screens Models ===================
 /**
@@ -92,6 +95,13 @@ export interface NavigationScreenModel {
 }
 
 /**
+ * Data for navigation screen
+ */
+export interface MiniGameSelectModel {
+  type: 'miniGameSelect';
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -101,4 +111,5 @@ export type ScreenModel =
   | QuestionScreenModel
   | QuestionResultScreenModel
   | LessonResultScreenModel
-  | NavigationScreenModel;
+  | NavigationScreenModel
+  | MiniGameSelectModel;

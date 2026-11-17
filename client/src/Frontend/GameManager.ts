@@ -101,11 +101,42 @@ export class GameManager {
         this.ui.displayScreen(screenModel);
         break;
       }
-      case 'enterPlanet': {
+      case 'startMiniGame': {
+        if (action.name === 'Asteroid') {
+          // run asteroid minigame
+          // AsteroidMiniGame.start();
+        } else if (action.name === 'Radio') {
+          // run radio minigame
+          // RadioMiniGame.start();
+        } else {
+          // minigame not supported
+        }
+        break;
+      }
+      case 'endMiniGame': {
+        // check if reward is given
+        if (action.addHint) {
+          // add hint
+        }
+        // then go to lesson
+        const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
+          planet.name,
+          planet.introText,
+        );
+        this.ui.displayScreen(screenModel);
+        break;
+      }
+      case 'selectPlanet': {
+        // loads planet, and prompts user to play minigame
         this.currentPlanetId = action.planetId;
         this.currentPlanetId = DEMO_PLANET_ID; // DEMO, need to remove
+        // await this.session.loadPlanet(this.currentPlanetId); // want to actually load planet that is chosen
         this.taskIndex = INTRO_INDEX;
-        // await this.session.loadPlanet(this.currentPlanetId);
+        this.ui.displayScreen({type: 'miniGameSelect'});
+        break;
+      }
+      case 'enterPlanet': {
+        // actually starts the lesson of planet
         const screenModel: ScreenModel = screenModelMaker.makeLessonIntroScreen(
           planet.name,
           planet.introText,
