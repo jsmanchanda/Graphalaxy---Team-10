@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Graphalaxy Asteroid Demo</title>
+  <style>
+    html,
+    body {
+      margin: 0;
+      height: 100%;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: system-ui, sans-serif;
+    }
+
+    body {
+      display: flex;
+      gap: 24px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+
+    #panel {
+      width: 320px;
+      flex-shrink: 0;
+    }
+
+    #info,
+    #status {
+      white-space: pre-line;
+    }
+
+    #inputs label {
+      display: inline-block;
+      margin: 0 12px 8px 0;
+    }
+
+    #inputs input {
+      width: 56px;
+      margin-left: 4px;
+    }
+
+    #status {
+      min-height: 3em;
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+    }
+
+    button {
+      font-size: 16px;
+      padding: 6px 20px;
+    }
+
+    #log {
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="panel">
+    <h2 id="title"></h2>
+    <p id="info"></p>
+    <div id="inputs"></div>
+    <p id="status"></p>
+    <button id="action"></button>
+    <pre id="log"></pre>
+  </div>
+  <div id="container"></div>
+  <script type="module" src="./AsteroidDemo.ts"></script>
+</body>
+
+</html>

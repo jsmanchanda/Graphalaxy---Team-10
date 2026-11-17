@@ -92,3 +92,24 @@ export interface FireResult {
   hits: boolean[];
   expression: string;
 }
+
+/**
+ * which minigame a result came from
+ * TODO: move to shared/src/api.ts once the hint contract is agreed
+ */
+export type MiniGameId = 'asteroid' | 'radioWave';
+
+/**
+ * what happened in one minigame run, sent once when the player leaves it
+ * - game: which minigame was played
+ * - correct: questions answered correctly
+ * - attempted: questions answered
+ * - completed: false if the player left before the end
+ * TODO: move to shared/src/api.ts once the hint contract is agreed
+ */
+export interface MiniGameResult {
+  game: MiniGameId;
+  correct: number;
+  attempted: number;
+  completed: boolean;
+}
