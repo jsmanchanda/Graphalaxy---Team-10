@@ -13,7 +13,6 @@ export type {
   Question,
   QuestionTask,
   ReadingTask,
-  VisualReadingTask,
   Settings,
   Task,
   UnlockedHint,

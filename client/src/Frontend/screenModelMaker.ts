@@ -5,7 +5,6 @@
 import type {
   QuestionTask,
   ReadingTask,
-  VisualReadingTask,
   Task,
   PlanetSummary,
 } from '@graphalaxy/shared';
@@ -18,7 +17,6 @@ import type {
   QuestionResultScreenModel,
   LessonIntroScreenModel,
   NavigationScreenModel,
-  VisualReadingScreenModel,
   RadioWaveMinigameScreenModel,
   // LessonResultScreenModel
 } from '../UI/types';
@@ -33,8 +31,6 @@ export function taskToScreen(task: Task): ScreenModel {
   switch (task.type) {
     case 'Question':
       return questionTaskToQuestionScreen(task);
-    case 'VisualReading':
-      return visualReadingTaskToScreen(task);
     case 'Reading':
       return readingTaskToScreen(task);
   }
@@ -126,19 +122,6 @@ export function makeNavScreen(
 }
 
 // function makeLessonResultScreen - dependent on progress tracking
-
-/**
- * Creates Screen Model For a reading with a graph
- */
-export function visualReadingTaskToScreen(
-  task: VisualReadingTask,
-): VisualReadingScreenModel {
-  return {
-    type: 'visualReading',
-    readingText: task.text,
-    mathFunction: task.mathFunction,
-  };
-}
 
 /** Creates the radio-wave round for the navigation flow and standalone demo. */
 export function makeRadioWaveMinigameScreen(): RadioWaveMinigameScreenModel {

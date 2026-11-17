@@ -1,4 +1,3 @@
-import {MathFunction} from '../Graphing/functions';
 import type {Group} from 'konva/lib/Group';
 import type {PlanetSummary} from '@graphalaxy/shared';
 
@@ -103,15 +102,6 @@ export interface MiniGameSelectModel {
 }
 
 /**
- * Reading with Graph
- */
-export interface VisualReadingScreenModel {
-  type: 'visualReading';
-  readingText: string;
-  mathFunction: MathFunction;
-}
-
-/**
  * Data needed to create a radio-wave minigame question.
  */
 export interface RadioWaveQuestion {
@@ -150,5 +140,4 @@ export type ScreenModel =
   | LessonResultScreenModel
   | NavigationScreenModel
   | MiniGameSelectModel
-  | VisualReadingScreenModel
   | RadioWaveMinigameScreenModel;
