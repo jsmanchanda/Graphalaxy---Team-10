@@ -2,19 +2,10 @@ import {PlanetSummary} from '@graphalaxy/shared/src/api';
 
 export const allPlanets: PlanetSummary[] = [
   {
-    planetId: 0,
-    name: 'Home',
-    graphOrder: 0,
-    prereqIds: null,
-    unlocked: true,
-    status: 'friendly',
-    completionPct: 1,
-  },
-  {
     planetId: 1,
     name: 'PLanet A',
     graphOrder: 1,
-    prereqIds: [0],
+    prereqIds: [],
     unlocked: true,
     status: 'friendly',
     completionPct: 1,

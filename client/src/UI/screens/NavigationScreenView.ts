@@ -14,14 +14,24 @@ const COLOR_UNREACHABLE = '#434242';
 const PLANET_DIAMETER = 75;
 // correponds with planet id
 const PLANET_POSITIONS = [
-  {x: 75, y: 350},
-  {x: 210, y: 260},
-  {x: 315, y: 130},
+  {x: 75, y: 350}, // home planet
+  {x: 210, y: 260}, // planet 1
+  {x: 315, y: 130}, // planet 2 ...
   {x: 385, y: 280},
   {x: 490, y: 125},
   {x: 515, y: 145},
   {x: 515, y: 145},
 ];
+
+const HOME_PLANET: PlanetSummary = {
+  planetId: 0,
+  name: 'Home',
+  graphOrder: 0,
+  prereqIds: null,
+  unlocked: true,
+  status: 'friendly',
+  completionPct: 1,
+};
 
 const HOVER_TEXT_WIDTH = 150;
 const HOVER_TEXT_HEIGHT = 35;
@@ -33,7 +43,7 @@ export class PlanetComponent extends Component {
   /**
    * constructs planet of right color and display text
    */
-  constructor(planet: PlanetSummary, onClick: () => void) {
+  constructor(planet: PlanetSummary, onClick: (() => void) | null) {
     const positionX = PLANET_POSITIONS[planet.planetId].x;
     const positionY = PLANET_POSITIONS[planet.planetId].y;
     super(positionX, positionY);
@@ -66,7 +76,7 @@ export class PlanetComponent extends Component {
     // Handle actions
     planetImage.on('mouseenter', e => {
       const stage = e.target.getStage();
-      if (stage) stage.container().style.cursor = 'pointer';
+      if (stage && onClick) stage.container().style.cursor = 'pointer';
 
       planetNameText.getGroup().show();
       this.group.getLayer()?.batchDraw();
@@ -77,11 +87,14 @@ export class PlanetComponent extends Component {
       planetNameText.getGroup().hide();
       this.group.getLayer()?.batchDraw();
     });
-    this.group.on('click tap', e => {
-      const stage = e.target.getStage();
-      if (stage) stage.container().style.cursor = 'default';
-      onClick();
-    });
+
+    if (onClick) {
+      this.group.on('click tap', e => {
+        const stage = e.target.getStage();
+        if (stage) stage.container().style.cursor = 'default';
+        onClick();
+      });
+    }
   }
 }
 
@@ -119,12 +132,33 @@ export class NavigationScreenView implements View {
         this.group.add(planetPath);
         planetPath.moveToBottom();
       }
+
       // draw planets
       const newPlanet = new PlanetComponent(planet, () =>
         onAction({type: 'enterPlanet', planetId: planet.planetId}),
       );
       this.group.add(newPlanet.getGroup());
     }
+
+    // draw Home planet and path
+    const homePath = new Konva.Line({
+      points: [
+        PLANET_POSITIONS[0].x + PLANET_DIAMETER / 2,
+        PLANET_POSITIONS[0].y + PLANET_DIAMETER / 2,
+        PLANET_POSITIONS[1].x + PLANET_DIAMETER / 2,
+        PLANET_POSITIONS[1].y + PLANET_DIAMETER / 2,
+      ],
+      stroke: COLOR_COMPLETE,
+      strokeWidth: 2,
+      lineCap: 'round',
+      lineJoin: 'round',
+    });
+    this.group.add(homePath);
+    homePath.moveToBottom();
+
+    // draw home planet
+    const homePlanet = new PlanetComponent(HOME_PLANET, null);
+    this.group.add(homePlanet.getGroup());
   }
 
   /**
@@ -144,7 +178,7 @@ export class NavigationScreenView implements View {
     // Written as !(in range) so NaN is rejected too
     const c = Math.min(1, Math.max(0, completion));
     if (c === 0) return COLOR_UNREACHABLE;
-    if (c) return COLOR_REACHABLE;
+    if (c <= 0.4) return COLOR_REACHABLE;
     if (c <= 0.7) return COLOR_IN_PROGRESS;
     return COLOR_COMPLETE;
   }
