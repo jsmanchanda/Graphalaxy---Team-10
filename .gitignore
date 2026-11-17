@@ -4,3 +4,5 @@ build/
 *.db
 server/var/
 .env
+playwright-report/
+test-results/
