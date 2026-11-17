@@ -64,6 +64,45 @@ async function loggedIn(...responses: Array<Response | Error>) {
 }
 
 describe('ApiClient requests', () => {
+  it('posts an award for the logged-in user and parses the updated balance', async () => {
+    const {client, http} = await loggedIn(json({hintQuota: 5}));
+    await expect(client.awardHintCredits(2)).resolves.toEqual({hintQuota: 5});
+    const [url, init] = http.mock.calls[1];
+    expect(url).toBe('/api/users/7/hints/award');
+    expect(init?.method).toBe('POST');
+    expect(init?.body).toBe(JSON.stringify({count: 2}));
+  });
+
+  it('requires login before requesting an award', async () => {
+    const http = fakeHttp();
+    await expect(
+      new ApiClient(http, OPTIONS).awardHintCredits(1),
+    ).rejects.toThrow();
+    expect(http).not.toHaveBeenCalled();
+  });
+
+  it('does not retry failed awards, avoiding automatic duplicate credits', async () => {
+    const {client, http} = await loggedIn(json({}, 500));
+    await expect(client.awardHintCredits(1)).rejects.toMatchObject({
+      kind: 'http',
+      status: 500,
+    });
+    expect(http).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    {},
+    {hintQuota: -1},
+    {hintQuota: 1.5},
+    {hintQuota: '4'},
+    {hintQuota: Number.MAX_SAFE_INTEGER + 1},
+  ])('rejects malformed award responses: %j', async result => {
+    const {client} = await loggedIn(json(result));
+    await expect(client.awardHintCredits(1)).rejects.toMatchObject({
+      kind: 'parse',
+    });
+  });
+
   it('sends login as a JSON POST to /api/users', async () => {
     const http = fakeHttp(json(PLAYER));
     await new ApiClient(http, OPTIONS).login('alice');

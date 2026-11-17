@@ -7,6 +7,7 @@
  *   PATCH /api/users/:userId/settings: Settings -> Player
  *   POST  /api/users/:userId/questions/:questionId/answer: AnswerRequest -> AnswerResult
  *   GET   /api/users/:userId/hints/balance -> HintBalanceResult
+ *   POST  /api/users/:userId/hints/award: AwardHintCreditsRequest -> HintBalanceResult
  *   GET   /api/users/:userId/planets/:planetId/hints -> UnlockedHint[]
  *   POST  /api/users/:userId/planets/:planetId/hints/unlock -> HintUnlockResult
  *
@@ -118,6 +119,11 @@ export interface UnlockedHint {
 /** The player's available hint credits. */
 export interface HintBalanceResult {
   hintQuota: number;
+}
+
+/** Requested credits; this demo endpoint does not verify minigame completion. */
+export interface AwardHintCreditsRequest {
+  count: number;
 }
 
 /** The result of unlocking the next hint. */

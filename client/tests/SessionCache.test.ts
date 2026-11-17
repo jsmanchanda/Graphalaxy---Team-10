@@ -52,6 +52,7 @@ function fakeGateway() {
     login: vi.fn<ServerGateway['login']>().mockResolvedValue(PLAYER),
     getPlanet: vi.fn<ServerGateway['getPlanet']>().mockResolvedValue(PLANET),
     saveSettings: vi.fn<ServerGateway['saveSettings']>(),
+    awardHintCredits: vi.fn<ServerGateway['awardHintCredits']>(),
     submitAnswer: vi.fn<ServerGateway['submitAnswer']>(),
   };
 }

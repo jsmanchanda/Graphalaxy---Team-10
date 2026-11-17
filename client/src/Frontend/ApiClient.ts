@@ -1,6 +1,8 @@
 import type {
   AnswerRequest,
   AnswerResult,
+  AwardHintCreditsRequest,
+  HintBalanceResult,
   LoginRequest,
   Planet,
   Player,
@@ -9,6 +11,7 @@ import type {
 import {ApiError} from './ApiError';
 import {
   parseAnswerResult,
+  parseHintBalanceResult,
   parsePlanet,
   parsePlayer,
 } from './SessionCacheModels';
@@ -23,6 +26,7 @@ export interface ServerGateway {
   getPlanet(planetId: number): Promise<Planet>;
   saveSettings(settings: Settings): Promise<Player>;
   submitAnswer(questionId: number, optionId: number): Promise<AnswerResult>;
+  awardHintCredits(count: number): Promise<HintBalanceResult>;
 }
 
 const DEFAULT_OPTIONS = {baseUrl: '/api', timeoutMs: 5000, retries: 2};
@@ -84,6 +88,17 @@ export class ApiClient implements ServerGateway {
       settings,
     );
     return parseWith(text, parsePlayer);
+  }
+
+  /** Requests demo hint credits. Never retried because each request adds credits. */
+  async awardHintCredits(count: number): Promise<HintBalanceResult> {
+    const body: AwardHintCreditsRequest = {count};
+    const text = await this.request(
+      'POST',
+      this.userPath('/hints/award'),
+      body,
+    );
+    return parseWith(text, parseHintBalanceResult);
   }
 
   /**

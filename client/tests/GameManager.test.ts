@@ -64,6 +64,7 @@ function fakeGateway() {
       .fn<ServerGateway['getPlanet']>()
       .mockImplementation(async id => makePlanet(id)),
     saveSettings: vi.fn<ServerGateway['saveSettings']>(),
+    awardHintCredits: vi.fn<ServerGateway['awardHintCredits']>(),
     submitAnswer: vi.fn<ServerGateway['submitAnswer']>(),
   };
 }

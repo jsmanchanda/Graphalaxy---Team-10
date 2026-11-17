@@ -2,6 +2,7 @@ export type {
   AnswerOption,
   AnswerRequest,
   AnswerResult,
+  AwardHintCreditsRequest,
   ApiErrorBody,
   GraphSpec,
   HintBalanceResult,

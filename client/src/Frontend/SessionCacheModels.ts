@@ -9,6 +9,7 @@ import type {
   AnswerOption,
   AnswerResult,
   GraphSpec,
+  HintBalanceResult,
   Planet,
   Player,
   Question,
@@ -260,4 +261,10 @@ export function parseAnswerResult(json: unknown): AnswerResult {
     correct: json.correct,
     correctOption: parseAnswerOption(json.correctOption),
   };
+}
+
+/** Parses the authoritative hint credit balance returned by the server. */
+export function parseHintBalanceResult(json: unknown): HintBalanceResult {
+  assertHasFields(json, ['hintQuota']);
+  return {hintQuota: requireInteger(json.hintQuota, 'hintQuota', 0)};
 }
