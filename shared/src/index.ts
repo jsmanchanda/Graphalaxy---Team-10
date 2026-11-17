@@ -6,6 +6,7 @@ export type {
   GraphSpec,
   LoginRequest,
   Planet,
+  PlanetSummary,
   Player,
   Question,
   QuestionTask,

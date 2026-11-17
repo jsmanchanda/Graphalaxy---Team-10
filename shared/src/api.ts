@@ -69,6 +69,19 @@ export interface Planet {
   tasks: Task[];
 }
 
+/**
+ * Planet display data (Brina might change)
+ */
+export interface PlanetSummary {
+  planetId: number;
+  name: string;
+  graphOrder: number;
+  prereqIds: number[] | null; // Planet id (OR relation)
+  unlocked: boolean; // true if any prereq is unlocked
+  status: 'friendly' | 'hostile';
+  completionPct: number; // percentage 0-1
+}
+
 /** The body of POST /api/users. */
 export interface LoginRequest {
   username: string;

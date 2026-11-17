@@ -1,4 +1,5 @@
 import type {Group} from 'konva/lib/Group';
+import type {PlanetSummary} from '@graphalaxy/shared';
 
 /**
  * Data being displayed
@@ -16,7 +17,12 @@ export type UiAction =
   | {type: 'answer'; option: number}
   | {type: 'next'}
   | {type: 'back'}
-  | {type: 'retryLesson'};
+  | {type: 'retryLesson'}
+  | {type: 'enterPlanet'}
+  | {type: 'selectPlanet'; planetId: number}
+  | {type: 'navigate'}
+  | {type: 'startMiniGame'; name: 'Asteroid' | 'Radio'}
+  | {type: 'endMiniGame'; addHint: boolean};
 
 // ================== Screens Models ===================
 /**
@@ -80,6 +86,22 @@ export interface LessonResultScreenModel {
 }
 
 /**
+ * Data for navigation screen
+ */
+export interface NavigationScreenModel {
+  type: 'navigation';
+  planets: PlanetSummary[];
+  overallStatus: number;
+}
+
+/**
+ * Data for navigation screen
+ */
+export interface MiniGameSelectModel {
+  type: 'miniGameSelect';
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -88,4 +110,6 @@ export type ScreenModel =
   | ReadingScreenModel
   | QuestionScreenModel
   | QuestionResultScreenModel
-  | LessonResultScreenModel;
+  | LessonResultScreenModel
+  | NavigationScreenModel
+  | MiniGameSelectModel;
