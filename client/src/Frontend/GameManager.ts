@@ -1,7 +1,7 @@
 import type {PlanetSummary, Question, Settings} from '@graphalaxy/shared';
 
 // --- view stuff ---
-import {ScreenModel, UiAction} from '../UI/types';
+import {HintPanelModel, ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
 import {ALREADY_ANSWERED, SessionCache} from './SessionCache';
 import {ApiError} from './ApiError';
@@ -54,6 +54,18 @@ function answerFailureMessage(error: unknown): string {
 }
 
 /**
+ * Explains why asking for a hint failed. Never says a hint was unlocked.
+ * @param error what unlocking or loading the hints threw
+ * @returns the message to show in the hint panel
+ */
+function hintFailureMessage(error: unknown): string {
+  if (isOffline(error)) {
+    return 'Server offline. Try again.';
+  }
+  return "Couldn't get a hint. Try again.";
+}
+
+/**
  * Which kind of screen is showing. 'lesson' is the planet's intro and its
  * readings; `taskIndex` says which one.
  */
@@ -98,6 +110,12 @@ export class GameManager {
   private answerPending = false;
   // True while a planet reset is with the server, for the same reason.
   private resetPending = false;
+  // True while a hint unlock is with the server, so a double click spends one
+  // credit.
+  private hintPending = false;
+  // The option the player had selected when they asked for a hint, so it is
+  // still selected when the question is redrawn.
+  private selection: {questionId: number; option: number} | null = null;
   // True while a login is with the server, for the same reason.
   private loginPending = false;
   // Prevents handling the same minigame result twice.
@@ -231,6 +249,25 @@ export class GameManager {
           return;
         }
         void this.submitAnswer(question, action.option);
+        break;
+      }
+      case 'requestHint': {
+        const question = this.session.currentQuestion;
+        if (this.stage !== 'question' || !question || this.hintPending) {
+          return;
+        }
+        this.selection =
+          action.selectedOption === null
+            ? null
+            : {questionId: question.questionId, option: action.selectedOption};
+        void this.showHint(question);
+        break;
+      }
+      case 'closeHints': {
+        const question = this.session.currentQuestion;
+        if (this.stage === 'question' && question && !this.hintPending) {
+          this.showQuestion(question);
+        }
         break;
       }
       case 'next': {
@@ -429,17 +466,56 @@ export class GameManager {
   }
 
   /**
-   * Shows a question.
+   * Shows a question with the player's hint credits, and the option they had
+   * selected before asking for a hint.
    * @param question the question to show
+   * @param hintPanel the hint panel to show over it, if any
    */
-  private showQuestion(question: Question): void {
+  private showQuestion(question: Question, hintPanel?: HintPanelModel): void {
+    const selection = this.selection;
     this.show(
       'question',
       screenModelMaker.questionTaskToQuestionScreen(
         {type: 'Question', question},
         this.session.currentPlanet?.planetId,
+        {
+          hintsLeft: this.session.player?.hintQuota ?? 0,
+          selectedOption:
+            selection?.questionId === question.questionId
+              ? selection.option
+              : undefined,
+          hintPanel,
+        },
       ),
     );
+  }
+
+  /**
+   * Unlocks the planet's next hint and shows it in the hint panel with the
+   * hints unlocked before it, or says why there is none. Drops the reply if
+   * the player has moved to another screen in the meantime.
+   * @param question the question the hint panel is shown over
+   */
+  private async showHint(question: Question): Promise<void> {
+    this.hintPending = true;
+    this.showQuestion(question, {hints: [], message: 'Loading hint...'});
+    const screenId = this.screenId;
+    try {
+      const outcome = await this.session.unlockHint();
+      if (screenId === this.screenId) {
+        this.showQuestion(question, screenModelMaker.makeHintPanel(outcome));
+      }
+    } catch (error) {
+      console.error(error);
+      if (screenId === this.screenId) {
+        this.showQuestion(question, {
+          hints: [],
+          message: hintFailureMessage(error),
+        });
+      }
+    } finally {
+      this.hintPending = false;
+    }
   }
 
   /**
@@ -563,6 +639,7 @@ export class GameManager {
     }
     const screenId = this.screenId;
     this.answerPending = true;
+    this.selection = null;
     try {
       const result = await this.session.submitAnswer(
         question.questionId,

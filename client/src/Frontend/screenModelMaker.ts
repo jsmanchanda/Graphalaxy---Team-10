@@ -13,6 +13,7 @@ import type {
 // screen models (output)
 import type {
   ScreenModel,
+  HintPanelModel,
   ReadingScreenModel,
   QuestionScreenModel,
   QuestionResultScreenModel,
@@ -24,6 +25,7 @@ import type {
   RetryWarningScreenModel,
   SettingsScreenModel,
 } from '../UI/types';
+import type {HintOutcome} from './SessionCache';
 
 /**
  * Converts a task into the screen model for that task's type.
@@ -73,11 +75,17 @@ export function readingTaskToScreen(
  * @param questionTask The question task to display.
  * @param planetId The planet the question is on, which picks its alien and
  *   background.
+ * @param hint The player's hint credits, the option to keep selected, and the
+ * open hint panel, if any. Left out of the model when not given.
  * @returns The question screen model for the UI.
  */
 export function questionTaskToQuestionScreen(
   questionTask: QuestionTask,
   planetId?: number,
+  hint?: Pick<
+    QuestionScreenModel,
+    'hintsLeft' | 'selectedOption' | 'hintPanel'
+  >,
 ): QuestionScreenModel {
   const {prompt, options} = questionTask.question;
   const model: QuestionScreenModel = {
@@ -93,7 +101,38 @@ export function questionTaskToQuestionScreen(
   if (planetId !== undefined) {
     model.planetId = planetId;
   }
+  if (hint?.hintsLeft !== undefined) model.hintsLeft = hint.hintsLeft;
+  if (hint?.selectedOption !== undefined) {
+    model.selectedOption = hint.selectedOption;
+  }
+  if (hint?.hintPanel) model.hintPanel = hint.hintPanel;
   return model;
+}
+
+/**
+ * Builds the hint panel for the outcome of asking for a hint.
+ * @param outcome What happened, and every hint unlocked on the planet.
+ * @returns The panel, with a message unless a hint was just unlocked.
+ */
+export function makeHintPanel(outcome: HintOutcome): HintPanelModel {
+  const hints = outcome.hints.map(hint => hint.text);
+  switch (outcome.result) {
+    case 'unlocked':
+      return {hints};
+    case 'noMoreHints':
+      return {
+        hints,
+        message:
+          hints.length > 0
+            ? 'No more hints for this planet.'
+            : 'No hints for this planet.',
+      };
+    case 'noCredits':
+      return {
+        hints,
+        message: 'No hint credits left. Play a minigame to earn more.',
+      };
+  }
 }
 
 /**
