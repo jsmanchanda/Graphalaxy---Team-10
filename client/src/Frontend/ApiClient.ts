@@ -3,22 +3,26 @@ import type {
   AnswerResult,
   AwardHintCreditsRequest,
   HintBalanceResult,
+  HintUnlockResult,
   LoginRequest,
   NextQuestion,
   Planet,
   PlanetSummary,
   Player,
   Settings,
+  UnlockedHint,
 } from '@graphalaxy/shared';
 import {ApiError} from './ApiError';
 import {
   parseAnswerResult,
   parseNextQuestion,
   parseHintBalanceResult,
+  parseHintUnlockResult,
   parsePlanet,
   parsePlanetSummaries,
   parsePlanetSummary,
   parsePlayer,
+  parseUnlockedHints,
 } from './SessionCacheParse';
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'DELETE';
@@ -35,6 +39,8 @@ export interface ServerGateway {
   saveSettings(settings: Settings): Promise<Player>;
   submitAnswer(questionId: number, optionId: number): Promise<AnswerResult>;
   awardHintCredits(count: number): Promise<HintBalanceResult>;
+  getUnlockedHints(planetId: number): Promise<UnlockedHint[]>;
+  unlockNextHint(planetId: number): Promise<HintUnlockResult>;
 }
 
 const DEFAULT_OPTIONS = {baseUrl: '/api', timeoutMs: 5000, retries: 2};
@@ -146,6 +152,38 @@ export class ApiClient implements ServerGateway {
       body,
     );
     return parseWith(text, parseHintBalanceResult);
+  }
+
+  /**
+   * Gets the hints the player has already unlocked on a planet. Viewing them
+   * again costs no credit.
+   * @param planetId The planet's ID.
+   * @returns The unlocked hints, in hint number order.
+   * @throws {ApiError} An error if the request or parsing fails.
+   */
+  async getUnlockedHints(planetId: number): Promise<UnlockedHint[]> {
+    const text = await this.request(
+      'GET',
+      this.userPath(`/planets/${planetId}/hints`),
+    );
+    return parseWith(text, parseUnlockedHints);
+  }
+
+  /**
+   * Spends one hint credit to unlock the planet's next hint. Never retried,
+   * since every unlock spends a credit.
+   * @param planetId The planet's ID.
+   * @returns The unlocked hint, or null in its place when the planet has no
+   * more hints, with the player's remaining credits.
+   * @throws {ApiError} An error if the request or parsing fails, including a
+   * 409 with code NO_HINTS_LEFT when the player has no credits.
+   */
+  async unlockNextHint(planetId: number): Promise<HintUnlockResult> {
+    const text = await this.request(
+      'POST',
+      this.userPath(`/planets/${planetId}/hints/unlock`),
+    );
+    return parseWith(text, parseHintUnlockResult);
   }
 
   /**
