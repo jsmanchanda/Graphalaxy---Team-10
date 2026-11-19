@@ -95,6 +95,10 @@ function fakeGateway() {
       .mockResolvedValue(progress(0)),
     saveSettings: vi.fn<ServerGateway['saveSettings']>(),
     awardHintCredits: vi.fn<ServerGateway['awardHintCredits']>(),
+    getUnlockedHints: vi
+      .fn<ServerGateway['getUnlockedHints']>()
+      .mockResolvedValue([]),
+    unlockNextHint: vi.fn<ServerGateway['unlockNextHint']>(),
     submitAnswer: vi.fn<ServerGateway['submitAnswer']>(),
   };
 }
@@ -534,5 +538,95 @@ describe('SessionCache hint rewards', () => {
 
     expect(cache.player?.name).toBe('bob');
     expect(cache.player?.hintQuota).toBe(3);
+  });
+});
+
+describe('SessionCache hints', () => {
+  const hint = (hintNumber: number) => ({
+    hintId: hintNumber,
+    planetId: 1,
+    hintNumber,
+    text: `Hint ${hintNumber}`,
+  });
+
+  /** Logs in and loads planet 1, ready to ask for hints. */
+  async function cacheOnPlanet(gateway = fakeGateway()) {
+    const cache = new SessionCache(gateway);
+    await cache.login('alice');
+    await cache.loadPlanet(1);
+    return {cache, gateway};
+  }
+
+  it('unlocks the next hint, stores the credits left, and returns every unlocked hint', async () => {
+    const {cache, gateway} = await cacheOnPlanet();
+    gateway.unlockNextHint.mockResolvedValue({hint: hint(2), hintQuota: 2});
+    gateway.getUnlockedHints.mockResolvedValue([hint(1), hint(2)]);
+
+    await expect(cache.unlockHint()).resolves.toEqual({
+      result: 'unlocked',
+      hints: [hint(1), hint(2)],
+    });
+    expect(gateway.unlockNextHint).toHaveBeenCalledExactlyOnceWith(1);
+    expect(cache.player?.hintQuota).toBe(2);
+  });
+
+  it('reports no more hints, spending nothing, when the planet has none left', async () => {
+    const {cache, gateway} = await cacheOnPlanet();
+    gateway.unlockNextHint.mockResolvedValue({hint: null, hintQuota: 3});
+    gateway.getUnlockedHints.mockResolvedValue([hint(1)]);
+
+    await expect(cache.unlockHint()).resolves.toEqual({
+      result: 'noMoreHints',
+      hints: [hint(1)],
+    });
+    expect(cache.player?.hintQuota).toBe(3);
+  });
+
+  it('reports no credits on NO_HINTS_LEFT and still returns the unlocked hints', async () => {
+    const {cache, gateway} = await cacheOnPlanet();
+    gateway.unlockNextHint.mockRejectedValue(
+      new ApiError('http', 'No credits.', 409, 'NO_HINTS_LEFT'),
+    );
+    gateway.getUnlockedHints.mockResolvedValue([hint(1)]);
+
+    await expect(cache.unlockHint()).resolves.toEqual({
+      result: 'noCredits',
+      hints: [hint(1)],
+    });
+    expect(cache.player?.hintQuota).toBe(0);
+  });
+
+  it('passes on a failed unlock and keeps the credits', async () => {
+    const {cache, gateway} = await cacheOnPlanet();
+    gateway.unlockNextHint.mockRejectedValue(
+      new ApiError('network', 'offline'),
+    );
+
+    await expect(cache.unlockHint()).rejects.toMatchObject({kind: 'network'});
+    expect(cache.player?.hintQuota).toBe(3);
+    expect(gateway.getUnlockedHints).not.toHaveBeenCalled();
+  });
+
+  it('returns the new hint on its own when the unlocked hints cannot be loaded', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const {cache, gateway} = await cacheOnPlanet();
+    gateway.unlockNextHint.mockResolvedValue({hint: hint(2), hintQuota: 2});
+    gateway.getUnlockedHints.mockRejectedValue(
+      new ApiError('network', 'offline'),
+    );
+
+    await expect(cache.unlockHint()).resolves.toEqual({
+      result: 'unlocked',
+      hints: [hint(2)],
+    });
+  });
+
+  it('refuses to unlock a hint before a planet is loaded', async () => {
+    const gateway = fakeGateway();
+    const cache = new SessionCache(gateway);
+    await cache.login('alice');
+
+    await expect(cache.unlockHint()).rejects.toThrow('Must load a planet');
+    expect(gateway.unlockNextHint).not.toHaveBeenCalled();
   });
 });

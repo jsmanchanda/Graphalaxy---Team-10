@@ -79,8 +79,15 @@ vi.mock('../src/UI/components', () => {
   };
 });
 
-import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
-import {MULTIPLE_CHOICE_OPTION_SELECTED_COLOR} from '../src/UI/constants';
+import {
+  QuestionScreenView,
+  hintButtonLabel,
+  hintPanelText,
+} from '../src/UI/screens/QuestionScreenView';
+import {
+  MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
+  TEXT_BOX_FILL_COLOR,
+} from '../src/UI/constants';
 
 // Children are added in this order: background, alien, border, settings icon,
 // back button, alien dialogue, hint button, prompt, confirm button, then the
@@ -194,5 +201,81 @@ describe('QuestionScreenView with fewer than four options', () => {
       MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
     );
     expect(onAction).toHaveBeenCalledWith({type: 'answer', option: 1});
+  });
+});
+
+describe('QuestionScreenView hints', () => {
+  const HINT_BUTTON = 6; // see the child order at the top of this file
+
+  it('labels the hint button with the credits left', () => {
+    expect(hintButtonLabel(3)).toBe('Hint (3 left)');
+    expect(hintButtonLabel(0)).toBe('Hint (0 left)');
+    expect(hintButtonLabel()).toBe('Hint');
+  });
+
+  it('asks for a hint with the selected option, or null without one', () => {
+    const onAction = vi.fn();
+    const view = new QuestionScreenView(onAction, {
+      ...questionModel,
+      hintsLeft: 3,
+    });
+    const hintButton = view.getGroup().getChildren()[HINT_BUTTON];
+
+    hintButton.fire('click');
+    getOptionButtons(view)[1].fire('click');
+    hintButton.fire('click');
+
+    expect(onAction.mock.calls).toEqual([
+      [{type: 'requestHint', selectedOption: null}],
+      [{type: 'requestHint', selectedOption: 1}],
+    ]);
+  });
+
+  it('highlights the option that was selected before it was redrawn', () => {
+    const view = new QuestionScreenView(vi.fn(), {
+      ...questionModel,
+      selectedOption: 2,
+    });
+
+    const fills = getOptionButtons(view).map(b =>
+      getButtonBackground(b).fill(),
+    );
+    expect(fills).toEqual([
+      TEXT_BOX_FILL_COLOR,
+      TEXT_BOX_FILL_COLOR,
+      MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
+      TEXT_BOX_FILL_COLOR,
+    ]);
+  });
+
+  it('shows no hint panel until one is given', () => {
+    const view = new QuestionScreenView(vi.fn(), questionModel);
+    // the 9 fixed components and the 4 options
+    expect(view.getGroup().getChildren()).toHaveLength(13);
+  });
+
+  it('draws the hint panel over the screen, and Close closes it', () => {
+    const onAction = vi.fn();
+    const view = new QuestionScreenView(onAction, {
+      ...questionModel,
+      selectedOption: 0,
+      hintPanel: {hints: ['Hint one.'], message: 'No more hints.'},
+    });
+    const children = view.getGroup().getChildren();
+    const close = children[children.length - 1];
+
+    // overlay, panel text and Close are drawn on top of everything else
+    expect(children).toHaveLength(16);
+    expect(children[13]).toBeInstanceOf(Konva.Rect);
+    close.fire('click');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'closeHints'});
+  });
+
+  it('numbers the unlocked hints and adds the message', () => {
+    expect(
+      hintPanelText({hints: ['Look at x.', 'Set x = 0.'], message: 'Done.'}),
+    ).toBe('Hint 1: Look at x.\n\nHint 2: Set x = 0.\n\nDone.');
+    expect(hintPanelText({hints: [], message: 'No hints.'})).toBe('No hints.');
   });
 });
