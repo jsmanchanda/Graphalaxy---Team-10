@@ -6,7 +6,9 @@ import {ReadingScreenView} from '../src/UI/screens/ReadingScreenView';
 import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
 import {QuestionScreenModel, ReadingScreenModel} from '../src/UI/types';
 import {
+  MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
   MULTIPLE_CHOICE_PROMPT_WIDTH,
+  MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
   MULTIPLE_CHOICE_PROMPT_X,
   MULTIPLE_CHOICE_PROMPT_Y,
   QUESTION_GRAPH_HEIGHT,
@@ -16,9 +18,6 @@ import {
   READING_TEXT_WIDTH,
   READING_TEXT_X,
   READING_TEXT_Y,
-  VISUAL_QUESTION_PROMPT_WIDTH,
-  VISUAL_QUESTION_PROMPT_X,
-  VISUAL_QUESTION_PROMPT_Y,
   VISUAL_READING_GRAPH_HEIGHT,
   VISUAL_READING_GRAPH_WIDTH,
   VISUAL_READING_GRAPH_X,
@@ -33,8 +32,6 @@ installKonvaStubs();
 
 const addFunction = vi.spyOn(GraphComponent.prototype, 'addFunction');
 afterEach(() => addFunction.mockClear());
-
-const SELECTED_FILL = '#3b82f6';
 
 /** The top-level component on a screen whose text box shows the given text. */
 function findComponent(screen: Konva.Group, text: string): Konva.Group {
@@ -176,13 +173,13 @@ describe('QuestionScreenView with a graph', () => {
     expect(graph?.clipHeight()).toBe(QUESTION_GRAPH_HEIGHT);
   });
 
-  it('moves the prompt beside the graph', () => {
+  it('narrows the prompt to fit beside the graph', () => {
     const screen = new QuestionScreenView(vi.fn(), model).getGroup();
 
     expect(placement(findComponent(screen, model.question.prompt))).toEqual({
-      x: VISUAL_QUESTION_PROMPT_X,
-      y: VISUAL_QUESTION_PROMPT_Y,
-      width: VISUAL_QUESTION_PROMPT_WIDTH,
+      x: MULTIPLE_CHOICE_PROMPT_X,
+      y: MULTIPLE_CHOICE_PROMPT_Y,
+      width: MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
     });
   });
 
@@ -195,8 +192,10 @@ describe('QuestionScreenView with a graph', () => {
     a.fire('click');
     b.fire('click');
 
-    expect(background(a).fill()).not.toBe(SELECTED_FILL);
-    expect(background(b).fill()).toBe(SELECTED_FILL);
+    expect(background(a).fill()).not.toBe(
+      MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
+    );
+    expect(background(b).fill()).toBe(MULTIPLE_CHOICE_OPTION_SELECTED_COLOR);
   });
 
   it('submits the selected option when confirm is clicked', () => {
