@@ -41,7 +41,14 @@ export class UiManager {
       DESIGN_HEIGHT,
       '/assets/background.jpeg',
     );
-    this.layer = new Konva.Layer();
+    this.layer = new Konva.Layer({
+      clip: {
+        x: 0,
+        y: 0,
+        width: DESIGN_WIDTH,
+        height: DESIGN_HEIGHT,
+      },
+    });
     this.layer.add(background.getGroup());
     this.stage.add(this.layer);
 
