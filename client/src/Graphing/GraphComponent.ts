@@ -7,6 +7,7 @@ const DEFAULT_INTERVAL_X = new Interval(-10, 10, 1);
 const DEFAULT_INTERVAL_Y = new Interval(-10, 10, 1);
 
 const LABEL_FONTSIZE = 8;
+const DEFAULT_CURVE_COLOR = '#62ff0079';
 
 /** Math names an equation string may use without the "Math." prefix. */
 const MATH_NAMES = [
@@ -44,7 +45,7 @@ export class GraphComponent extends Component {
   ) {
     super(x, y);
 
-    // clip graph component so graphs dont show outside the component
+    // clip graph component so graphs don't show outside the component
     this.group.setAttrs({
       clipX: 0,
       clipY: 0,
@@ -219,7 +220,7 @@ export class GraphComponent extends Component {
       id: id,
       name: 'displayFunction', // class name
       points: pixelPoints,
-      stroke: 'green',
+      stroke: DEFAULT_CURVE_COLOR,
       strokeWidth: 2.5,
       lineCap: 'round',
       lineJoin: 'round',
