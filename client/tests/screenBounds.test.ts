@@ -133,6 +133,12 @@ describe('UI screen bounds', () => {
       UI.QUESTION_BACK_BUTTON_HEIGHT,
     );
     checkBounds(
+      UI.QUESTION_HINT_BUTTON_X,
+      UI.QUESTION_HINT_BUTTON_Y,
+      UI.QUESTION_HINT_BUTTON_WIDTH,
+      UI.QUESTION_HINT_BUTTON_HEIGHT,
+    );
+    checkBounds(
       UI.ALIEN_FRIEND_X,
       UI.ALIEN_FRIEND_Y,
       UI.ALIEN_FRIEND_WIDTH,

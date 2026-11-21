@@ -82,10 +82,10 @@ vi.mock('../src/UI/components', () => {
 import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
 import {MULTIPLE_CHOICE_OPTION_SELECTED_COLOR} from '../src/UI/constants';
 
-// Children are added in this order: back button, alien, prompt, confirm
-// button, the options, then the alien dialogue
-const CONFIRM_INDEX = 3;
-const FIRST_OPTION_INDEX = 4;
+// Children are added in this order: background, alien, border, back button,
+// alien dialogue, hint button, prompt, confirm button, then the options
+const CONFIRM_INDEX = 7;
+const FIRST_OPTION_INDEX = 8;
 
 const questionModel: QuestionScreenModel = {
   type: 'question',
@@ -100,7 +100,7 @@ function getOptionButtons(view: QuestionScreenView): Konva.Group[] {
     .getGroup()
     .getChildren()
     .filter((child): child is Konva.Group => child instanceof Konva.Group)
-    .slice(FIRST_OPTION_INDEX, -1);
+    .slice(FIRST_OPTION_INDEX);
 }
 
 function getButtonBackground(button: Konva.Group): Konva.Rect {
@@ -161,7 +161,8 @@ describe('QuestionScreenView option selection', () => {
 });
 
 describe('QuestionScreenView with fewer than four options', () => {
-  const OTHER_COMPONENTS = 5; // back button, alien, prompt, confirm, dialogue
+  // background, alien, border, back, dialogue, hint, prompt, confirm
+  const OTHER_COMPONENTS = 8;
 
   it.each([2, 3, 4])('builds one button per option for %i options', count => {
     const options = ['A', 'B', 'C', 'D'].slice(0, count);
@@ -183,7 +184,7 @@ describe('QuestionScreenView with fewer than four options', () => {
     });
     const children = view.getGroup().getChildren() as Konva.Group[];
     const confirmButton = children[CONFIRM_INDEX];
-    const lastOption = children[children.length - 2]; // dialogue is last
+    const lastOption = children[children.length - 1]; // options are last
 
     lastOption.fire('click');
     confirmButton.fire('click');
