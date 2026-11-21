@@ -8,10 +8,10 @@ export const DESIGN_HEIGHT = 500;
 export const ALIEN_FRIEND_WIDTH = 100;
 export const ALIEN_FRIEND_X = 50;
 export const ALIEN_FRIEND_Y = 30;
-export const DEFAULT_ALIEN_IMAGE = '/assets/alien-cat.png';
+export const DEFAULT_ALIEN_IMAGE = '/assets/alien-planet-2.png';
 
-// Question screen background
-export const QUESTION_BACKGROUND_IMAGE = '/assets/planet-background-2.png';
+// Question screen uses this planet's alien and background when none is given
+export const DEFAULT_PLANET_ID = 2;
 
 // Alien Dialogue
 export const BUBBLE_X = 160;

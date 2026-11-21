@@ -19,7 +19,7 @@ import {
   CONFIRM_BUTTON_WIDTH,
   CONFIRM_BUTTON_X,
   CONFIRM_BUTTON_Y,
-  DEFAULT_ALIEN_IMAGE,
+  DEFAULT_PLANET_ID,
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
   MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
@@ -34,7 +34,6 @@ import {
   MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
   MULTIPLE_CHOICE_PROMPT_X,
   MULTIPLE_CHOICE_PROMPT_Y,
-  QUESTION_BACKGROUND_IMAGE,
   QUESTION_BACK_BUTTON_HEIGHT,
   QUESTION_BACK_BUTTON_WIDTH,
   QUESTION_BACK_BUTTON_X,
@@ -66,6 +65,9 @@ export class QuestionScreenView implements View {
   ) {
     this.group = new Konva.Group();
 
+    // Each planet's art is named by its ID
+    const planetId = model.planetId ?? DEFAULT_PLANET_ID;
+
     const border = new ImageComponent(
       0,
       0,
@@ -78,7 +80,7 @@ export class QuestionScreenView implements View {
       0,
       DESIGN_WIDTH,
       DESIGN_HEIGHT,
-      QUESTION_BACKGROUND_IMAGE,
+      `/assets/planet-background-${planetId}.png`,
     );
 
     // Track the selected option, null by default (no option selected)
@@ -147,7 +149,7 @@ export class QuestionScreenView implements View {
       ALIEN_FRIEND_Y,
       ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_WIDTH,
-      model.alienImage ?? DEFAULT_ALIEN_IMAGE,
+      `/assets/alien-planet-${planetId}.png`,
     );
 
     const backButton = new ButtonComponent(
