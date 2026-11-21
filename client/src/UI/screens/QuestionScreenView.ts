@@ -1,25 +1,40 @@
 import Konva from 'konva';
 import {GraphComponent} from '../../Graphing/GraphComponent';
-import {ButtonComponent, ImageComponent, TextBoxComponent} from '../components';
+import {
+  AlienDialogue,
+  ButtonComponent,
+  ImageComponent,
+  TextBoxComponent,
+} from '../components';
 import {
   ALIEN_FRIEND_WIDTH,
+  ALIEN_FRIEND_X,
   ALIEN_FRIEND_Y,
+  BUBBLE_HEIGHT,
+  BUBBLE_WIDTH,
+  BUBBLE_WIDTH_WITH_GRAPH,
+  BUBBLE_X,
+  BUBBLE_Y,
   CONFIRM_BUTTON_HEIGHT,
   CONFIRM_BUTTON_WIDTH,
   CONFIRM_BUTTON_X,
   CONFIRM_BUTTON_Y,
   DEFAULT_ALIEN_IMAGE,
+  DESIGN_HEIGHT,
   DESIGN_WIDTH,
   MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
   MULTIPLE_CHOICE_OPTION_HEIGHT,
   MULTIPLE_CHOICE_OPTION_LEFT_X,
   MULTIPLE_CHOICE_OPTION_RIGHT_X,
+  MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
   MULTIPLE_CHOICE_OPTION_TOP_Y,
   MULTIPLE_CHOICE_OPTION_WIDTH,
   MULTIPLE_CHOICE_PROMPT_HEIGHT,
   MULTIPLE_CHOICE_PROMPT_WIDTH,
+  MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
   MULTIPLE_CHOICE_PROMPT_X,
   MULTIPLE_CHOICE_PROMPT_Y,
+  QUESTION_BACKGROUND_IMAGE,
   QUESTION_BACK_BUTTON_HEIGHT,
   QUESTION_BACK_BUTTON_WIDTH,
   QUESTION_BACK_BUTTON_X,
@@ -28,10 +43,11 @@ import {
   QUESTION_GRAPH_WIDTH,
   QUESTION_GRAPH_X,
   QUESTION_GRAPH_Y,
-  VISUAL_QUESTION_PROMPT_HEIGHT,
-  VISUAL_QUESTION_PROMPT_WIDTH,
-  VISUAL_QUESTION_PROMPT_X,
-  VISUAL_QUESTION_PROMPT_Y,
+  QUESTION_HINT_BUTTON_HEIGHT,
+  QUESTION_HINT_BUTTON_WIDTH,
+  QUESTION_HINT_BUTTON_X,
+  QUESTION_HINT_BUTTON_Y,
+  TEXT_BOX_FILL_COLOR,
 } from '../constants';
 import {QuestionScreenModel, UiAction, View} from '../types';
 
@@ -49,6 +65,21 @@ export class QuestionScreenView implements View {
     model: QuestionScreenModel,
   ) {
     this.group = new Konva.Group();
+
+    const border = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      '/assets/general-nav.png',
+    );
+    const background = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      QUESTION_BACKGROUND_IMAGE,
+    );
 
     // Track the selected option, null by default (no option selected)
     let selectedOption: number | null = null;
@@ -79,7 +110,11 @@ export class QuestionScreenView implements View {
 
         // Highlight the selected option by changing its background color
         if (buttonBackground instanceof Konva.Rect) {
-          buttonBackground.fill(index === option ? '#3b82f6' : '#0c22cbc3');
+          buttonBackground.fill(
+            index === option
+              ? MULTIPLE_CHOICE_OPTION_SELECTED_COLOR
+              : TEXT_BOX_FILL_COLOR,
+          );
         }
       });
     }
@@ -97,8 +132,18 @@ export class QuestionScreenView implements View {
       },
     );
 
+    const hintButton = new ButtonComponent(
+      QUESTION_HINT_BUTTON_X,
+      QUESTION_HINT_BUTTON_Y,
+      QUESTION_HINT_BUTTON_WIDTH,
+      QUESTION_HINT_BUTTON_HEIGHT,
+      'Hint',
+      () => {}, // Make Alien dialogue say hint
+      // look at components.ts ~L113
+    );
+
     const alien = new ImageComponent(
-      DESIGN_WIDTH - ALIEN_FRIEND_WIDTH,
+      ALIEN_FRIEND_X,
       ALIEN_FRIEND_Y,
       ALIEN_FRIEND_WIDTH,
       ALIEN_FRIEND_WIDTH,
@@ -113,8 +158,26 @@ export class QuestionScreenView implements View {
       'Back To Lesson',
       () => onAction({type: 'back'}),
     );
-    let prompt: TextBoxComponent;
-    // if question wants to display a graph
+
+    const alienDialogue = new AlienDialogue(
+      BUBBLE_X,
+      BUBBLE_Y,
+      BUBBLE_WIDTH,
+      BUBBLE_HEIGHT,
+      'Answer this question!',
+    );
+
+    const prompt = new TextBoxComponent(
+      MULTIPLE_CHOICE_PROMPT_X,
+      MULTIPLE_CHOICE_PROMPT_Y,
+      MULTIPLE_CHOICE_PROMPT_WIDTH,
+      MULTIPLE_CHOICE_PROMPT_HEIGHT,
+      model.question.prompt,
+    );
+
+    this.group.add(background.getGroup());
+
+    // if question has a graph, display it
     if (model.equation) {
       const graphComponent = new GraphComponent(
         QUESTION_GRAPH_X,
@@ -122,28 +185,19 @@ export class QuestionScreenView implements View {
         QUESTION_GRAPH_WIDTH,
         QUESTION_GRAPH_HEIGHT,
       );
-      prompt = new TextBoxComponent(
-        VISUAL_QUESTION_PROMPT_X,
-        VISUAL_QUESTION_PROMPT_Y,
-        VISUAL_QUESTION_PROMPT_WIDTH,
-        VISUAL_QUESTION_PROMPT_HEIGHT,
-        model.question.prompt,
-      );
-
       graphComponent.addFunction(model.equation);
       this.group.add(graphComponent.getGroup());
-    } else {
-      prompt = new TextBoxComponent(
-        MULTIPLE_CHOICE_PROMPT_X,
-        MULTIPLE_CHOICE_PROMPT_Y,
-        MULTIPLE_CHOICE_PROMPT_WIDTH,
-        MULTIPLE_CHOICE_PROMPT_HEIGHT,
-        model.question.prompt,
-      );
+
+      prompt.setWidth(MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH);
+      alienDialogue.setWidth(BUBBLE_WIDTH_WITH_GRAPH);
     }
 
-    this.group.add(backButton.getGroup());
     this.group.add(alien.getGroup());
+    this.group.add(border.getGroup());
+    this.group.add(backButton.getGroup());
+    this.group.add(alienDialogue.getGroup());
+
+    this.group.add(hintButton.getGroup());
     this.group.add(prompt.getGroup());
     this.group.add(confirmButton.getGroup());
     options.forEach(option => this.group.add(option.getGroup()));

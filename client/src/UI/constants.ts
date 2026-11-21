@@ -5,17 +5,23 @@ export const DESIGN_WIDTH = 800;
 export const DESIGN_HEIGHT = 500;
 
 // Alien picture
-export const ALIEN_FRIEND_WIDTH = 115;
-export const ALIEN_FRIEND_Y = 15;
-export const ALIEN_FRIEND_X = 15;
+export const ALIEN_FRIEND_WIDTH = 100;
+export const ALIEN_FRIEND_X = 50;
+export const ALIEN_FRIEND_Y = 30;
 export const DEFAULT_ALIEN_IMAGE = '/assets/alien-cat.png';
 
+// Question screen background
+export const QUESTION_BACKGROUND_IMAGE = '/assets/planet-background-2.png';
+
 // Alien Dialogue
-export const BUBBLE_X = 135;
-export const BUBBLE_Y = 15;
-export const BUBBLE_WIDTH = 650;
-export const BUBBLE_WIDTH_WITH_GRAPH = 257;
-export const BUBBLE_HEIGHT = 115;
+export const BUBBLE_X = 160;
+export const BUBBLE_Y = 40;
+export const BUBBLE_WIDTH = 590;
+export const BUBBLE_WIDTH_WITH_GRAPH = 235;
+export const BUBBLE_HEIGHT = 95;
+export const BUBBLE_TAIL_WIDTH = 30;
+export const BUBBLE_TAIL_HEIGHT = 30;
+export const BUBBLE_FONT_SIZE = 15;
 
 // Font
 export const FONT_PLANET_KOSMOS = 'PlanetKosmos';
@@ -28,7 +34,7 @@ export const TEXT_BOX_BORDER_COLOR = 'white';
 // export const TEXT_COLOR = '#000000';
 export const TEXT_COLOR = '#ffffff';
 export const TEXT_FONT_FAMILY = FONT_CONTHRAX;
-export const TEXT_FONT_SIZE = 20;
+export const TEXT_FONT_SIZE = 16;
 
 // Next and Back Button
 export const NEXT_BUTTON_WIDTH = 100;
@@ -85,51 +91,56 @@ export const VISUAL_READING_GRAPH_HEIGHT = 375;
 // ============== Multiple Choice Screen ==============
 
 // Multiple choice option dimensions
-export const MULTIPLE_CHOICE_OPTION_WIDTH = DESIGN_WIDTH / 2;
+export const MULTIPLE_CHOICE_OPTION_WIDTH = 200;
 export const MULTIPLE_CHOICE_OPTION_HEIGHT = 30;
 
 // Background of the option the player has picked; the rest use TEXT_BOX_FILL_COLOR
 export const MULTIPLE_CHOICE_OPTION_SELECTED_COLOR = '#3b82f6';
 
 // Multiple choice option locations
-export const MULTIPLE_CHOICE_OPTION_LEFT_X =
-  DESIGN_WIDTH - 2 * MULTIPLE_CHOICE_OPTION_WIDTH;
+export const MULTIPLE_CHOICE_OPTION_LEFT_X = 193;
 
-export const MULTIPLE_CHOICE_OPTION_RIGHT_X =
-  DESIGN_WIDTH - MULTIPLE_CHOICE_OPTION_WIDTH;
+export const MULTIPLE_CHOICE_OPTION_RIGHT_X = 405;
 
-export const MULTIPLE_CHOICE_OPTION_BOTTOM_Y =
-  DESIGN_HEIGHT - MULTIPLE_CHOICE_OPTION_HEIGHT;
+export const MULTIPLE_CHOICE_OPTION_TOP_Y = 392;
 
-export const MULTIPLE_CHOICE_OPTION_TOP_Y =
-  DESIGN_HEIGHT - 2 * MULTIPLE_CHOICE_OPTION_HEIGHT;
+export const MULTIPLE_CHOICE_OPTION_BOTTOM_Y = 435;
 
 // Multiple choice prompt dimensions
-export const MULTIPLE_CHOICE_PROMPT_WIDTH = 770;
-export const MULTIPLE_CHOICE_PROMPT_HEIGHT = 225;
-export const MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH = 377;
+export const MULTIPLE_CHOICE_PROMPT_WIDTH = 700;
+export const MULTIPLE_CHOICE_PROMPT_HEIGHT = 215;
+export const MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH = 345;
 
 // Multiple choice option locations
-export const MULTIPLE_CHOICE_PROMPT_X = 15;
+export const MULTIPLE_CHOICE_PROMPT_X = 50;
 export const MULTIPLE_CHOICE_PROMPT_Y = 145;
 
-export const CONFIRM_BUTTON_WIDTH = 250;
-export const CONFIRM_BUTTON_HEIGHT = 40;
-export const CONFIRM_BUTTON_X = DESIGN_WIDTH - CONFIRM_BUTTON_WIDTH;
-export const CONFIRM_BUTTON_Y =
-  MULTIPLE_CHOICE_OPTION_TOP_Y - CONFIRM_BUTTON_HEIGHT;
+export const CONFIRM_BUTTON_WIDTH = 120;
+export const CONFIRM_BUTTON_HEIGHT = 30;
+export const CONFIRM_BUTTON_X = 613;
+export const CONFIRM_BUTTON_Y = 396;
 
-export const QUESTION_BACK_BUTTON_WIDTH = 250;
-export const QUESTION_BACK_BUTTON_HEIGHT = 40;
-export const QUESTION_BACK_BUTTON_X = 0;
-export const QUESTION_BACK_BUTTON_Y =
-  MULTIPLE_CHOICE_OPTION_TOP_Y - CONFIRM_BUTTON_HEIGHT;
+// Rough nav bar positions
+// X: [61,738]
+// Y: [377,479]
+// Width 677
+// Height 31
+
+export const QUESTION_BACK_BUTTON_WIDTH = 120;
+export const QUESTION_BACK_BUTTON_HEIGHT = 50;
+export const QUESTION_BACK_BUTTON_X = 65;
+export const QUESTION_BACK_BUTTON_Y = 403;
+
+export const QUESTION_HINT_BUTTON_WIDTH = 120;
+export const QUESTION_HINT_BUTTON_HEIGHT = 30;
+export const QUESTION_HINT_BUTTON_X = 613;
+export const QUESTION_HINT_BUTTON_Y = 431;
 
 // graph
-export const QUESTION_GRAPH_X = 407;
-export const QUESTION_GRAPH_Y = 15;
-export const QUESTION_GRAPH_WIDTH = 377;
-export const QUESTION_GRAPH_HEIGHT = 377;
+export const QUESTION_GRAPH_X = 400;
+export const QUESTION_GRAPH_Y = 40;
+export const QUESTION_GRAPH_WIDTH = 355;
+export const QUESTION_GRAPH_HEIGHT = 320;
 
 // ============== Question Result Screen + Lesson Result Screen ==============
 export const RESULT_TEXT_WIDTH = 600;
