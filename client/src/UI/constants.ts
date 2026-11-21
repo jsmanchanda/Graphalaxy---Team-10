@@ -5,9 +5,17 @@ export const DESIGN_WIDTH = 800;
 export const DESIGN_HEIGHT = 500;
 
 // Alien picture
-export const ALIEN_FRIEND_WIDTH = 150;
-export const ALIEN_FRIEND_Y = 0;
+export const ALIEN_FRIEND_WIDTH = 115;
+export const ALIEN_FRIEND_Y = 15;
+export const ALIEN_FRIEND_X = 15;
 export const DEFAULT_ALIEN_IMAGE = '/assets/alien-cat.png';
+
+// Alien Dialogue
+export const BUBBLE_X = 135;
+export const BUBBLE_Y = 15;
+export const BUBBLE_WIDTH = 650;
+export const BUBBLE_WIDTH_WITH_GRAPH = 257;
+export const BUBBLE_HEIGHT = 115;
 
 // Font
 export const FONT_PLANET_KOSMOS = 'PlanetKosmos';
@@ -15,8 +23,10 @@ export const FONT_CONTHRAX = 'Conthrax';
 
 // Text Box
 export const TEXT_BOX_FILL_COLOR = '#0c22cbc3';
+// export const TEXT_BOX_FILL_COLOR = '#4e34cec3';
 export const TEXT_BOX_BORDER_COLOR = 'white';
-export const TEXT_COLOR = '#000000';
+// export const TEXT_COLOR = '#000000';
+export const TEXT_COLOR = '#ffffff';
 export const TEXT_FONT_FAMILY = FONT_CONTHRAX;
 export const TEXT_FONT_SIZE = 20;
 
@@ -78,6 +88,9 @@ export const VISUAL_READING_GRAPH_HEIGHT = 375;
 export const MULTIPLE_CHOICE_OPTION_WIDTH = DESIGN_WIDTH / 2;
 export const MULTIPLE_CHOICE_OPTION_HEIGHT = 30;
 
+// Background of the option the player has picked; the rest use TEXT_BOX_FILL_COLOR
+export const MULTIPLE_CHOICE_OPTION_SELECTED_COLOR = '#3b82f6';
+
 // Multiple choice option locations
 export const MULTIPLE_CHOICE_OPTION_LEFT_X =
   DESIGN_WIDTH - 2 * MULTIPLE_CHOICE_OPTION_WIDTH;
@@ -92,18 +105,13 @@ export const MULTIPLE_CHOICE_OPTION_TOP_Y =
   DESIGN_HEIGHT - 2 * MULTIPLE_CHOICE_OPTION_HEIGHT;
 
 // Multiple choice prompt dimensions
-export const MULTIPLE_CHOICE_PROMPT_WIDTH = 500;
-export const MULTIPLE_CHOICE_PROMPT_HEIGHT = 300;
+export const MULTIPLE_CHOICE_PROMPT_WIDTH = 770;
+export const MULTIPLE_CHOICE_PROMPT_HEIGHT = 225;
+export const MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH = 377;
 
 // Multiple choice option locations
-export const MULTIPLE_CHOICE_PROMPT_X =
-  (DESIGN_WIDTH - MULTIPLE_CHOICE_PROMPT_WIDTH) * 0.5;
-export const MULTIPLE_CHOICE_PROMPT_Y =
-  (DESIGN_HEIGHT -
-    2 * MULTIPLE_CHOICE_OPTION_HEIGHT -
-    MULTIPLE_CHOICE_PROMPT_HEIGHT) *
-    0.5 -
-  20;
+export const MULTIPLE_CHOICE_PROMPT_X = 15;
+export const MULTIPLE_CHOICE_PROMPT_Y = 145;
 
 export const CONFIRM_BUTTON_WIDTH = 250;
 export const CONFIRM_BUTTON_HEIGHT = 40;
@@ -117,19 +125,11 @@ export const QUESTION_BACK_BUTTON_X = 0;
 export const QUESTION_BACK_BUTTON_Y =
   MULTIPLE_CHOICE_OPTION_TOP_Y - CONFIRM_BUTTON_HEIGHT;
 
-// Question with graph
-
-// prompt
-export const VISUAL_QUESTION_PROMPT_X = 15;
-export const VISUAL_QUESTION_PROMPT_Y = 25;
-export const VISUAL_QUESTION_PROMPT_WIDTH = 375;
-export const VISUAL_QUESTION_PROMPT_HEIGHT = 375;
-
 // graph
-export const QUESTION_GRAPH_X = 410;
-export const QUESTION_GRAPH_Y = 25;
-export const QUESTION_GRAPH_WIDTH = 375;
-export const QUESTION_GRAPH_HEIGHT = 375;
+export const QUESTION_GRAPH_X = 407;
+export const QUESTION_GRAPH_Y = 15;
+export const QUESTION_GRAPH_WIDTH = 377;
+export const QUESTION_GRAPH_HEIGHT = 377;
 
 // ============== Question Result Screen + Lesson Result Screen ==============
 export const RESULT_TEXT_WIDTH = 600;
@@ -253,3 +253,42 @@ export const SKIP_MINI_GAME_BUTTON_X =
   (DESIGN_WIDTH - SKIP_MINI_GAME_BUTTON_WIDTH) * 0.5;
 export const SKIP_MINI_GAME_BUTTON_Y =
   MINI_GAME_BUTTON_Y + MINI_GAME_BUTTON_HEIGHT + 50;
+
+// ============== Navigation Screen ==============
+export const NAV_FRAME_IMAGE = '/assets/nav-frame.png';
+
+export const NAV_ALIEN_X = 630;
+export const NAV_ALIEN_Y = 380;
+export const NAV_ALIEN_WIDTH = 100;
+
+// "Intergalactic Peace" total progress box
+export const NAV_PROGRESS_X = 202;
+export const NAV_PROGRESS_Y = 377;
+export const NAV_PROGRESS_WIDTH = 393;
+export const NAV_PROGRESS_HEIGHT = 40;
+
+export const PLANET_DIAMETER = 75;
+
+// Top left corner of each planet, indexed by planet id (0 is the home planet)
+export const PLANET_POSITIONS = [
+  {x: 75, y: 270}, // home planet
+  {x: 240, y: 210}, // planet 1
+  {x: 395, y: 85}, // planet 2 ...
+  {x: 435, y: 215},
+  {x: 595, y: 108},
+  {x: 515, y: 145},
+  {x: 515, y: 145},
+];
+
+// Name and progress shown above a planet on hover
+export const PLANET_HOVER_TEXT_WIDTH = 150;
+export const PLANET_HOVER_TEXT_HEIGHT = 35;
+export const PLANET_HOVER_TEXT_FONT_SIZE = 12;
+export const PLANET_HOVER_TEXT_COLOR = 'white';
+
+// Paths between planets, colored by the planet's completion
+export const PLANET_PATH_STROKE_WIDTH = 2;
+export const PLANET_PATH_COLOR_COMPLETE = '#00FF19';
+export const PLANET_PATH_COLOR_IN_PROGRESS = '#EEF20D';
+export const PLANET_PATH_COLOR_REACHABLE = '#F20D0D';
+export const PLANET_PATH_COLOR_UNREACHABLE = '#434242';
