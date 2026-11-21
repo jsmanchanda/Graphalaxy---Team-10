@@ -168,12 +168,12 @@ const READING: ScreenModel = {
 const QUESTION_1: ScreenModel = {
   type: 'question',
   question: {prompt: 'Question 1', options: ['2', '3']},
-  alienImage: '/assets/alien-dog.png', // planet 1's alien
+  planetId: 1,
 };
 const QUESTION_2: ScreenModel = {
   type: 'question',
   question: {prompt: 'Question 2', options: ['2', '3']},
-  alienImage: '/assets/alien-dog.png', // planet 1's alien
+  planetId: 1,
 };
 const CORRECT: ScreenModel = {type: 'questionResult', result: 'Correct'};
 const WRONG: ScreenModel = {type: 'questionResult', result: 'Wrong'};

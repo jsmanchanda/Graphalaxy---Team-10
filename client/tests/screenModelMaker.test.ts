@@ -15,24 +15,18 @@ const TASK: QuestionTask = {
   },
 };
 
-describe('question screen alien', () => {
-  it.each([
-    [1, '/assets/alien-dog.png'],
-    [2, '/assets/alien-cat.png'],
-    [3, '/assets/alien-seal.png'],
-    [4, '/assets/alien-hamster.png'],
-  ])('shows planet %i its own alien', (planetId, image) => {
-    expect(questionTaskToQuestionScreen(TASK, planetId).alienImage).toBe(image);
+describe('question screen planet', () => {
+  it.each([1, 2, 3, 4])('passes planet %i to the question screen', planetId => {
+    expect(questionTaskToQuestionScreen(TASK, planetId).planetId).toBe(
+      planetId,
+    );
   });
 
   it('passes the planet through taskToScreen', () => {
-    expect(taskToScreen(TASK, 3)).toMatchObject({
-      alienImage: '/assets/alien-seal.png',
-    });
+    expect(taskToScreen(TASK, 3)).toMatchObject({planetId: 3});
   });
 
-  it('leaves the alien to the view default for an unknown planet', () => {
-    expect(questionTaskToQuestionScreen(TASK, 99).alienImage).toBeUndefined();
-    expect(questionTaskToQuestionScreen(TASK).alienImage).toBeUndefined();
+  it('leaves the planet to the view default when none is given', () => {
+    expect(questionTaskToQuestionScreen(TASK)).not.toHaveProperty('planetId');
   });
 });

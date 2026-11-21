@@ -139,12 +139,14 @@ greyscale, shows "Locked" instead of its progress on hover, uses a
 `not-allowed` cursor, and ignores clicks. `GameManager` also refuses
 `selectPlanet` for a locked planet.
 
-**Planet aliens.** Each planet's question screen shows the alien from its story.
-`ALIEN_BY_PLANET` in
-[screenModelMaker.ts](../client/src/Frontend/screenModelMaker.ts) maps planet
-IDs to images: 1 Linear Land → dog, 2 Quadratic Quay → cat, 3 Sine Shores →
-seal, 4 Phase Planet → hamster. It sets `alienImage` on the question screen
-model, and `QuestionScreenView` falls back to the cat when none is set.
+**Planet art.** Each planet's question screen shows the alien from its story
+and the planet's background. The images are named by planet ID:
+`alien-planet-<id>.png` and `planet-background-<id>.png` in
+`client/public/assets` (1 Linear Land → dog, 2 Quadratic Quay → cat, 3 Sine
+Shores → seal, 4 Phase Planet → hamster).
+[screenModelMaker.ts](../client/src/Frontend/screenModelMaker.ts) sets
+`planetId` on the question screen model, and `QuestionScreenView` builds both
+paths from it, falling back to `DEFAULT_PLANET_ID` (2) when none is set.
 
 **Graph equations.** `GraphComponent.stringToMathFunction` compiles a question's
 `graph.fn` string with `new Function`, so it must be a JavaScript expression in
