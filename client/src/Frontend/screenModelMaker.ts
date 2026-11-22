@@ -37,17 +37,19 @@ export function taskToScreen(task: Task, planetId?: number): ScreenModel {
     case 'Question':
       return questionTaskToQuestionScreen(task, planetId);
     case 'Reading':
-      return readingTaskToScreen(task);
+      return readingTaskToScreen(task, planetId);
   }
 }
 
 /**
  * Converts a reading task into a reading screen model.
  * @param readingTask The reading task to display.
+ * @param planetId The planet the task is on, passed to the question screen.
  * @returns The reading screen model for the UI.
  */
 export function readingTaskToScreen(
   readingTask: ReadingTask,
+  planetId?: number,
 ): ReadingScreenModel {
   const model: ReadingScreenModel = {
     type: 'reading',
@@ -56,6 +58,10 @@ export function readingTaskToScreen(
 
   if (readingTask.graph) {
     model.equation = readingTask.graph['fn'];
+  }
+
+  if (planetId !== undefined) {
+    model.planetId = planetId;
   }
   return model;
 }

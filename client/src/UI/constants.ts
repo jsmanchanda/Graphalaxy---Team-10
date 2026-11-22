@@ -37,15 +37,20 @@ export const TEXT_FONT_FAMILY = FONT_CONTHRAX;
 export const TEXT_FONT_SIZE = 16;
 
 // Next and Back Button
-export const NEXT_BUTTON_WIDTH = 100;
+export const NEXT_BUTTON_WIDTH = 120;
 export const NEXT_BUTTON_HEIGHT = 50;
-export const NEXT_BUTTON_X = DESIGN_WIDTH - NEXT_BUTTON_WIDTH;
-export const NEXT_BUTTON_Y = 450;
+export const NEXT_BUTTON_X = 613;
+export const NEXT_BUTTON_Y = 403;
 
-export const BACK_BUTTON_WIDTH = 100;
+export const BACK_BUTTON_WIDTH = 120;
 export const BACK_BUTTON_HEIGHT = 50;
-export const BACK_BUTTON_X = 0;
-export const BACK_BUTTON_Y = 450;
+export const BACK_BUTTON_X = 65;
+export const BACK_BUTTON_Y = 403;
+
+// export const QUESTION_BACK_BUTTON_WIDTH = 120;
+// export const QUESTION_BACK_BUTTON_HEIGHT = 50;
+// export const QUESTION_BACK_BUTTON_X = 65;
+// export const QUESTION_BACK_BUTTON_Y = 403;
 
 // ============== Title Screen ==============
 export const TITLE_TEXT_WIDTH = 400;
@@ -72,21 +77,18 @@ export const LESSON_INTRO_DESCRIPTION_X =
 export const LESSON_INTRO_DESCRIPTION_Y = 100;
 
 // ============== Reading Screen ==============
-export const READING_TEXT_WIDTH = 600;
-export const READING_TEXT_HEIGHT = 300;
-export const READING_TEXT_X = (DESIGN_WIDTH - READING_TEXT_WIDTH) * 0.5;
-export const READING_TEXT_Y = 100;
+export const READING_TEXT_WIDTH = 700;
+export const READING_TEXT_HEIGHT = 215;
+export const READING_TEXT_X = 50;
+export const READING_TEXT_Y = 145;
 
 // With Graph
-export const VISUAL_READING_TEXT_X = 15;
-export const VISUAL_READING_TEXT_Y = 25;
-export const VISUAL_READING_TEXT_WIDTH = 375;
-export const VISUAL_READING_TEXT_HEIGHT = 375;
+export const VISUAL_READING_TEXT_WIDTH = 345;
 
-export const VISUAL_READING_GRAPH_X = 410;
-export const VISUAL_READING_GRAPH_Y = 25;
-export const VISUAL_READING_GRAPH_WIDTH = 375;
-export const VISUAL_READING_GRAPH_HEIGHT = 375;
+export const VISUAL_READING_GRAPH_X = 400;
+export const VISUAL_READING_GRAPH_Y = 40;
+export const VISUAL_READING_GRAPH_WIDTH = 355;
+export const VISUAL_READING_GRAPH_HEIGHT = 320;
 
 // ============== Multiple Choice Screen ==============
 

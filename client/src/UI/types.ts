@@ -68,6 +68,7 @@ export interface LessonIntroScreenModel {
 export interface ReadingScreenModel {
   type: 'reading';
   readingText: string;
+  planetId?: number;
   equation?: string;
 }
 

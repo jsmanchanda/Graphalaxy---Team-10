@@ -374,7 +374,10 @@ export class GameManager {
     } else {
       this.show(
         'lesson',
-        screenModelMaker.taskToScreen(planet.tasks[this.taskIndex]),
+        screenModelMaker.taskToScreen(
+          planet.tasks[this.taskIndex],
+          planet.planetId,
+        ),
       );
     }
   }
