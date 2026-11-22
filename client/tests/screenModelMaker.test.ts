@@ -1,7 +1,8 @@
 import {describe, expect, it} from 'vitest';
-import type {QuestionTask} from '@graphalaxy/shared';
+import type {QuestionTask, ReadingTask} from '@graphalaxy/shared';
 import {
   questionTaskToQuestionScreen,
+  readingTaskToScreen,
   taskToScreen,
 } from '../src/Frontend/screenModelMaker';
 
@@ -28,5 +29,24 @@ describe('question screen planet', () => {
 
   it('leaves the planet to the view default when none is given', () => {
     expect(questionTaskToQuestionScreen(TASK)).not.toHaveProperty('planetId');
+  });
+});
+
+const READING_TASK: ReadingTask = {type: 'Reading', text: 'Slope is m.'};
+
+describe('reading screen planet', () => {
+  it.each([1, 2, 3, 4])('passes planet %i to the reading screen', planetId => {
+    expect(readingTaskToScreen(READING_TASK, planetId).planetId).toBe(planetId);
+  });
+
+  it('passes the planet through taskToScreen', () => {
+    expect(taskToScreen(READING_TASK, 3)).toMatchObject({
+      type: 'reading',
+      planetId: 3,
+    });
+  });
+
+  it('leaves the planet to the view default when none is given', () => {
+    expect(readingTaskToScreen(READING_TASK)).not.toHaveProperty('planetId');
   });
 });

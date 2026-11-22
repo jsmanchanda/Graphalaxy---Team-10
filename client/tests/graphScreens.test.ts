@@ -1,4 +1,4 @@
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Konva from 'konva';
 import {installKonvaStubs} from './helpers/konvaStubs';
 import {GraphComponent} from '../src/Graphing/GraphComponent';
@@ -6,6 +6,11 @@ import {ReadingScreenView} from '../src/UI/screens/ReadingScreenView';
 import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
 import {QuestionScreenModel, ReadingScreenModel} from '../src/UI/types';
 import {
+  BUBBLE_WIDTH,
+  BUBBLE_WIDTH_WITH_GRAPH,
+  BUBBLE_X,
+  BUBBLE_Y,
+  DEFAULT_PLANET_ID,
   MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
   MULTIPLE_CHOICE_PROMPT_WIDTH,
   MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
@@ -23,8 +28,6 @@ import {
   VISUAL_READING_GRAPH_X,
   VISUAL_READING_GRAPH_Y,
   VISUAL_READING_TEXT_WIDTH,
-  VISUAL_READING_TEXT_X,
-  VISUAL_READING_TEXT_Y,
 } from '../src/UI/constants';
 
 // Build the real components and GraphComponent in Node; see helpers/konvaStubs.ts
@@ -68,6 +71,9 @@ function placement(component: Konva.Group) {
   };
 }
 
+/** What the alien says on every reading screen. */
+const READING_DIALOGUE = 'Complete This reading!';
+
 function background(button: Konva.Group): Konva.Rect {
   return button.getChildren()[0] as Konva.Rect;
 }
@@ -100,13 +106,23 @@ describe('ReadingScreenView with a graph', () => {
     expect(graph?.clipHeight()).toBe(VISUAL_READING_GRAPH_HEIGHT);
   });
 
-  it('moves the reading text beside the graph', () => {
+  it('narrows the reading text to fit beside the graph', () => {
     const screen = new ReadingScreenView(vi.fn(), model).getGroup();
 
     expect(placement(findComponent(screen, model.readingText))).toEqual({
-      x: VISUAL_READING_TEXT_X,
-      y: VISUAL_READING_TEXT_Y,
+      x: READING_TEXT_X,
+      y: READING_TEXT_Y,
       width: VISUAL_READING_TEXT_WIDTH,
+    });
+  });
+
+  it('narrows the alien dialogue to fit beside the graph', () => {
+    const screen = new ReadingScreenView(vi.fn(), model).getGroup();
+
+    expect(placement(findComponent(screen, READING_DIALOGUE))).toEqual({
+      x: BUBBLE_X,
+      y: BUBBLE_Y,
+      width: BUBBLE_WIDTH_WITH_GRAPH,
     });
   });
 
@@ -139,6 +155,66 @@ describe('ReadingScreenView without a graph', () => {
       y: READING_TEXT_Y,
       width: READING_TEXT_WIDTH,
     });
+  });
+
+  it('uses the full-width alien dialogue', () => {
+    const screen = new ReadingScreenView(vi.fn(), model).getGroup();
+
+    expect(placement(findComponent(screen, READING_DIALOGUE))).toEqual({
+      x: BUBBLE_X,
+      y: BUBBLE_Y,
+      width: BUBBLE_WIDTH,
+    });
+  });
+
+  it('still sends next and back', () => {
+    const onAction = vi.fn();
+    const screen = new ReadingScreenView(onAction, model).getGroup();
+
+    findComponent(screen, 'Next').fire('click');
+    findComponent(screen, 'back').fire('click');
+
+    expect(onAction.mock.calls).toEqual([[{type: 'next'}], [{type: 'back'}]]);
+  });
+});
+
+describe('ReadingScreenView planet images', () => {
+  const loadImage = vi.mocked(Konva.Image.fromURL);
+  // Braces matter: a function returned from beforeEach runs as its cleanup
+  beforeEach(() => {
+    loadImage.mockClear();
+  });
+
+  /** The urls of every image the screen loaded, in the order it loaded them. */
+  function loadedImages(): string[] {
+    return loadImage.mock.calls.map(([url]) => url);
+  }
+
+  it.each([1, 2, 3, 4])('draws the background and alien for planet %i', id => {
+    new ReadingScreenView(vi.fn(), {
+      type: 'reading',
+      readingText: 'r',
+      planetId: id,
+    });
+
+    expect(loadedImages()).toEqual(
+      expect.arrayContaining([
+        `/assets/planet-background-${id}.png`,
+        `/assets/alien-planet-${id}.png`,
+        '/assets/general-nav.png',
+      ]),
+    );
+  });
+
+  it('falls back to the default planet when none is given', () => {
+    new ReadingScreenView(vi.fn(), {type: 'reading', readingText: 'r'});
+
+    expect(loadedImages()).toEqual(
+      expect.arrayContaining([
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.png`,
+        `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
+      ]),
+    );
   });
 });
 

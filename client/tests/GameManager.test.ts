@@ -164,6 +164,7 @@ const INTRO = intro('0 of 2 questions correct (0%), hostile');
 const READING: ScreenModel = {
   type: 'reading',
   readingText: 'A linear function has the form y = mx + b.',
+  planetId: 1,
 };
 const QUESTION_1: ScreenModel = {
   type: 'question',

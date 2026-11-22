@@ -76,16 +76,25 @@ describe('UI screen bounds', () => {
 
   it('keeps the reading screen with a graph components inside the screen', () => {
     checkBounds(
-      UI.VISUAL_READING_TEXT_X,
-      UI.VISUAL_READING_TEXT_Y,
+      UI.READING_TEXT_X,
+      UI.READING_TEXT_Y,
       UI.VISUAL_READING_TEXT_WIDTH,
-      UI.VISUAL_READING_TEXT_HEIGHT,
+      UI.READING_TEXT_HEIGHT,
     );
     checkBounds(
       UI.VISUAL_READING_GRAPH_X,
       UI.VISUAL_READING_GRAPH_Y,
       UI.VISUAL_READING_GRAPH_WIDTH,
       UI.VISUAL_READING_GRAPH_HEIGHT,
+    );
+  });
+
+  it('keeps the narrowed reading text and dialogue left of the graph', () => {
+    expect(
+      UI.READING_TEXT_X + UI.VISUAL_READING_TEXT_WIDTH,
+    ).toBeLessThanOrEqual(UI.VISUAL_READING_GRAPH_X);
+    expect(UI.BUBBLE_X + UI.BUBBLE_WIDTH_WITH_GRAPH).toBeLessThanOrEqual(
+      UI.VISUAL_READING_GRAPH_X,
     );
   });
 
