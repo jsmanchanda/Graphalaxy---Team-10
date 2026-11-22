@@ -47,11 +47,6 @@ export const BACK_BUTTON_HEIGHT = 50;
 export const BACK_BUTTON_X = 65;
 export const BACK_BUTTON_Y = 403;
 
-// export const QUESTION_BACK_BUTTON_WIDTH = 120;
-// export const QUESTION_BACK_BUTTON_HEIGHT = 50;
-// export const QUESTION_BACK_BUTTON_X = 65;
-// export const QUESTION_BACK_BUTTON_Y = 403;
-
 // ============== Title Screen ==============
 export const TITLE_TEXT_WIDTH = 400;
 export const TITLE_TEXT_HEIGHT = 180;
@@ -145,21 +140,20 @@ export const QUESTION_GRAPH_WIDTH = 355;
 export const QUESTION_GRAPH_HEIGHT = 320;
 
 // ============== Question Result Screen + Lesson Result Screen ==============
-export const RESULT_TEXT_WIDTH = 600;
-export const RESULT_TEXT_HEIGHT = 300;
-export const RESULT_TEXT_X = (DESIGN_WIDTH - READING_TEXT_WIDTH) * 0.5;
-export const RESULT_TEXT_Y = 50;
+export const RESULT_TEXT_WIDTH = 700;
+export const RESULT_TEXT_HEIGHT = 215;
+export const RESULT_TEXT_X = 50;
+export const RESULT_TEXT_Y = 145;
 
-export const OK_BUTTON_WIDTH = 100;
-export const OK_BUTTON_HEIGHT = 100;
-export const OK_BUTTON_X = (DESIGN_WIDTH - OK_BUTTON_WIDTH) * 0.5;
-export const OK_BUTTON_Y = RESULT_TEXT_Y + RESULT_TEXT_HEIGHT + 25;
+export const OK_BUTTON_WIDTH = 200;
+export const OK_BUTTON_HEIGHT = 50;
+export const OK_BUTTON_X = 445;
+export const OK_BUTTON_Y = 403;
 
 // Redo button on the Lesson Result Screen
 export const REDO_BUTTON_WIDTH = 200;
-export const REDO_BUTTON_HEIGHT = 60;
-export const REDO_BUTTON_X =
-  RESULT_TEXT_X + RESULT_TEXT_WIDTH - REDO_BUTTON_WIDTH;
+export const REDO_BUTTON_HEIGHT = 50;
+export const REDO_BUTTON_X = 153;
 export const REDO_BUTTON_Y =
   OK_BUTTON_Y + (OK_BUTTON_HEIGHT - REDO_BUTTON_HEIGHT) * 0.5;
 

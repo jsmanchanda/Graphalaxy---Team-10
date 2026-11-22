@@ -443,7 +443,10 @@ export class GameManager {
     this.show(
       'lessonResult',
       progress
-        ? screenModelMaker.makeLessonResultScreen(progress)
+        ? screenModelMaker.makeLessonResultScreen(
+            progress,
+            this.session.currentPlanet?.planetId,
+          )
         : {type: 'lessonResult', result: 'You finished this planet!'},
     );
   }

@@ -105,6 +105,7 @@ export interface QuestionResultScreenModel {
 export interface LessonResultScreenModel {
   type: 'lessonResult';
   result: string;
+  planetId?: number;
 }
 
 /**

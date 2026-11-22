@@ -148,16 +148,23 @@ export function describeProgress(progress: PlanetSummary): string {
  */
 export function makeLessonResultScreen(
   progress: PlanetSummary,
+  planetId?: number,
 ): LessonResultScreenModel {
   const {name, correctCount, questionCount, status} = progress;
   const outcome =
     status === 'peaceful'
       ? `${name} is now peaceful!`
       : `${name} is still hostile. Redo the planet to try again.`;
-  return {
+  const model: LessonResultScreenModel = {
     type: 'lessonResult',
-    result: `You answered ${correctCount} of ${questionCount} questions correctly. ${outcome}`,
+    result: `You answered ${correctCount} of ${questionCount} questions correctly.\n ${outcome}`,
   };
+
+  if (planetId !== undefined) {
+    model.planetId = planetId;
+  }
+
+  return model;
 }
 
 /**
