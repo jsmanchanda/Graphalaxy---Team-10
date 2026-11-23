@@ -1,8 +1,11 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import Konva from 'konva';
+import {existsSync} from 'node:fs';
+import path from 'node:path';
 import {installKonvaStubs} from './helpers/konvaStubs';
 import {getCachedImage, preloadImages} from '../src/UI/imageCache';
 import {ImageComponent} from '../src/UI/components';
+import {PRELOAD_IMAGES} from '../src/UI/constants';
 
 installKonvaStubs();
 
@@ -82,5 +85,15 @@ describe('ImageComponent with the cache', () => {
       '/uncached.png',
       expect.any(Function),
     );
+  });
+});
+
+describe('PRELOAD_IMAGES', () => {
+  it.each(PRELOAD_IMAGES)('%s exists in client/public', url => {
+    expect(existsSync(path.join(__dirname, '../public', url))).toBe(true);
+  });
+
+  it('has no duplicates', () => {
+    expect(new Set(PRELOAD_IMAGES).size).toBe(PRELOAD_IMAGES.length);
   });
 });

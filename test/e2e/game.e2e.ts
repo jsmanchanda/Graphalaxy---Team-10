@@ -8,6 +8,7 @@ import type {
   QuestionTask,
 } from '@graphalaxy/shared';
 import {PLANETS} from '../../server/src/db/seed';
+import {PRELOAD_IMAGES} from '../../client/src/UI/constants';
 
 interface TestPlanet extends Planet {
   username: string;
@@ -521,4 +522,37 @@ test('keeps canvas controls usable after resizing to a smaller viewport', async 
       ),
     )
     .toBe(true);
+});
+
+test('preloads every image once at startup', async ({page}) => {
+  // Image paths and API calls, in the order the browser requested them
+  const requests: string[] = [];
+  const failedImages: string[] = [];
+  page.on('request', request => {
+    const {pathname} = new URL(request.url());
+    if (pathname.startsWith('/assets/') && request.resourceType() === 'image') {
+      requests.push(pathname);
+    } else if (pathname.startsWith('/api/')) {
+      requests.push('api');
+    }
+  });
+  page.on('response', response => {
+    if (response.request().resourceType() === 'image' && !response.ok()) {
+      failedImages.push(response.url());
+    }
+  });
+
+  // Visit screens that draw the background, planets, and an alien
+  const planet = await openGame(page);
+  await reachFirstQuestion(page, planet);
+
+  const images = requests.filter(entry => entry !== 'api');
+  // Every listed image was downloaded exactly once, and nothing else was
+  expect([...images].sort()).toEqual([...PRELOAD_IMAGES].sort());
+  // ...and all of them before the first API call (logging in), so no screen
+  // had to wait for an image
+  expect(requests.lastIndexOf(images[images.length - 1])).toBeLessThan(
+    requests.indexOf('api'),
+  );
+  expect(failedImages).toEqual([]);
 });
