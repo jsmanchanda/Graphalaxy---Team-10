@@ -33,18 +33,15 @@ export const BUBBLE_FONT_SIZE = 15;
 // TODO(134): Add advanced image preloading
 export const PRELOAD_IMAGES: readonly string[] = [
   '/assets/background.jpeg',
-  '/assets/alien-cat.png',
-  '/assets/alien-dog.png',
-  '/assets/alien-hamster.png',
-  '/assets/alien-seal.png',
-  '/assets/planet-0.png',
-  '/assets/planet-1.png',
-  '/assets/planet-2.png',
-  '/assets/planet-3.png',
-  '/assets/planet-4.png',
-  '/assets/planet-5.png',
-  '/assets/planet-6.png',
-  '/assets/planet-7.png',
+  '/assets/general-nav.png',
+  '/assets/nav-frame.png',
+  '/assets/setting-symbol.png',
+  ...[1, 2, 3, 4].flatMap(id => [
+    `/assets/alien-planet-${id}.png`,
+    `/assets/planet-background-${id}.jpg`,
+    `/assets/planet-intro-background-${id}.jpg`,
+  ]),
+  ...[0, 1, 2, 3, 4, 5, 6, 7].map(id => `/assets/planet-${id}.png`),
 ];
 
 // Font
