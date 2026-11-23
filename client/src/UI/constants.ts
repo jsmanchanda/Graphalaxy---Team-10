@@ -18,9 +18,9 @@ export const BUBBLE_X = 160;
 export const BUBBLE_Y = 40;
 export const BUBBLE_WIDTH = 590;
 export const BUBBLE_WIDTH_WITH_GRAPH = 235;
-export const BUBBLE_HEIGHT = 95;
-export const BUBBLE_TAIL_WIDTH = 30;
-export const BUBBLE_TAIL_HEIGHT = 30;
+export const BUBBLE_HEIGHT = 92;
+export const BUBBLE_TAIL_WIDTH = 11;
+export const BUBBLE_TAIL_HEIGHT = 12;
 export const BUBBLE_FONT_SIZE = 15;
 
 // Font
@@ -59,17 +59,12 @@ export const START_BUTTON_X = (DESIGN_WIDTH - START_BUTTON_WIDTH) * 0.5;
 export const START_BUTTON_Y = 320;
 
 // ============== Lesson Intro Screen ===========
-export const LESSON_INTRO_TITLE_WIDTH = 150;
-export const LESSON_INTRO_TITLE_HEIGHT = 75;
-export const LESSON_INTRO_TITLE_X =
-  (DESIGN_WIDTH - LESSON_INTRO_TITLE_WIDTH) * 0.5;
-export const LESSON_INTRO_TITLE_Y = 25;
 
-export const LESSON_INTRO_DESCRIPTION_WIDTH = 600;
-export const LESSON_INTRO_DESCRIPTION_HEIGHT = 300;
+export const LESSON_INTRO_DESCRIPTION_WIDTH = 700;
+export const LESSON_INTRO_DESCRIPTION_HEIGHT = 215;
 export const LESSON_INTRO_DESCRIPTION_X =
   (DESIGN_WIDTH - LESSON_INTRO_DESCRIPTION_WIDTH) * 0.5;
-export const LESSON_INTRO_DESCRIPTION_Y = 100;
+export const LESSON_INTRO_DESCRIPTION_Y = 145;
 
 // ============== Reading Screen ==============
 export const READING_TEXT_WIDTH = 700;

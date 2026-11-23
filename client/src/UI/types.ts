@@ -60,6 +60,7 @@ export interface LessonIntroScreenModel {
   type: 'intro';
   title: string;
   description: string;
+  planetId?: number;
 }
 
 /**

@@ -369,6 +369,7 @@ export class GameManager {
           planet.name,
           planet.introText,
           this.session.progressFor(planet.planetId),
+          planet.planetId,
         ),
       );
     } else {

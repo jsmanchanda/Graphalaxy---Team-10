@@ -119,14 +119,19 @@ export function makeLessonIntroScreen(
   title: string,
   description: string,
   progress?: PlanetSummary | null,
+  planetId?: number,
 ): LessonIntroScreenModel {
-  return {
+  const model: LessonIntroScreenModel = {
     type: 'intro',
     title: title,
     description: progress
       ? `${description}\n\nCurrent progress: ${describeProgress(progress)}`
       : description,
   };
+  if (planetId !== undefined) {
+    model.planetId = planetId;
+  }
+  return model;
 }
 
 /**
@@ -137,7 +142,7 @@ export function makeLessonIntroScreen(
 export function describeProgress(progress: PlanetSummary): string {
   const {correctCount, questionCount, completionPct, status} = progress;
   const percent = Math.round(completionPct * 100);
-  return `${correctCount} of ${questionCount} questions correct (${percent}%), ${status}`;
+  return `${correctCount} of ${questionCount} questions correct (${percent}%)\n\nStatus: ${status}`;
 }
 
 /**
