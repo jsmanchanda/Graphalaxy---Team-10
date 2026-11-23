@@ -145,7 +145,7 @@ export const QUESTION_BACK_BUTTON_X = 65;
 export const QUESTION_BACK_BUTTON_Y = 403;
 
 // Hint panel, drawn over the question screen
-export const HINT_OVERLAY_COLOR = 'rgba(0, 0, 0, 0.6)';
+export const HINT_OVERLAY_COLOR = 'rgba(0, 0, 0, 0.85)';
 export const HINT_PANEL_WIDTH = 560;
 export const HINT_PANEL_HEIGHT = 300;
 export const HINT_PANEL_X = (DESIGN_WIDTH - HINT_PANEL_WIDTH) * 0.5;
