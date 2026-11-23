@@ -6,4 +6,4 @@ server/var/
 .env
 playwright-report/
 test-results/
-test/e2e/playwright-report/*.html
+test/e2e/playwright-report/index.html
