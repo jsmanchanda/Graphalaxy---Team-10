@@ -366,7 +366,7 @@ describe('QuestionResultScreenView', () => {
 
     expect(made.images).toEqual([
       '/assets/general-nav.png',
-      `/assets/planet-background-${id}.png`,
+      `/assets/planet-background-${id}.jpg`,
       `/assets/alien-planet-${id}.png`,
     ]);
   });
@@ -379,7 +379,7 @@ describe('QuestionResultScreenView', () => {
 
     expect(made.images).toEqual(
       expect.arrayContaining([
-        `/assets/planet-background-${DEFAULT_PLANET_ID}.png`,
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.jpg`,
         `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
       ]),
     );
@@ -416,7 +416,7 @@ describe('LessonResultScreenView', () => {
 
     expect(made.images).toEqual([
       `/assets/alien-planet-${id}.png`,
-      `/assets/planet-background-${id}.png`,
+      `/assets/planet-background-${id}.jpg`,
       '/assets/general-nav.png',
     ]);
   });
@@ -427,7 +427,7 @@ describe('LessonResultScreenView', () => {
     expect(made.images).toEqual(
       expect.arrayContaining([
         `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
-        `/assets/planet-background-${DEFAULT_PLANET_ID}.png`,
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.jpg`,
       ]),
     );
   });

@@ -81,7 +81,7 @@ export class QuestionScreenView implements View {
       0,
       DESIGN_WIDTH,
       DESIGN_HEIGHT,
-      `/assets/planet-background-${planetId}.png`,
+      `/assets/planet-background-${planetId}.jpg`,
     );
 
     // Track the selected option, null by default (no option selected)

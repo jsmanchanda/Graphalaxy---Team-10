@@ -65,7 +65,7 @@ export class ReadingScreenView implements View {
       0,
       DESIGN_WIDTH,
       DESIGN_HEIGHT,
-      `/assets/planet-background-${planetId}.png`,
+      `/assets/planet-background-${planetId}.jpg`,
     );
 
     const nextButton = new ButtonComponent(

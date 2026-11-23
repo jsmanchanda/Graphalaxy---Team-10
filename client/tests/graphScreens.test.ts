@@ -199,7 +199,7 @@ describe('ReadingScreenView planet images', () => {
 
     expect(loadedImages()).toEqual(
       expect.arrayContaining([
-        `/assets/planet-background-${id}.png`,
+        `/assets/planet-background-${id}.jpg`,
         `/assets/alien-planet-${id}.png`,
         '/assets/general-nav.png',
       ]),
@@ -211,7 +211,7 @@ describe('ReadingScreenView planet images', () => {
 
     expect(loadedImages()).toEqual(
       expect.arrayContaining([
-        `/assets/planet-background-${DEFAULT_PLANET_ID}.png`,
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.jpg`,
         `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
       ]),
     );

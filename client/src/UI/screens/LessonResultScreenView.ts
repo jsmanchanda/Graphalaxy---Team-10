@@ -62,7 +62,7 @@ export class LessonResultScreenView implements View {
       0,
       DESIGN_WIDTH,
       DESIGN_HEIGHT,
-      `/assets/planet-background-${planetId}.png`,
+      `/assets/planet-background-${planetId}.jpg`,
     );
 
     const border = new ImageComponent(
@@ -119,7 +119,7 @@ export class LessonResultScreenView implements View {
   }
 
   /**
-   * asd
+   * Getter for Konva Group
    * @returns Konva Group element
    */
   getGroup(): Group {

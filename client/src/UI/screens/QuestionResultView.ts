@@ -48,7 +48,7 @@ export class QuestionResultScreenView implements View {
       0,
       DESIGN_WIDTH,
       DESIGN_HEIGHT,
-      `/assets/planet-background-${planetId}.png`,
+      `/assets/planet-background-${planetId}.jpg`,
     );
 
     const alien = new ImageComponent(
