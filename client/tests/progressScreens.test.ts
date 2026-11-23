@@ -6,13 +6,13 @@ import {
   BACK_BUTTON_WIDTH,
   BACK_BUTTON_X,
   BACK_BUTTON_Y,
+  DEFAULT_PLANET_ID,
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
   NEXT_BUTTON_HEIGHT,
   NEXT_BUTTON_WIDTH,
   NEXT_BUTTON_X,
   NEXT_BUTTON_Y,
-  OK_BUTTON_WIDTH,
   OK_BUTTON_X,
   REDO_BUTTON_HEIGHT,
   REDO_BUTTON_WIDTH,
@@ -53,10 +53,12 @@ import {
   START_BUTTON_Y,
 } from '../src/UI/constants';
 
-// Every text box and button the screen under test builds, in build order.
+// Every component the screen under test builds, in build order.
 const made = vi.hoisted(() => ({
   boxes: [] as Array<{text: string}>,
   buttons: [] as Array<{text: string; click: () => void}>,
+  images: [] as string[],
+  dialogues: [] as string[],
 }));
 
 // Replace the components so no canvas is needed: Konva.Text measures itself
@@ -116,14 +118,57 @@ vi.mock('../src/UI/components', () => {
     }
   }
 
+  class ImageComponent {
+    private group: Konva.Group;
+
+    constructor(
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      url: string,
+    ) {
+      this.group = new Konva.Group({x, y, width, height});
+      made.images.push(url);
+    }
+
+    getGroup(): Konva.Group {
+      return this.group;
+    }
+  }
+
+  class AlienDialogue {
+    private group: Konva.Group;
+
+    constructor(
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      text: string,
+    ) {
+      this.group = new Konva.Group({x, y, width, height});
+      made.dialogues.push(text);
+    }
+
+    getGroup(): Konva.Group {
+      return this.group;
+    }
+  }
+
   return {
     // eslint-disable-next-line @typescript-eslint/naming-convention
+    AlienDialogue,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     ButtonComponent,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    ImageComponent,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     TextBoxComponent,
   };
 });
 
+import {LessonIntroScreenView} from '../src/UI/screens/LessonIntroScreenView';
 import {LessonResultScreenView} from '../src/UI/screens/LessonResultScreenView';
 import {RetryWarningScreenView} from '../src/UI/screens/RetryWarningScreenView';
 import {
@@ -154,6 +199,68 @@ function checkBounds(x: number, y: number, width: number, height: number) {
 beforeEach(() => {
   made.boxes.length = 0;
   made.buttons.length = 0;
+  made.images.length = 0;
+  made.dialogues.length = 0;
+});
+
+describe('LessonIntroScreenView', () => {
+  const model = {
+    type: 'intro' as const,
+    title: 'Linear Land',
+    description: 'A world of lines',
+  };
+
+  it('welcomes the player in the alien dialogue and shows the description', () => {
+    const view = new LessonIntroScreenView(vi.fn(), model);
+
+    expect(made.dialogues).toEqual(['Welcome to Linear Land!']);
+    expect(texts()).toEqual(['A world of lines']);
+    expect(made.buttons.map(b => b.text)).toEqual(['Next', 'back']);
+    // background, alien, border, dialogue, description, Next, back
+    expect(view.getGroup().getChildren()).toHaveLength(7);
+  });
+
+  it.each([1, 2, 3, 4])(
+    'draws the intro background and alien for planet %i',
+    id => {
+      new LessonIntroScreenView(vi.fn(), {...model, planetId: id});
+
+      expect(made.images).toEqual([
+        `/assets/planet-intro-background-${id}.jpg`,
+        '/assets/general-nav.png',
+        `/assets/alien-planet-${id}.png`,
+      ]);
+    },
+  );
+
+  it('falls back to the default planet when none is given', () => {
+    new LessonIntroScreenView(vi.fn(), model);
+
+    expect(made.images).toEqual(
+      expect.arrayContaining([
+        `/assets/planet-intro-background-${DEFAULT_PLANET_ID}.jpg`,
+        `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
+      ]),
+    );
+  });
+
+  it('moves on when Next is pressed', () => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    new LessonIntroScreenView(onAction, model);
+
+    press('Next');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'next'});
+  });
+
+  it('goes back when back is pressed', () => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    new LessonIntroScreenView(onAction, model);
+
+    press('back');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'back'});
+  });
 });
 
 describe('LessonResultScreenView', () => {
@@ -163,8 +270,31 @@ describe('LessonResultScreenView', () => {
     const view = new LessonResultScreenView(vi.fn(), model);
 
     expect(texts()).toEqual(['5 of 5 correct']);
+    expect(made.dialogues).toEqual(['You reached the end of the Lesson!']);
     expect(made.buttons.map(b => b.text)).toEqual(['Ok', 'Redo Planet']);
-    expect(view.getGroup().getChildren()).toHaveLength(3);
+    // background, alien, border, dialogue, Ok, Redo Planet, result
+    expect(view.getGroup().getChildren()).toHaveLength(7);
+  });
+
+  it.each([1, 2, 3, 4])('draws the background and alien for planet %i', id => {
+    new LessonResultScreenView(vi.fn(), {...model, planetId: id});
+
+    expect(made.images).toEqual([
+      `/assets/alien-planet-${id}.png`,
+      `/assets/planet-background-${id}.png`,
+      '/assets/general-nav.png',
+    ]);
+  });
+
+  it('falls back to the default planet when none is given', () => {
+    new LessonResultScreenView(vi.fn(), model);
+
+    expect(made.images).toEqual(
+      expect.arrayContaining([
+        `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.png`,
+      ]),
+    );
   });
 
   it('asks to redo the planet when Redo Planet is pressed', () => {
@@ -373,14 +503,16 @@ describe('volume helpers', () => {
 });
 
 describe('redo and settings screen bounds', () => {
-  it('keeps the Redo button inside the screen and clear of the Ok button', () => {
+  it('keeps the Redo button inside the screen, left of the Ok button', () => {
     checkBounds(
       REDO_BUTTON_X,
       REDO_BUTTON_Y,
       REDO_BUTTON_WIDTH,
       REDO_BUTTON_HEIGHT,
     );
-    expect(REDO_BUTTON_X).toBeGreaterThanOrEqual(OK_BUTTON_X + OK_BUTTON_WIDTH);
+    expect(OK_BUTTON_X).toBeGreaterThanOrEqual(
+      REDO_BUTTON_X + REDO_BUTTON_WIDTH,
+    );
   });
 
   it('keeps the retry warning components inside the screen, without overlap', () => {

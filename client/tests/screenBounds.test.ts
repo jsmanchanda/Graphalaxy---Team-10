@@ -27,12 +27,7 @@ describe('UI screen bounds', () => {
   });
 
   it('keeps the lesson intro components inside the screen', () => {
-    checkBounds(
-      UI.LESSON_INTRO_TITLE_X,
-      UI.LESSON_INTRO_TITLE_Y,
-      UI.LESSON_INTRO_TITLE_WIDTH,
-      UI.LESSON_INTRO_TITLE_HEIGHT,
-    );
+    checkBounds(UI.BUBBLE_X, UI.BUBBLE_Y, UI.BUBBLE_WIDTH, UI.BUBBLE_HEIGHT);
     checkBounds(
       UI.LESSON_INTRO_DESCRIPTION_X,
       UI.LESSON_INTRO_DESCRIPTION_Y,
@@ -51,6 +46,17 @@ describe('UI screen bounds', () => {
       UI.BACK_BUTTON_WIDTH,
       UI.BACK_BUTTON_HEIGHT,
     );
+  });
+
+  it('stacks the lesson intro dialogue, description, then buttons', () => {
+    expect(UI.LESSON_INTRO_DESCRIPTION_Y).toBeGreaterThanOrEqual(
+      UI.BUBBLE_Y + UI.BUBBLE_HEIGHT,
+    );
+    for (const buttonY of [UI.NEXT_BUTTON_Y, UI.BACK_BUTTON_Y]) {
+      expect(buttonY).toBeGreaterThanOrEqual(
+        UI.LESSON_INTRO_DESCRIPTION_Y + UI.LESSON_INTRO_DESCRIPTION_HEIGHT,
+      );
+    }
   });
 
   it('keeps the reading screen components inside the screen', () => {
@@ -220,5 +226,16 @@ describe('UI screen bounds', () => {
       UI.OK_BUTTON_WIDTH,
       UI.OK_BUTTON_HEIGHT,
     );
+  });
+
+  it('stacks the result dialogue, text, then buttons', () => {
+    expect(UI.RESULT_TEXT_Y).toBeGreaterThanOrEqual(
+      UI.BUBBLE_Y + UI.BUBBLE_HEIGHT,
+    );
+    for (const buttonY of [UI.OK_BUTTON_Y, UI.REDO_BUTTON_Y]) {
+      expect(buttonY).toBeGreaterThanOrEqual(
+        UI.RESULT_TEXT_Y + UI.RESULT_TEXT_HEIGHT,
+      );
+    }
   });
 });
