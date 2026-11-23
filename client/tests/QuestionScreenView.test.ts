@@ -82,10 +82,11 @@ vi.mock('../src/UI/components', () => {
 import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
 import {MULTIPLE_CHOICE_OPTION_SELECTED_COLOR} from '../src/UI/constants';
 
-// Children are added in this order: background, alien, border, back button,
-// alien dialogue, hint button, prompt, confirm button, then the options
-const CONFIRM_INDEX = 7;
-const FIRST_OPTION_INDEX = 8;
+// Children are added in this order: background, alien, border, settings icon,
+// back button, alien dialogue, hint button, prompt, confirm button, then the
+// options
+const CONFIRM_INDEX = 8;
+const FIRST_OPTION_INDEX = 9;
 
 const questionModel: QuestionScreenModel = {
   type: 'question',
@@ -161,8 +162,8 @@ describe('QuestionScreenView option selection', () => {
 });
 
 describe('QuestionScreenView with fewer than four options', () => {
-  // background, alien, border, back, dialogue, hint, prompt, confirm
-  const OTHER_COMPONENTS = 8;
+  // background, alien, border, settings, back, dialogue, hint, prompt, confirm
+  const OTHER_COMPONENTS = 9;
 
   it.each([2, 3, 4])('builds one button per option for %i options', count => {
     const options = ['A', 'B', 'C', 'D'].slice(0, count);

@@ -25,6 +25,10 @@ import {
   PLANET_PATH_COLOR_UNREACHABLE,
   PLANET_PATH_STROKE_WIDTH,
   PLANET_POSITIONS,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../constants';
 import {PlanetSummary} from '@graphalaxy/shared';
 
@@ -53,9 +57,13 @@ export class PlanetComponent extends Component {
     super(positionX, positionY);
 
     // hover text
-    const hoverText = planet.unlocked
+    let hoverText = planet.unlocked
       ? `${planet.name}\nProgress: ${String(Math.round(planet.completionPct * 100))}%`
       : `${planet.name}\nLocked`;
+
+    if (planet.name === 'Home') {
+      hoverText = planet.name;
+    }
     const planetNameText = new TextBoxComponent(
       (-1 * (PLANET_HOVER_TEXT_WIDTH - PLANET_DIAMETER)) / 2,
       (-1 * PLANET_DIAMETER) / 2,
@@ -204,6 +212,16 @@ export class NavigationScreenView implements View {
       progressString,
     );
     this.group.add(totalProgress.getGroup());
+
+    // Draw settings icon
+    const settingsIcon = new ImageComponent(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_IMAGE,
+    );
+    this.group.add(settingsIcon.getGroup());
   }
 
   /**

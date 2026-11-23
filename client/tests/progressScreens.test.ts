@@ -56,6 +56,10 @@ import {
   SETTINGS_VALUE_X,
   START_BUTTON_HEIGHT,
   START_BUTTON_Y,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../src/UI/constants';
 
 // Every component the screen under test builds, in build order.
@@ -223,8 +227,8 @@ describe('LessonIntroScreenView', () => {
     expect(made.dialogues).toEqual(['Welcome to Linear Land!']);
     expect(texts()).toEqual(['A world of lines']);
     expect(made.buttons.map(b => b.text)).toEqual(['Next', 'back']);
-    // background, alien, border, dialogue, description, Next, back
-    expect(view.getGroup().getChildren()).toHaveLength(7);
+    // background, alien, border, settings, dialogue, description, Next, back
+    expect(view.getGroup().getChildren()).toHaveLength(8);
   });
 
   it.each([1, 2, 3, 4])(
@@ -236,6 +240,7 @@ describe('LessonIntroScreenView', () => {
         `/assets/planet-intro-background-${id}.jpg`,
         '/assets/general-nav.png',
         `/assets/alien-planet-${id}.png`,
+        SETTINGS_ICON_IMAGE,
       ]);
     },
   );
@@ -293,8 +298,8 @@ describe('MiniGameSelectView', () => {
     expect(made.dialogues).toHaveLength(1);
     expect(made.dialogues[0].startsWith(intro)).toBe(true);
     expect(made.buttons.map(b => b.text)).toEqual([play, skip]);
-    // alien, border, dialogue, play, skip
-    expect(view.getGroup().getChildren()).toHaveLength(5);
+    // alien, border, settings, dialogue, play, skip
+    expect(view.getGroup().getChildren()).toHaveLength(6);
   });
 
   it.each([
@@ -336,6 +341,7 @@ describe('MiniGameSelectView', () => {
     expect(made.images).toEqual([
       '/assets/general-nav.png',
       '/assets/alien-planet-2.png',
+      SETTINGS_ICON_IMAGE,
     ]);
   });
 });
@@ -353,8 +359,8 @@ describe('QuestionResultScreenView', () => {
     expect(made.dialogues).toEqual([says]);
     expect(texts()).toEqual([]);
     expect(made.buttons.map(b => b.text)).toEqual(['Ok']);
-    // background, alien, border, dialogue, Ok
-    expect(view.getGroup().getChildren()).toHaveLength(5);
+    // background, alien, border, settings, dialogue, Ok
+    expect(view.getGroup().getChildren()).toHaveLength(6);
   });
 
   it.each([1, 2, 3, 4])('draws the background and alien for planet %i', id => {
@@ -368,6 +374,7 @@ describe('QuestionResultScreenView', () => {
       '/assets/general-nav.png',
       `/assets/planet-background-${id}.jpg`,
       `/assets/alien-planet-${id}.png`,
+      SETTINGS_ICON_IMAGE,
     ]);
   });
 
@@ -407,8 +414,8 @@ describe('LessonResultScreenView', () => {
     expect(texts()).toEqual(['5 of 5 correct']);
     expect(made.dialogues).toEqual(['You reached the end of the Lesson!']);
     expect(made.buttons.map(b => b.text)).toEqual(['Ok', 'Redo Planet']);
-    // background, alien, border, dialogue, Ok, Redo Planet, result
-    expect(view.getGroup().getChildren()).toHaveLength(7);
+    // background, alien, border, settings, dialogue, Ok, Redo Planet, result
+    expect(view.getGroup().getChildren()).toHaveLength(8);
   });
 
   it.each([1, 2, 3, 4])('draws the background and alien for planet %i', id => {
@@ -418,6 +425,7 @@ describe('LessonResultScreenView', () => {
       `/assets/alien-planet-${id}.png`,
       `/assets/planet-background-${id}.jpg`,
       '/assets/general-nav.png',
+      SETTINGS_ICON_IMAGE,
     ]);
   });
 
@@ -650,6 +658,61 @@ describe('minigame select screen bounds', () => {
     expect(MINIGAME_START_X).toBeGreaterThanOrEqual(
       MINIGAME_SKIP_X + MINI_GAME_BUTTON_WIDTH,
     );
+  });
+});
+
+describe('settings icon', () => {
+  it('sits in the top-right corner, inside the screen', () => {
+    checkBounds(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+    );
+    expect(SETTINGS_ICON_X + SETTINGS_ICON_SIZE).toBe(DESIGN_WIDTH);
+    expect(SETTINGS_ICON_Y).toBe(0);
+  });
+
+  it.each([
+    [
+      'lesson intro',
+      () =>
+        new LessonIntroScreenView(vi.fn(), {
+          type: 'intro',
+          title: 't',
+          description: 'd',
+        }),
+    ],
+    [
+      'minigame select',
+      () =>
+        new MiniGameSelectView(vi.fn(), {
+          type: 'miniGameSelect',
+          minigame: 'Asteroid',
+        }),
+    ],
+    [
+      'question result',
+      () =>
+        new QuestionResultScreenView(vi.fn(), {
+          type: 'questionResult',
+          result: true,
+        }),
+    ],
+    [
+      'lesson result',
+      () =>
+        new LessonResultScreenView(vi.fn(), {
+          type: 'lessonResult',
+          result: 'r',
+        }),
+    ],
+  ])('is drawn once on the %s screen', (name, build) => {
+    build();
+    expect(
+      made.images.filter(url => url === SETTINGS_ICON_IMAGE),
+      name,
+    ).toHaveLength(1);
   });
 });
 

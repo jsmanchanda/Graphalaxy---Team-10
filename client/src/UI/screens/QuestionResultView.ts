@@ -17,6 +17,10 @@ import {
   QUESTION_RESULT_OK_HEIGHT,
   QUESTION_RESULT_OK_WIDTH,
   QUESTION_RESULT_OK_Y,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../constants';
 
 /**
@@ -78,11 +82,19 @@ export class QuestionResultScreenView implements View {
       () => onAction({type: 'next'}),
     );
 
+    const settingsIcon = new ImageComponent(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_IMAGE,
+    );
+
     this.group.add(background.getGroup());
     this.group.add(alien.getGroup());
     this.group.add(border.getGroup());
+    this.group.add(settingsIcon.getGroup());
     this.group.add(alienDialogue.getGroup());
-
     this.group.add(okButton.getGroup());
   }
 

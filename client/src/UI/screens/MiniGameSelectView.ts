@@ -17,6 +17,10 @@ import {
   MINI_GAME_BUTTON_Y,
   MINIGAME_SKIP_X,
   MINIGAME_START_X,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../constants';
 import {MiniGameSelectModel, UiAction, View} from '../types';
 import Konva from 'konva';
@@ -103,7 +107,15 @@ export class MiniGameSelectView implements View {
     );
 
     this.group.add(alien.getGroup());
+    const settingsIcon = new ImageComponent(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_IMAGE,
+    );
     this.group.add(border.getGroup());
+    this.group.add(settingsIcon.getGroup());
     this.group.add(alienDialogue.getGroup());
 
     this.group.add(playMinigameButton.getGroup());

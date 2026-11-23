@@ -4,6 +4,7 @@ import {installKonvaStubs} from './helpers/konvaStubs';
 import {GraphComponent} from '../src/Graphing/GraphComponent';
 import {ReadingScreenView} from '../src/UI/screens/ReadingScreenView';
 import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
+import {NavigationScreenView} from '../src/UI/screens/NavigationScreenView';
 import {QuestionScreenModel, ReadingScreenModel} from '../src/UI/types';
 import {
   BUBBLE_WIDTH,
@@ -28,6 +29,9 @@ import {
   VISUAL_READING_GRAPH_X,
   VISUAL_READING_GRAPH_Y,
   VISUAL_READING_TEXT_WIDTH,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../src/UI/constants';
 
 // Build the real components and GraphComponent in Node; see helpers/konvaStubs.ts
@@ -216,6 +220,55 @@ describe('ReadingScreenView planet images', () => {
       ]),
     );
   });
+});
+
+describe('settings icon', () => {
+  const loadImage = vi.mocked(Konva.Image.fromURL);
+  beforeEach(() => {
+    loadImage.mockClear();
+  });
+
+  it.each([
+    [
+      'reading',
+      () => new ReadingScreenView(vi.fn(), {type: 'reading', readingText: 'r'}),
+    ],
+    [
+      'question',
+      () =>
+        new QuestionScreenView(vi.fn(), {
+          type: 'question',
+          question: {prompt: 'p', options: ['a', 'b']},
+        }),
+    ],
+    [
+      'navigation',
+      () =>
+        new NavigationScreenView(vi.fn(), {
+          type: 'navigation',
+          planets: [],
+          overallStatus: 0,
+        }),
+    ],
+  ])(
+    'is drawn once in the top-right corner of the %s screen',
+    (name, build) => {
+      const screen = build().getGroup();
+
+      const icons = loadImage.mock.calls.filter(
+        ([url]) => url === SETTINGS_ICON_IMAGE,
+      );
+      expect(icons, name).toHaveLength(1);
+      // Each image sits in its own group, placed where the screen asked
+      const corner = screen
+        .getChildren()
+        .filter(
+          child =>
+            child.x() === SETTINGS_ICON_X && child.y() === SETTINGS_ICON_Y,
+        );
+      expect(corner, name).toHaveLength(1);
+    },
+  );
 });
 
 describe('QuestionScreenView with a graph', () => {

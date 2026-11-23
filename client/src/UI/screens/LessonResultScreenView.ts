@@ -30,6 +30,10 @@ import {
   RESULT_TEXT_WIDTH,
   RESULT_TEXT_X,
   RESULT_TEXT_Y,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../constants';
 
 /**
@@ -110,7 +114,15 @@ export class LessonResultScreenView implements View {
 
     this.group.add(background.getGroup());
     this.group.add(alien.getGroup());
+    const settingsIcon = new ImageComponent(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_IMAGE,
+    );
     this.group.add(border.getGroup());
+    this.group.add(settingsIcon.getGroup());
     this.group.add(alienDialogue.getGroup());
 
     this.group.add(okButton.getGroup());

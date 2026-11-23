@@ -13,6 +13,12 @@ export const DEFAULT_ALIEN_IMAGE = '/assets/alien-planet-2.png';
 // Question screen uses this planet's alien and background when none is given
 export const DEFAULT_PLANET_ID = 2;
 
+// Settings icon in the top-right corner of every game screen
+export const SETTINGS_ICON_IMAGE = '/assets/setting-symbol.png';
+export const SETTINGS_ICON_SIZE = 50;
+export const SETTINGS_ICON_X = DESIGN_WIDTH - SETTINGS_ICON_SIZE;
+export const SETTINGS_ICON_Y = 0;
+
 // Alien Dialogue
 export const BUBBLE_X = 160;
 export const BUBBLE_Y = 40;
