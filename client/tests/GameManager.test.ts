@@ -177,8 +177,16 @@ const QUESTION_2: ScreenModel = {
   question: {prompt: 'Question 2', options: ['2', '3']},
   planetId: 1,
 };
-const CORRECT: ScreenModel = {type: 'questionResult', result: 'Correct'};
-const WRONG: ScreenModel = {type: 'questionResult', result: 'Wrong'};
+const CORRECT: ScreenModel = {
+  type: 'questionResult',
+  result: true,
+  planetId: 1,
+};
+const WRONG: ScreenModel = {
+  type: 'questionResult',
+  result: false,
+  planetId: 1,
+};
 const LESSON_RESULT: ScreenModel = {
   type: 'lessonResult',
   result:
@@ -850,7 +858,7 @@ describe('GameManager questions, one at a time', () => {
       act({type: 'next'});
 
       await actAndWait({type: 'next'});
-      expect(lastScreen()).toEqual({type: 'questionResult', result: message});
+      expect(lastScreen()).toEqual({type: 'reading', readingText: message});
 
       await actAndWait({type: 'next'});
       expect(lastScreen()).toEqual(QUESTION_1);
@@ -994,7 +1002,7 @@ describe('GameManager answers', () => {
 
       await actAndWait({type: 'answer', option: RIGHT_OPTION});
 
-      expect(lastScreen()).toEqual({type: 'questionResult', result: message});
+      expect(lastScreen()).toEqual({type: 'reading', readingText: message});
 
       await actAndWait({type: 'next'});
       expect(lastScreen()).toEqual(QUESTION_1);
@@ -1014,8 +1022,8 @@ describe('GameManager answers', () => {
 
     await actAndWait({type: 'answer', option: RIGHT_OPTION});
     expect(lastScreen()).toEqual({
-      type: 'questionResult',
-      result: 'Question has already been answered. Press Ok to continue.',
+      type: 'reading',
+      readingText: 'Question has already been answered. Press Ok to continue.',
     });
 
     await actAndWait({type: 'next'});

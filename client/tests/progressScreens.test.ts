@@ -169,6 +169,7 @@ vi.mock('../src/UI/components', () => {
 });
 
 import {LessonIntroScreenView} from '../src/UI/screens/LessonIntroScreenView';
+import {QuestionResultScreenView} from '../src/UI/screens/QuestionResultView';
 import {LessonResultScreenView} from '../src/UI/screens/LessonResultScreenView';
 import {RetryWarningScreenView} from '../src/UI/screens/RetryWarningScreenView';
 import {
@@ -260,6 +261,64 @@ describe('LessonIntroScreenView', () => {
     press('back');
 
     expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'back'});
+  });
+});
+
+describe('QuestionResultScreenView', () => {
+  it.each([
+    {result: true, says: 'Correct!'},
+    {result: false, says: 'Incorrect, nice try'},
+  ])('says "$says" when the answer was $result', ({result, says}) => {
+    const view = new QuestionResultScreenView(vi.fn(), {
+      type: 'questionResult',
+      result,
+    });
+
+    expect(made.dialogues).toEqual([says]);
+    expect(texts()).toEqual([]);
+    expect(made.buttons.map(b => b.text)).toEqual(['Ok']);
+    // background, alien, border, dialogue, Ok
+    expect(view.getGroup().getChildren()).toHaveLength(5);
+  });
+
+  it.each([1, 2, 3, 4])('draws the background and alien for planet %i', id => {
+    new QuestionResultScreenView(vi.fn(), {
+      type: 'questionResult',
+      result: true,
+      planetId: id,
+    });
+
+    expect(made.images).toEqual([
+      '/assets/general-nav.png',
+      `/assets/planet-background-${id}.png`,
+      `/assets/alien-planet-${id}.png`,
+    ]);
+  });
+
+  it('falls back to the default planet when none is given', () => {
+    new QuestionResultScreenView(vi.fn(), {
+      type: 'questionResult',
+      result: true,
+    });
+
+    expect(made.images).toEqual(
+      expect.arrayContaining([
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.png`,
+        `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
+      ]),
+    );
+  });
+
+  it('moves on when Ok is pressed', () => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    new QuestionResultScreenView(onAction, {
+      type: 'questionResult',
+      result: false,
+    });
+
+    press('Ok');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'next'});
   });
 });
 

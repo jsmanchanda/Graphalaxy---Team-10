@@ -228,6 +228,15 @@ describe('UI screen bounds', () => {
     );
   });
 
+  it('keeps the question result Ok button inside the screen', () => {
+    checkBounds(
+      UI.QUESTION_RESULT_OK_X,
+      UI.QUESTION_RESULT_OK_Y,
+      UI.QUESTION_RESULT_OK_WIDTH,
+      UI.QUESTION_RESULT_OK_HEIGHT,
+    );
+  });
+
   it('stacks the result dialogue, text, then buttons', () => {
     expect(UI.RESULT_TEXT_Y).toBeGreaterThanOrEqual(
       UI.BUBBLE_Y + UI.BUBBLE_HEIGHT,

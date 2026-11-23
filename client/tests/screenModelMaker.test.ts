@@ -8,6 +8,7 @@ import {
   describeProgress,
   makeLessonIntroScreen,
   makeLessonResultScreen,
+  makeQuestionResultScreen,
   questionTaskToQuestionScreen,
   readingTaskToScreen,
   taskToScreen,
@@ -115,5 +116,21 @@ describe('lesson result screen planet', () => {
       'You answered 1 of 2 questions correctly.\n' +
         ' Linear Land is still hostile. Redo the planet to try again.',
     );
+  });
+});
+
+describe('question result screen', () => {
+  it.each([true, false])(
+    'passes the answer (%s) through as the result',
+    correct => {
+      expect(makeQuestionResultScreen(correct)).toEqual({
+        type: 'questionResult',
+        result: correct,
+      });
+    },
+  );
+
+  it.each([1, 2, 3, 4])('passes planet %i to the result screen', planetId => {
+    expect(makeQuestionResultScreen(true, planetId).planetId).toBe(planetId);
   });
 });

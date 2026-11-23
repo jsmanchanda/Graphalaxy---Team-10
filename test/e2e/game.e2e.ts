@@ -230,7 +230,7 @@ async function finishPlanet(
     );
     correct++;
     answered++;
-    await expect.poll(() => screenTexts(page)).toContain('Correct');
+    await expect.poll(() => screenTexts(page)).toContain('Correct!');
     const next = await nextQuestion(page, 'Ok');
     expect(next.progress).toMatchObject({
       planetId: planet.planetId,
@@ -318,7 +318,7 @@ test('shows wrong feedback, resumes after explicit login, and retries through co
   );
   expect(response.status()).toBe(200);
   expect((await response.json()).correct).toBe(false);
-  await expect.poll(() => screenTexts(page)).toContain('Wrong');
+  await expect.poll(() => screenTexts(page)).toContain('Incorrect, nice try');
   const again = await openGame(page, planet.username);
   expect(again.userId).toBe(planet.userId);
   const second = await reachFirstQuestion(page, again);
@@ -361,7 +361,7 @@ test('shows wrong feedback, resumes after explicit login, and retries through co
   const right = await answer(page, question, correctIndex(planet, question));
   expect(right.status()).toBe(200);
   expect((await right.json()).correct).toBe(true);
-  await expect.poll(() => screenTexts(page)).toContain('Correct');
+  await expect.poll(() => screenTexts(page)).toContain('Correct!');
 });
 
 test('selection alone never submits and changing selection submits the final option', async ({
@@ -416,7 +416,7 @@ test('ignores a second confirmation while the real answer request is pending', a
     await expect
       .poll(async () =>
         (await screenTexts(page)).some(
-          text => text === 'Correct' || text === 'Wrong',
+          text => text === 'Correct!' || text === 'Incorrect, nice try',
         ),
       )
       .toBe(true);
@@ -463,8 +463,8 @@ test('does not replace the current reading with a late answer response', async (
         new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
     );
     await expect.poll(() => screenTexts(page)).toContain(reading.text);
-    expect(await screenTexts(page)).not.toContain('Correct');
-    expect(await screenTexts(page)).not.toContain('Wrong');
+    expect(await screenTexts(page)).not.toContain('Correct!');
+    expect(await screenTexts(page)).not.toContain('Incorrect, nice try');
   } finally {
     release();
   }
@@ -519,7 +519,7 @@ test('keeps canvas controls usable after resizing to a smaller viewport', async 
   await expect
     .poll(async () =>
       (await screenTexts(page)).some(
-        text => text === 'Correct' || text === 'Wrong',
+        text => text === 'Correct!' || text === 'Incorrect, nice try',
       ),
     )
     .toBe(true);
