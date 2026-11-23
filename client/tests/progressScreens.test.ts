@@ -7,6 +7,11 @@ import {
   BACK_BUTTON_X,
   BACK_BUTTON_Y,
   DEFAULT_PLANET_ID,
+  MINI_GAME_BUTTON_HEIGHT,
+  MINI_GAME_BUTTON_WIDTH,
+  MINI_GAME_BUTTON_Y,
+  MINIGAME_SKIP_X,
+  MINIGAME_START_X,
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
   NEXT_BUTTON_HEIGHT,
@@ -168,6 +173,7 @@ vi.mock('../src/UI/components', () => {
   };
 });
 
+import {MiniGameSelectView} from '../src/UI/screens/MiniGameSelectView';
 import {LessonIntroScreenView} from '../src/UI/screens/LessonIntroScreenView';
 import {QuestionResultScreenView} from '../src/UI/screens/QuestionResultView';
 import {LessonResultScreenView} from '../src/UI/screens/LessonResultScreenView';
@@ -261,6 +267,76 @@ describe('LessonIntroScreenView', () => {
     press('back');
 
     expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'back'});
+  });
+});
+
+describe('MiniGameSelectView', () => {
+  it.each([
+    {
+      minigame: 'Asteroid' as const,
+      intro: 'You are now approaching an asteroid belt!',
+      play: 'Go through',
+      skip: 'Go around',
+    },
+    {
+      minigame: 'Radio' as const,
+      intro: 'Your ship has lost signal!',
+      play: 'Configure Radio',
+      skip: 'Skip',
+    },
+  ])('offers the $minigame minigame', ({minigame, intro, play, skip}) => {
+    const view = new MiniGameSelectView(vi.fn(), {
+      type: 'miniGameSelect',
+      minigame,
+    });
+
+    expect(made.dialogues).toHaveLength(1);
+    expect(made.dialogues[0].startsWith(intro)).toBe(true);
+    expect(made.buttons.map(b => b.text)).toEqual([play, skip]);
+    // alien, border, dialogue, play, skip
+    expect(view.getGroup().getChildren()).toHaveLength(5);
+  });
+
+  it.each([
+    {minigame: 'Asteroid' as const, play: 'Go through'},
+    {minigame: 'Radio' as const, play: 'Configure Radio'},
+  ])(
+    'starts the $minigame minigame when $play is pressed',
+    ({minigame, play}) => {
+      const onAction = vi.fn<(action: UiAction) => void>();
+      new MiniGameSelectView(onAction, {type: 'miniGameSelect', minigame});
+
+      press(play);
+
+      expect(onAction).toHaveBeenCalledExactlyOnceWith({
+        type: 'startMiniGame',
+        name: minigame,
+      });
+    },
+  );
+
+  it.each([
+    {minigame: 'Asteroid' as const, skip: 'Go around'},
+    {minigame: 'Radio' as const, skip: 'Skip'},
+  ])('goes to the lesson when $skip is pressed', ({minigame, skip}) => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    new MiniGameSelectView(onAction, {type: 'miniGameSelect', minigame});
+
+    press(skip);
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'enterPlanet'});
+  });
+
+  it('draws the alien inside the frame', () => {
+    new MiniGameSelectView(vi.fn(), {
+      type: 'miniGameSelect',
+      minigame: 'Asteroid',
+    });
+
+    expect(made.images).toEqual([
+      '/assets/general-nav.png',
+      '/assets/alien-planet-2.png',
+    ]);
   });
 });
 
@@ -558,6 +634,22 @@ describe('volume helpers', () => {
     expect(formatVolume(0.3)).toBe('30%');
     expect(formatVolume(0.555)).toBe('56%');
     expect(formatVolume(1)).toBe('100%');
+  });
+});
+
+describe('minigame select screen bounds', () => {
+  it('keeps both buttons inside the screen, skip left of play', () => {
+    for (const x of [MINIGAME_SKIP_X, MINIGAME_START_X]) {
+      checkBounds(
+        x,
+        MINI_GAME_BUTTON_Y,
+        MINI_GAME_BUTTON_WIDTH,
+        MINI_GAME_BUTTON_HEIGHT,
+      );
+    }
+    expect(MINIGAME_START_X).toBeGreaterThanOrEqual(
+      MINIGAME_SKIP_X + MINI_GAME_BUTTON_WIDTH,
+    );
   });
 });
 

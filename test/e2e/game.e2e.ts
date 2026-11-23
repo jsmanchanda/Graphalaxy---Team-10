@@ -141,20 +141,16 @@ async function openGame(
   };
 }
 
-/** Enters the selected planet through its supported skip-minigame choice. */
+/** Enters the selected planet by flying around the asteroid belt. */
 async function enterLesson(page: Page, planet: Planet): Promise<void> {
+  // GameManager always offers the asteroid minigame for now
   await expect
     .poll(() => screenTexts(page))
-    .toEqual(
-      expect.arrayContaining([
-        'Do you want to play minigame?',
-        'Asteroid Defense',
-        'Radio Wave',
-        'Go to lesson',
-      ]),
-    );
-  await clickLabel(page, 'Go to lesson');
-  await expect.poll(() => screenTexts(page)).toContain(planet.name);
+    .toEqual(expect.arrayContaining(['Go through', 'Go around']));
+  await clickLabel(page, 'Go around');
+  await expect
+    .poll(() => screenTexts(page))
+    .toContain(`Welcome to ${planet.name}!`);
 }
 
 /** Waits for the real next-question response caused by a visible button. */

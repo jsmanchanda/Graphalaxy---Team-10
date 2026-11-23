@@ -200,7 +200,10 @@ const WARNING =
 const RETRY_WARNING: ScreenModel = {type: 'retryWarning', message: WARNING};
 /** Matches any navigation map screen; its planet list is checked separately. */
 const NAV = expect.objectContaining({type: 'navigation'});
-const MINI_GAME_SELECT: ScreenModel = {type: 'miniGameSelect'};
+const MINI_GAME_SELECT: ScreenModel = {
+  type: 'miniGameSelect',
+  minigame: 'Asteroid',
+};
 const RIGHT_OPTION = 0;
 const WRONG_OPTION = 1;
 
