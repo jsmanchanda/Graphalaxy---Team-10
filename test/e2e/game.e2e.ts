@@ -242,7 +242,7 @@ async function finishPlanet(
   await expect
     .poll(() => screenTexts(page))
     .toContain(
-      `You answered ${correct} of ${planet.questionCount} questions correctly. ` +
+      `You answered ${correct} of ${planet.questionCount} questions correctly.\n ` +
         (correct === planet.questionCount
           ? `${planet.name} is now peaceful!`
           : `${planet.name} is still hostile. Redo the planet to try again.`),
@@ -276,7 +276,9 @@ test('loads the real game and supports reading navigation in both directions', a
   if (reading.type !== 'Reading') throw new Error('Expected a reading');
   await expect.poll(() => screenTexts(page)).toContain(reading.text);
   await clickLabel(page, 'back');
-  await expect.poll(() => screenTexts(page)).toContain(planet.name);
+  await expect
+    .poll(() => screenTexts(page))
+    .toContain(`Welcome to ${planet.name}!`);
   expect(errors).toEqual([]);
 });
 
