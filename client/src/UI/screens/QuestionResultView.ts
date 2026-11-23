@@ -1,16 +1,22 @@
 import Konva from 'konva';
 import {QuestionResultScreenModel, UiAction, View} from '../types';
 import {Group} from 'konva/lib/Group';
-import {ButtonComponent, TextBoxComponent} from '../components';
+import {AlienDialogue, ButtonComponent, ImageComponent} from '../components';
 import {
-  RESULT_TEXT_X,
-  RESULT_TEXT_Y,
-  RESULT_TEXT_WIDTH,
-  RESULT_TEXT_HEIGHT,
-  OK_BUTTON_X,
-  OK_BUTTON_Y,
-  OK_BUTTON_WIDTH,
-  OK_BUTTON_HEIGHT,
+  DESIGN_WIDTH,
+  DESIGN_HEIGHT,
+  DEFAULT_PLANET_ID,
+  ALIEN_FRIEND_X,
+  ALIEN_FRIEND_Y,
+  ALIEN_FRIEND_WIDTH,
+  BUBBLE_X,
+  BUBBLE_Y,
+  BUBBLE_HEIGHT,
+  BUBBLE_WIDTH,
+  QUESTION_RESULT_OK_X,
+  QUESTION_RESULT_OK_HEIGHT,
+  QUESTION_RESULT_OK_WIDTH,
+  QUESTION_RESULT_OK_Y,
 } from '../constants';
 
 /**
@@ -28,29 +34,60 @@ export class QuestionResultScreenView implements View {
   ) {
     this.group = new Konva.Group();
 
-    const resultText = new TextBoxComponent(
-      RESULT_TEXT_X,
-      RESULT_TEXT_Y,
-      RESULT_TEXT_WIDTH,
-      RESULT_TEXT_HEIGHT,
-      model.result,
+    const planetId = model.planetId ?? DEFAULT_PLANET_ID;
+
+    const border = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      '/assets/general-nav.png',
+    );
+    const background = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      `/assets/planet-background-${planetId}.png`,
+    );
+
+    const alien = new ImageComponent(
+      ALIEN_FRIEND_X,
+      ALIEN_FRIEND_Y,
+      ALIEN_FRIEND_WIDTH,
+      ALIEN_FRIEND_WIDTH,
+      `/assets/alien-planet-${planetId}.png`,
+    );
+
+    const resultText = model.result ? 'Correct!' : 'Incorrect, nice try';
+
+    const alienDialogue = new AlienDialogue(
+      BUBBLE_X,
+      BUBBLE_Y,
+      BUBBLE_WIDTH,
+      BUBBLE_HEIGHT,
+      resultText,
     );
 
     const okButton = new ButtonComponent(
-      OK_BUTTON_X,
-      OK_BUTTON_Y,
-      OK_BUTTON_WIDTH,
-      OK_BUTTON_HEIGHT,
+      QUESTION_RESULT_OK_X,
+      QUESTION_RESULT_OK_Y,
+      QUESTION_RESULT_OK_WIDTH,
+      QUESTION_RESULT_OK_HEIGHT,
       'Ok',
       () => onAction({type: 'next'}),
     );
 
+    this.group.add(background.getGroup());
+    this.group.add(alien.getGroup());
+    this.group.add(border.getGroup());
+    this.group.add(alienDialogue.getGroup());
+
     this.group.add(okButton.getGroup());
-    this.group.add(resultText.getGroup());
   }
 
   /**
-   * asd
+   * Getter for Konva group
    * @returns Konva Group element
    */
   getGroup(): Group {

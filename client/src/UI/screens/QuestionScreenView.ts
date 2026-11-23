@@ -55,6 +55,7 @@ import {QuestionScreenModel, UiAction, View} from '../types';
  */
 export class QuestionScreenView implements View {
   private group: Konva.Group;
+  private alienDialogue: AlienDialogue;
 
   /**
    * builds questions screen
@@ -161,7 +162,7 @@ export class QuestionScreenView implements View {
       () => onAction({type: 'back'}),
     );
 
-    const alienDialogue = new AlienDialogue(
+    this.alienDialogue = new AlienDialogue(
       BUBBLE_X,
       BUBBLE_Y,
       BUBBLE_WIDTH,
@@ -191,13 +192,13 @@ export class QuestionScreenView implements View {
       this.group.add(graphComponent.getGroup());
 
       prompt.setWidth(MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH);
-      alienDialogue.setWidth(BUBBLE_WIDTH_WITH_GRAPH);
+      this.alienDialogue.setWidth(BUBBLE_WIDTH_WITH_GRAPH);
     }
 
     this.group.add(alien.getGroup());
     this.group.add(border.getGroup());
     this.group.add(backButton.getGroup());
-    this.group.add(alienDialogue.getGroup());
+    this.group.add(this.alienDialogue.getGroup());
 
     this.group.add(hintButton.getGroup());
     this.group.add(prompt.getGroup());

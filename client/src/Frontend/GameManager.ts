@@ -412,8 +412,8 @@ export class GameManager {
       if (screenId === this.screenId) {
         // Ok on this screen asks for the question again.
         this.show('questionResult', {
-          type: 'questionResult',
-          result: isOffline(error)
+          type: 'reading',
+          readingText: isOffline(error)
             ? 'Server offline. Press Ok to retry.'
             : "Couldn't load next question. Press Ok to retry.",
         });
@@ -564,15 +564,18 @@ export class GameManager {
       if (screenId === this.screenId) {
         this.show(
           'questionResult',
-          screenModelMaker.makeQuestionResultScreen(result.correct),
+          screenModelMaker.makeQuestionResultScreen(
+            result.correct,
+            this.session.currentPlanet?.planetId,
+          ),
         );
       }
     } catch (error) {
       console.error(error);
       if (screenId === this.screenId) {
         this.show('questionResult', {
-          type: 'questionResult',
-          result: answerFailureMessage(error),
+          type: 'reading',
+          readingText: answerFailureMessage(error),
         });
       }
     } finally {

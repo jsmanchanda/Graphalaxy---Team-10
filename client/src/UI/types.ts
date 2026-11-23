@@ -97,7 +97,8 @@ export interface QuestionScreenModel {
  */
 export interface QuestionResultScreenModel {
   type: 'questionResult';
-  result: string;
+  result: boolean;
+  planetId?: number;
 }
 
 /**

@@ -134,7 +134,7 @@ export const QUESTION_GRAPH_Y = 40;
 export const QUESTION_GRAPH_WIDTH = 355;
 export const QUESTION_GRAPH_HEIGHT = 320;
 
-// ============== Question Result Screen + Lesson Result Screen ==============
+// ============== Lesson Result Screen ==============
 export const RESULT_TEXT_WIDTH = 700;
 export const RESULT_TEXT_HEIGHT = 215;
 export const RESULT_TEXT_X = 50;
@@ -144,6 +144,11 @@ export const OK_BUTTON_WIDTH = 200;
 export const OK_BUTTON_HEIGHT = 50;
 export const OK_BUTTON_X = 445;
 export const OK_BUTTON_Y = 403;
+
+export const QUESTION_RESULT_OK_X = 300;
+export const QUESTION_RESULT_OK_Y = 403;
+export const QUESTION_RESULT_OK_WIDTH = 200;
+export const QUESTION_RESULT_OK_HEIGHT = 50;
 
 // Redo button on the Lesson Result Screen
 export const REDO_BUTTON_WIDTH = 200;

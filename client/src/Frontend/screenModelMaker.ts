@@ -103,8 +103,18 @@ export function questionTaskToQuestionScreen(
  */
 export function makeQuestionResultScreen(
   correct: boolean,
+  planetId?: number,
 ): QuestionResultScreenModel {
-  return {type: 'questionResult', result: correct ? 'Correct' : 'Wrong'};
+  const model: QuestionResultScreenModel = {
+    type: 'questionResult',
+    result: correct,
+  };
+
+  if (planetId !== undefined) {
+    model.planetId = planetId;
+  }
+
+  return model;
 }
 
 /**
