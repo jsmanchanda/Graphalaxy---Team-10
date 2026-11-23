@@ -1,23 +1,47 @@
 /// <reference lib="dom" />
 
-import {ButtonComponent, TextBoxComponent} from '../components';
+import {AlienDialogue, ButtonComponent, ImageComponent} from '../components';
 import {
-  ASTEROID_BUTTON_X,
+  ALIEN_FRIEND_WIDTH,
+  ALIEN_FRIEND_X,
+  ALIEN_FRIEND_Y,
+  BUBBLE_HEIGHT,
+  BUBBLE_WIDTH,
+  BUBBLE_X,
+  BUBBLE_Y,
+  DEFAULT_ALIEN_IMAGE,
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
   MINI_GAME_BUTTON_HEIGHT,
   MINI_GAME_BUTTON_WIDTH,
   MINI_GAME_BUTTON_Y,
-  MINI_GAME_SELECT_TITLE_HEIGHT,
-  MINI_GAME_SELECT_TITLE_WIDTH,
-  MINI_GAME_SELECT_TITLE_X,
-  MINI_GAME_SELECT_TITLE_Y,
-  RADIO_WAVE_BUTTON_X,
-  SKIP_MINI_GAME_BUTTON_HEIGHT,
-  SKIP_MINI_GAME_BUTTON_WIDTH,
-  SKIP_MINI_GAME_BUTTON_X,
-  SKIP_MINI_GAME_BUTTON_Y,
+  MINIGAME_SKIP_X,
+  MINIGAME_START_X,
 } from '../constants';
-import {UiAction, View} from '../types';
+import {MiniGameSelectModel, UiAction, View} from '../types';
 import Konva from 'konva';
+
+interface MiniGameText {
+  intro: string;
+  select: string;
+  skip: string;
+}
+
+const ASTEROID_TEXT: MiniGameText = {
+  intro:
+    'You are now approaching an asteroid belt!\nTo speed up your trip you can shoot the asteroids' +
+    '\nIf you are fast enough, you will get a hint for your questions!',
+  select: 'Go through',
+  skip: 'Go around',
+};
+
+const RADIO_TEXT: MiniGameText = {
+  intro:
+    "Your ship has lost signal!\nTo speed up your trip, you can reconfigure your radio's waves" +
+    '\nIf you are fast enough, you will get a hint for your questions!',
+  select: 'Configure Radio',
+  skip: 'Skip',
+};
 
 /** Displays the mini game select screen. */
 export class MiniGameSelectView implements View {
@@ -27,47 +51,62 @@ export class MiniGameSelectView implements View {
    * Builds the mini game select screen.
    * @param onAction Called when the player picks a mini game or skips to the lesson.
    */
-  constructor(onAction: (action: UiAction) => void) {
+  constructor(
+    onAction: (action: UiAction) => void,
+    model: MiniGameSelectModel,
+  ) {
     this.group = new Konva.Group();
 
-    const titleText = new TextBoxComponent(
-      MINI_GAME_SELECT_TITLE_X,
-      MINI_GAME_SELECT_TITLE_Y,
-      MINI_GAME_SELECT_TITLE_WIDTH,
-      MINI_GAME_SELECT_TITLE_HEIGHT,
-      'Do you want to play minigame?',
+    const border = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      '/assets/general-nav.png',
     );
 
-    const playAsteroidButton = new ButtonComponent(
-      ASTEROID_BUTTON_X,
+    const alien = new ImageComponent(
+      ALIEN_FRIEND_X,
+      ALIEN_FRIEND_Y,
+      ALIEN_FRIEND_WIDTH,
+      ALIEN_FRIEND_WIDTH,
+      DEFAULT_ALIEN_IMAGE,
+    );
+
+    const displayText: MiniGameText =
+      model.minigame === 'Asteroid' ? ASTEROID_TEXT : RADIO_TEXT;
+
+    const alienDialogue = new AlienDialogue(
+      BUBBLE_X,
+      BUBBLE_Y,
+      BUBBLE_WIDTH,
+      BUBBLE_HEIGHT,
+      displayText.intro,
+    );
+
+    const playMinigameButton = new ButtonComponent(
+      MINIGAME_START_X,
       MINI_GAME_BUTTON_Y,
       MINI_GAME_BUTTON_WIDTH,
       MINI_GAME_BUTTON_HEIGHT,
-      'Asteroid Defense',
-      () => onAction({type: 'startMiniGame', name: 'Asteroid'}),
-    );
-
-    const playRadioWaveButton = new ButtonComponent(
-      RADIO_WAVE_BUTTON_X,
-      MINI_GAME_BUTTON_Y,
-      MINI_GAME_BUTTON_WIDTH,
-      MINI_GAME_BUTTON_HEIGHT,
-      'Radio Wave',
-      () => onAction({type: 'startMiniGame', name: 'Radio'}),
+      displayText.select,
+      () => onAction({type: 'startMiniGame', name: model.minigame}),
     );
 
     const skipButton = new ButtonComponent(
-      SKIP_MINI_GAME_BUTTON_X,
-      SKIP_MINI_GAME_BUTTON_Y,
-      SKIP_MINI_GAME_BUTTON_WIDTH,
-      SKIP_MINI_GAME_BUTTON_HEIGHT,
-      'Go to lesson',
+      MINIGAME_SKIP_X,
+      MINI_GAME_BUTTON_Y,
+      MINI_GAME_BUTTON_WIDTH,
+      MINI_GAME_BUTTON_HEIGHT,
+      displayText.skip,
       () => onAction({type: 'enterPlanet'}),
     );
 
-    this.group.add(titleText.getGroup());
-    this.group.add(playAsteroidButton.getGroup());
-    this.group.add(playRadioWaveButton.getGroup());
+    this.group.add(alien.getGroup());
+    this.group.add(border.getGroup());
+    this.group.add(alienDialogue.getGroup());
+
+    this.group.add(playMinigameButton.getGroup());
     this.group.add(skipButton.getGroup());
   }
 

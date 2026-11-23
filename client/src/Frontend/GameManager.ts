@@ -188,7 +188,14 @@ export class GameManager {
         // is reported when the player tries to enter the planet.
         this.planetLoad.catch(() => undefined);
         this.taskIndex = INTRO_INDEX;
-        this.show('miniGameSelect', {type: 'miniGameSelect'});
+
+        // Randomize minigame here
+        // Currently hardcoded for asteroid
+        this.show('miniGameSelect', {
+          type: 'miniGameSelect',
+          minigame: 'Asteroid',
+          // minigame: 'Radio',
+        });
         break;
       }
       case 'startMiniGame': {

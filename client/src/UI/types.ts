@@ -142,6 +142,7 @@ export interface NavigationScreenModel {
  */
 export interface MiniGameSelectModel {
   type: 'miniGameSelect';
+  minigame: 'Asteroid' | 'Radio';
 }
 
 /**

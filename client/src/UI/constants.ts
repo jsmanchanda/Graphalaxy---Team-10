@@ -236,30 +236,14 @@ export const LOGIN_BUTTON_Y = 380;
 // line. The server accepts up to 32.
 export const LOGIN_USERNAME_MAX_LENGTH = 20;
 // ============== Mini Game Select Screen ==============
-export const MINI_GAME_SELECT_TITLE_WIDTH = 500;
-export const MINI_GAME_SELECT_TITLE_HEIGHT = 100;
-export const MINI_GAME_SELECT_TITLE_X =
-  (DESIGN_WIDTH - MINI_GAME_SELECT_TITLE_WIDTH) * 0.5;
-export const MINI_GAME_SELECT_TITLE_Y = 60;
 
 // Mini game buttons sit side by side, centered horizontally
 export const MINI_GAME_BUTTON_WIDTH = 200;
-export const MINI_GAME_BUTTON_HEIGHT = 100;
-export const MINI_GAME_BUTTON_GAP = 50;
-export const MINI_GAME_BUTTON_Y =
-  MINI_GAME_SELECT_TITLE_Y + MINI_GAME_SELECT_TITLE_HEIGHT + 40;
+export const MINI_GAME_BUTTON_HEIGHT = 50;
+export const MINI_GAME_BUTTON_Y = 403;
 
-export const ASTEROID_BUTTON_X =
-  (DESIGN_WIDTH - 2 * MINI_GAME_BUTTON_WIDTH - MINI_GAME_BUTTON_GAP) * 0.5;
-export const RADIO_WAVE_BUTTON_X =
-  ASTEROID_BUTTON_X + MINI_GAME_BUTTON_WIDTH + MINI_GAME_BUTTON_GAP;
-
-export const SKIP_MINI_GAME_BUTTON_WIDTH = 200;
-export const SKIP_MINI_GAME_BUTTON_HEIGHT = 60;
-export const SKIP_MINI_GAME_BUTTON_X =
-  (DESIGN_WIDTH - SKIP_MINI_GAME_BUTTON_WIDTH) * 0.5;
-export const SKIP_MINI_GAME_BUTTON_Y =
-  MINI_GAME_BUTTON_Y + MINI_GAME_BUTTON_HEIGHT + 50;
+export const MINIGAME_START_X = 445.66;
+export const MINIGAME_SKIP_X = 153.3;
 
 // ============== Navigation Screen ==============
 export const NAV_FRAME_IMAGE = '/assets/nav-frame.png';

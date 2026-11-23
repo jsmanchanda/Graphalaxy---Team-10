@@ -99,7 +99,7 @@ export class UiManager {
         this.currentView = new NavigationScreenView(this.onAction, model);
         break;
       case 'miniGameSelect':
-        this.currentView = new MiniGameSelectView(this.onAction);
+        this.currentView = new MiniGameSelectView(this.onAction, model);
         break;
       case 'asteroidMinigame':
         this.currentView = new AsteroidMiniGameView(this.onAction);
