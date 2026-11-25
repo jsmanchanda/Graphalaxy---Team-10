@@ -1,5 +1,10 @@
 import Konva from 'konva';
-import {ButtonComponent, TextBoxComponent} from '../../UI/components';
+import {
+  ButtonComponent,
+  ImageComponent,
+  TextBoxComponent,
+} from '../../UI/components';
+import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../../UI/constants';
 import type {View} from '../../UI/types';
 import type {AsteroidMiniGameController} from '../AsteroidMiniGameController';
 import {AsteroidFieldComponent} from '../components/AsteroidFieldComponent';
@@ -22,12 +27,7 @@ import {
   FIRE_BUTTON_Y,
   HEADER_Y,
   INPUTS_Y,
-  PANEL_BORDER_COLOR,
-  PANEL_FILL_COLOR,
-  PANEL_HEIGHT,
-  PANEL_WIDTH,
-  PANEL_X,
-  PANEL_Y,
+  PANEL_FRAME_IMAGE,
   PREVIEW_SIZE,
   PREVIEW_X,
   PREVIEW_Y,
@@ -64,9 +64,11 @@ function shotMessage(shot: FireResult): string {
 }
 
 /**
- * The cockpit screen for one question: the window with the asteroids, and a
- * control panel with the form, the coefficient boxes and Fire. After the
- * shot, Fire turns into Next (or Results on the last question).
+ * The cockpit screen for one question, inside the general-nav frame: the
+ * window with the asteroids, the targeting preview in the frame's top-left
+ * square, and a strip along the bottom with the form, the coefficient boxes
+ * and Fire. After the shot, Fire turns into Next (or Results on the last
+ * question).
  */
 export class AsteroidGameView implements View {
   private readonly group = new Konva.Group();
@@ -95,15 +97,17 @@ export class AsteroidGameView implements View {
     const question = model.currentQuestion;
     const form = FORMS[question.formId];
 
-    // Decoration only; drawn first so everything sits on top of it.
-    const panel = new Konva.Rect({
-      x: PANEL_X,
-      y: PANEL_Y,
-      width: PANEL_WIDTH,
-      height: PANEL_HEIGHT,
-      fill: PANEL_FILL_COLOR,
-      stroke: PANEL_BORDER_COLOR,
-    });
+    // The cockpit frame, full screen. Decoration only; added first so
+    // everything sits on top of it. Its window and top-left square are
+    // transparent, so the space background shows through.
+    const frame = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      PANEL_FRAME_IMAGE,
+    );
+    frame.getGroup().name('cockpitFrame');
 
     this.field = new AsteroidFieldComponent(
       FIELD_X,
@@ -165,7 +169,7 @@ export class AsteroidGameView implements View {
     this.nextButton.getGroup().visible(false);
 
     this.group.add(
-      panel,
+      frame.getGroup(),
       this.field.getGroup(),
       this.preview.getGroup(),
       header.getGroup(),

@@ -1,7 +1,7 @@
 import Konva from 'konva';
 import {Component} from '../../UI/components';
 import {
-  PANEL_BORDER_COLOR,
+  PREVIEW_BORDER_COLOR,
   PREVIEW_CURVE_COLOR,
   PREVIEW_SCREEN_COLOR,
 } from '../constants';
@@ -44,7 +44,7 @@ export class TargetingPreviewComponent extends Component {
         width: size,
         height: size,
         fill: PREVIEW_SCREEN_COLOR,
-        stroke: PANEL_BORDER_COLOR,
+        stroke: PREVIEW_BORDER_COLOR,
       }),
     );
   }

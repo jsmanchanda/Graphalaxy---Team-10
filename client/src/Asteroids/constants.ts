@@ -1,4 +1,4 @@
-import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../UI/constants';
+import {DESIGN_WIDTH} from '../UI/constants';
 
 // Layout for the asteroid minigame on the 800×500 design canvas. Kept apart
 // from UI/constants.ts so the team's shared file doesn't change.
@@ -16,66 +16,96 @@ export const INTRO_RULES_HEIGHT = 160;
 export const INTRO_RULES_X = (DESIGN_WIDTH - INTRO_RULES_WIDTH) * 0.5;
 export const INTRO_RULES_Y = INTRO_TITLE_Y + INTRO_TITLE_HEIGHT + 20;
 
+// ============== Cockpit frame (general-nav.png) ==============
+// The same full-screen frame the lesson screens use. The slots below were
+// measured from the image at 800×500; the window and the top-left square are
+// transparent, so the space background shows through them.
+export const PANEL_FRAME_IMAGE = '/assets/general-nav.png';
+
+// The big window, top to bottom.
+const FRAME_WINDOW_TOP = 32;
+const FRAME_WINDOW_BOTTOM = 364;
+
+// The small square at the top left (the alien's spot on lesson screens).
+const FRAME_SQUARE_X = 50;
+const FRAME_SQUARE_Y = 41;
+const FRAME_SQUARE_WIDTH = 98;
+const FRAME_SQUARE_HEIGHT = 78;
+
+// The light strip along the bottom, inside its border.
+const STRIP_X = 63;
+const STRIP_Y = 381;
+const STRIP_WIDTH = 674;
+const STRIP_HEIGHT = 96;
+// Space between the strip's edge and what sits on it.
+const STRIP_PADDING = 6;
+const STRIP_INNER_TOP = STRIP_Y + STRIP_PADDING;
+const STRIP_INNER_HEIGHT = STRIP_HEIGHT - 2 * STRIP_PADDING;
+
 // ============== Window (the view out of the ship) ==============
 // Must stay square: GraphComponent scales x and y separately, so a
 // non-square window would stretch the asteroids and the curve differently.
+// Centered in the frame's big window.
 export const FIELD_SIZE = 320;
 export const FIELD_X = (DESIGN_WIDTH - FIELD_SIZE) * 0.5;
-export const FIELD_Y = 10;
+export const FIELD_Y =
+  FRAME_WINDOW_TOP +
+  (FRAME_WINDOW_BOTTOM - FRAME_WINDOW_TOP - FIELD_SIZE) * 0.5;
 
-// ============== Control panel (decoration) ==============
-export const PANEL_X = 0;
-export const PANEL_Y = FIELD_Y + FIELD_SIZE + 10;
-export const PANEL_WIDTH = DESIGN_WIDTH;
-export const PANEL_HEIGHT = DESIGN_HEIGHT - PANEL_Y;
-export const PANEL_FILL_COLOR = '#1e293b';
-export const PANEL_BORDER_COLOR = '#94a3b8';
-
-// Space between the panel's edge and what sits on it.
-const PANEL_PADDING = 10;
-
-// ============== Targeting preview (center bottom of the panel) ==============
-export const PREVIEW_SIZE = PANEL_HEIGHT - 2 * PANEL_PADDING;
-export const PREVIEW_X = (DESIGN_WIDTH - PREVIEW_SIZE) * 0.5;
-export const PREVIEW_Y = PANEL_Y + PANEL_PADDING;
+// ============== Targeting preview (the frame's top-left square) ==============
+// Square, like the window, and centered in the frame's square with a small
+// margin so the frame's edge doesn't cover the curve.
+const PREVIEW_MARGIN = 2;
+export const PREVIEW_SIZE =
+  Math.min(FRAME_SQUARE_WIDTH, FRAME_SQUARE_HEIGHT) - 2 * PREVIEW_MARGIN;
+export const PREVIEW_X =
+  FRAME_SQUARE_X + (FRAME_SQUARE_WIDTH - PREVIEW_SIZE) * 0.5;
+export const PREVIEW_Y =
+  FRAME_SQUARE_Y + (FRAME_SQUARE_HEIGHT - PREVIEW_SIZE) * 0.5;
 export const PREVIEW_SCREEN_COLOR = '#022c22';
+export const PREVIEW_BORDER_COLOR = '#94a3b8';
 export const PREVIEW_CURVE_COLOR = '#4ade80';
 
-// ============== Equation side (left of the preview) ==============
-export const EQUATION_X = PANEL_X + PANEL_PADDING;
-export const EQUATION_WIDTH = PREVIEW_X - EQUATION_X - PANEL_PADDING;
-export const EQUATION_ROW_HEIGHT = 30;
+// ============== Equation side (left of the strip) ==============
+export const EQUATION_X = STRIP_X + STRIP_PADDING;
+export const EQUATION_WIDTH = 300;
+export const EQUATION_ROW_HEIGHT = 26;
 // Rows on the equation side: header, template, inputs. Spread evenly over
-// the panel's height. (Set to 4 if the "Your equation:" row comes back.)
+// the strip's height. (Set to 4 if the "Your equation:" row comes back.)
 const EQUATION_ROWS = 3;
 const EQUATION_ROW_GAP =
-  (PREVIEW_SIZE - EQUATION_ROWS * EQUATION_ROW_HEIGHT) / (EQUATION_ROWS - 1);
+  (STRIP_INNER_HEIGHT - EQUATION_ROWS * EQUATION_ROW_HEIGHT) /
+  (EQUATION_ROWS - 1);
 
 // "Question 2/3 · Vertex form"
-export const HEADER_Y = PREVIEW_Y;
+export const HEADER_Y = STRIP_INNER_TOP;
 // "y = a(x - h)² + k"
 export const TEMPLATE_Y = HEADER_Y + EQUATION_ROW_HEIGHT + EQUATION_ROW_GAP;
-// One HTML input per coefficient, in design-canvas units.
+// One HTML input per coefficient, in design-canvas units. A 4-box row is
+// wider than EQUATION_WIDTH and runs into the empty middle of the strip.
 export const INPUTS_Y = TEMPLATE_Y + EQUATION_ROW_HEIGHT + EQUATION_ROW_GAP;
 export const INPUT_WIDTH = 56;
 export const INPUT_GAP = 12;
 
-// ============== Fire side (right of the preview) ==============
-export const FIRE_SIDE_X = PREVIEW_X + PREVIEW_SIZE + PANEL_PADDING;
-export const FIRE_SIDE_WIDTH = DESIGN_WIDTH - PANEL_PADDING - FIRE_SIDE_X;
+// ============== Fire side (right of the strip) ==============
+export const FIRE_SIDE_WIDTH = 200;
+export const FIRE_SIDE_X =
+  STRIP_X + STRIP_WIDTH - STRIP_PADDING - FIRE_SIDE_WIDTH;
 
 // Fire, then Next or Results in the same spot after the shot.
-export const FIRE_BUTTON_WIDTH = 200;
-export const FIRE_BUTTON_HEIGHT = 60;
-export const FIRE_BUTTON_X =
-  FIRE_SIDE_X + (FIRE_SIDE_WIDTH - FIRE_BUTTON_WIDTH) * 0.5;
-export const FIRE_BUTTON_Y = PREVIEW_Y;
+export const FIRE_BUTTON_WIDTH = FIRE_SIDE_WIDTH;
+export const FIRE_BUTTON_HEIGHT = 48;
+export const FIRE_BUTTON_X = FIRE_SIDE_X;
+export const FIRE_BUTTON_Y = STRIP_INNER_TOP;
 
 // "HIT!" or "MISS", under the button.
+const SHOT_STATUS_GAP = 4;
 export const SHOT_STATUS_X = FIRE_SIDE_X;
-export const SHOT_STATUS_Y = FIRE_BUTTON_Y + FIRE_BUTTON_HEIGHT + PANEL_PADDING;
+export const SHOT_STATUS_Y =
+  FIRE_BUTTON_Y + FIRE_BUTTON_HEIGHT + SHOT_STATUS_GAP;
 export const SHOT_STATUS_WIDTH = FIRE_SIDE_WIDTH;
-export const SHOT_STATUS_HEIGHT = PREVIEW_Y + PREVIEW_SIZE - SHOT_STATUS_Y;
+export const SHOT_STATUS_HEIGHT =
+  STRIP_INNER_TOP + STRIP_INNER_HEIGHT - SHOT_STATUS_Y;
 
 // ============== Asteroids ==============
 // Sprites in client/public/assets/. The destroyed one replaces the intact one
