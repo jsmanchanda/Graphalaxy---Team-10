@@ -3,6 +3,10 @@ import {
   BUBBLE_FONT_SIZE,
   BUBBLE_TAIL_HEIGHT,
   BUBBLE_TAIL_WIDTH,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
   TEXT_BOX_BORDER_COLOR,
   TEXT_BOX_FILL_COLOR,
   TEXT_COLOR,
@@ -10,6 +14,33 @@ import {
   TEXT_FONT_SIZE,
 } from './constants';
 import {getCachedImage} from './imageCache';
+
+/**
+ * How text is laid out inside a box. Only the given fields change.
+ */
+export interface TextLayout {
+  align?: 'left' | 'center' | 'right';
+  verticalAlign?: 'top' | 'middle' | 'bottom';
+  padding?: number;
+  lineHeight?: number;
+}
+
+/**
+ * Applies a text layout to a Konva.Text. Uses setAttrs, which Konva.Text
+ * re-measures on, so it also works on the test stand-in for Konva.Text.
+ * @param text The text to lay out.
+ * @param layout The fields to change.
+ */
+function applyTextLayout(text: Konva.Shape, layout: TextLayout): void {
+  const attrs: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(layout)) {
+    if (value !== undefined) attrs[key] = value as string | number;
+  }
+  text.setAttrs(attrs);
+}
+
+/** Which bottom corner of a speech bubble its tail sits on. */
+export type BubbleTailSide = 'left' | 'right';
 
 /**
  * Base class for UI components. Holds the Konva group a screen displays.
@@ -40,12 +71,14 @@ export abstract class Component {
 }
 
 /**
- * A speech bubble for the alien friend, with a tail on the bottom-left
- * pointing back at the alien.
+ * A speech bubble for the alien friend, with a tail on a bottom corner
+ * pointing back at the alien: bottom-left by default, for an alien on the
+ * bubble's left, or bottom-right for an alien on its right.
  */
 export class AlienDialogue extends Component {
   protected bubble: Konva.Shape;
   protected dialogue: Konva.Text;
+  private readonly tailSide: BubbleTailSide;
 
   /**
    * Builds the speech bubble. The width includes the tail.
@@ -56,8 +89,10 @@ export class AlienDialogue extends Component {
     width: number,
     height: number,
     dialogue: string,
+    tailSide: BubbleTailSide = 'left',
   ) {
     super(x, y);
+    this.tailSide = tailSide;
 
     this.bubble = new Konva.Shape({
       width,
@@ -69,11 +104,19 @@ export class AlienDialogue extends Component {
         const h = shape.height();
 
         context.beginPath();
-        context.moveTo(0, h);
-        context.lineTo(w, h);
-        context.lineTo(w, 0);
-        context.lineTo(BUBBLE_TAIL_WIDTH, 0);
-        context.lineTo(BUBBLE_TAIL_WIDTH, h - BUBBLE_TAIL_HEIGHT);
+        if (tailSide === 'left') {
+          context.moveTo(0, h);
+          context.lineTo(w, h);
+          context.lineTo(w, 0);
+          context.lineTo(BUBBLE_TAIL_WIDTH, 0);
+          context.lineTo(BUBBLE_TAIL_WIDTH, h - BUBBLE_TAIL_HEIGHT);
+        } else {
+          context.moveTo(w, h);
+          context.lineTo(0, h);
+          context.lineTo(0, 0);
+          context.lineTo(w - BUBBLE_TAIL_WIDTH, 0);
+          context.lineTo(w - BUBBLE_TAIL_WIDTH, h - BUBBLE_TAIL_HEIGHT);
+        }
         context.closePath();
         context.fillStrokeShape(shape);
       },
@@ -82,7 +125,7 @@ export class AlienDialogue extends Component {
     this.group.add(this.bubble);
 
     this.dialogue = new Konva.Text({
-      x: BUBBLE_TAIL_WIDTH,
+      x: tailSide === 'left' ? BUBBLE_TAIL_WIDTH : 0,
       y: 0,
       text: dialogue,
       width: width - BUBBLE_TAIL_WIDTH,
@@ -116,6 +159,42 @@ export class AlienDialogue extends Component {
   setText(text: string): this {
     this.dialogue.text(text);
     return this;
+  }
+
+  /**
+   * Gets what the alien is saying.
+   * @returns The dialogue text.
+   */
+  getText(): string {
+    return String(this.dialogue.getAttr('text') ?? '');
+  }
+
+  /**
+   * Changes the size of the dialogue text, e.g. to fit a long message.
+   * @param fontSize The size in pixels.
+   * @returns This dialogue, so setters can be chained.
+   */
+  setFontSize(fontSize: number): this {
+    this.dialogue.fontSize(fontSize);
+    return this;
+  }
+
+  /**
+   * Changes how the dialogue is laid out inside the bubble.
+   * @param layout The alignment, padding or line height to change.
+   * @returns This dialogue, so setters can be chained.
+   */
+  setTextLayout(layout: TextLayout): this {
+    applyTextLayout(this.dialogue, layout);
+    return this;
+  }
+
+  /**
+   * Says which corner the tail is on.
+   * @returns 'left' or 'right'.
+   */
+  getTailSide(): BubbleTailSide {
+    return this.tailSide;
   }
 }
 
@@ -208,6 +287,17 @@ export class TextBoxComponent extends Component {
     this.label.fill(color);
     return this;
   }
+
+  /**
+   * Changes how the text is laid out inside the box, e.g. left-aligned with
+   * some padding for a list.
+   * @param layout The alignment, padding or line height to change.
+   * @returns This text box, so setters can be chained.
+   */
+  setTextLayout(layout: TextLayout): this {
+    applyTextLayout(this.label, layout);
+    return this;
+  }
 }
 
 /**
@@ -282,5 +372,40 @@ export class ImageComponent extends Component {
    */
   on(evtStr: string, handler: (e: Konva.KonvaEventObject<MouseEvent>) => void) {
     this.group.on(evtStr, handler);
+  }
+}
+
+/**
+ * The gear icon in the top-right corner of the game screens. Clicking it
+ * calls onClick, which opens the settings screen.
+ */
+export class SettingsIconComponent extends ImageComponent {
+  /**
+   * Builds the settings icon in its usual corner.
+   * @param onClick Called when the icon is clicked.
+   */
+  constructor(onClick: () => void) {
+    super(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_IMAGE,
+    );
+    this.group.name('settingsIcon');
+
+    this.on('mouseenter', e => {
+      const stage = e.target.getStage();
+      if (stage) stage.container().style.cursor = 'pointer';
+    });
+    this.on('mouseleave', e => {
+      const stage = e.target.getStage();
+      if (stage) stage.container().style.cursor = 'default';
+    });
+    this.group.on('click tap', e => {
+      const stage = e.target.getStage();
+      if (stage) stage.container().style.cursor = 'default';
+      onClick();
+    });
   }
 }

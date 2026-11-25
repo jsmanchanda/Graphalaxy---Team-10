@@ -240,6 +240,24 @@ export const SETTINGS_MESSAGE_Y = 310;
 // How much one press of a plus or minus button changes a volume (0 to 1)
 export const SETTINGS_VOLUME_STEP = 0.1;
 
+// Log Out button, centered between Back and Save
+export const SETTINGS_LOGOUT_BUTTON_WIDTH = 200;
+export const SETTINGS_LOGOUT_BUTTON_HEIGHT = 50;
+export const SETTINGS_LOGOUT_BUTTON_X =
+  (DESIGN_WIDTH - SETTINGS_LOGOUT_BUTTON_WIDTH) * 0.5;
+export const SETTINGS_LOGOUT_BUTTON_Y = BACK_BUTTON_Y;
+
+// ============== Instructions Screen (before the navigation map) ==============
+// The alien and its greeting use the lesson layout (ALIEN_FRIEND_*, BUBBLE_*)
+export const INSTRUCTIONS_TEXT_WIDTH = 700;
+// Ends above the nav bar of general-nav.png, which starts at y = 377
+export const INSTRUCTIONS_TEXT_HEIGHT = 230;
+export const INSTRUCTIONS_TEXT_X =
+  (DESIGN_WIDTH - INSTRUCTIONS_TEXT_WIDTH) * 0.5;
+export const INSTRUCTIONS_TEXT_Y = 145;
+export const INSTRUCTIONS_TEXT_PADDING = 15;
+export const INSTRUCTIONS_FONT_SIZE = 15;
+
 // ============== Login Screen ==============
 export const LOGIN_TITLE_WIDTH = 400;
 export const LOGIN_TITLE_HEIGHT = 130;
@@ -283,6 +301,15 @@ export const NAV_FRAME_IMAGE = '/assets/nav-frame.png';
 export const NAV_ALIEN_X = 630;
 export const NAV_ALIEN_Y = 380;
 export const NAV_ALIEN_WIDTH = 100;
+
+// Instructions bubble shown when the alien is clicked. It sits above and to
+// the left of the alien, with its tail's tip just above the alien's head.
+export const NAV_HELP_BUBBLE_WIDTH = 560;
+export const NAV_HELP_BUBBLE_HEIGHT = 300;
+export const NAV_HELP_BUBBLE_X = NAV_ALIEN_X + 10 - NAV_HELP_BUBBLE_WIDTH;
+export const NAV_HELP_BUBBLE_Y = NAV_ALIEN_Y - 20 - NAV_HELP_BUBBLE_HEIGHT;
+export const NAV_HELP_BUBBLE_FONT_SIZE = 14;
+export const NAV_HELP_BUBBLE_PADDING = 10;
 
 // "Intergalactic Peace" total progress box
 export const NAV_PROGRESS_X = 202;

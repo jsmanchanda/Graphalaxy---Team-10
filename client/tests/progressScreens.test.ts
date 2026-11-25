@@ -38,6 +38,10 @@ import {
   SETTINGS_BUTTON_Y,
   SETTINGS_LABEL_WIDTH,
   SETTINGS_LABEL_X,
+  SETTINGS_LOGOUT_BUTTON_HEIGHT,
+  SETTINGS_LOGOUT_BUTTON_WIDTH,
+  SETTINGS_LOGOUT_BUTTON_X,
+  SETTINGS_LOGOUT_BUTTON_Y,
   SETTINGS_MESSAGE_HEIGHT,
   SETTINGS_MESSAGE_WIDTH,
   SETTINGS_MESSAGE_X,
@@ -68,6 +72,8 @@ const made = vi.hoisted(() => ({
   buttons: [] as Array<{text: string; click: () => void}>,
   images: [] as string[],
   dialogues: [] as string[],
+  // Click handlers of the settings icons on screen
+  settingsIcons: [] as Array<() => void>,
 }));
 
 // Replace the components so no canvas is needed: Konva.Text measures itself
@@ -165,6 +171,15 @@ vi.mock('../src/UI/components', () => {
     }
   }
 
+  // Records its image like ImageComponent, and its click handler.
+  class SettingsIconComponent extends ImageComponent {
+    constructor(onClick: () => void) {
+      // Same as SETTINGS_ICON_IMAGE; the factory runs before imports
+      super(750, 0, 50, 50, '/assets/setting-symbol.png');
+      made.settingsIcons.push(onClick);
+    }
+  }
+
   return {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     AlienDialogue,
@@ -172,6 +187,8 @@ vi.mock('../src/UI/components', () => {
     ButtonComponent,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     ImageComponent,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    SettingsIconComponent,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     TextBoxComponent,
   };
@@ -212,6 +229,7 @@ beforeEach(() => {
   made.buttons.length = 0;
   made.images.length = 0;
   made.dialogues.length = 0;
+  made.settingsIcons.length = 0;
 });
 
 describe('LessonIntroScreenView', () => {
@@ -612,6 +630,15 @@ describe('SettingsScreenView', () => {
     expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'back'});
   });
 
+  it('logs out without saving when Log Out is pressed', () => {
+    const onAction = build();
+
+    press('+', MUSIC);
+    press('Log Out');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'logout'});
+  });
+
   it('shows the outcome of the last save when there is one', () => {
     build('Settings saved.');
     expect(texts()).toContain('Settings saved.');
@@ -714,6 +741,52 @@ describe('settings icon', () => {
       name,
     ).toHaveLength(1);
   });
+
+  it.each<[string, (onAction: (action: UiAction) => void) => unknown]>([
+    [
+      'lesson intro',
+      onAction =>
+        new LessonIntroScreenView(onAction, {
+          type: 'intro',
+          title: 't',
+          description: 'd',
+        }),
+    ],
+    [
+      'minigame select',
+      onAction =>
+        new MiniGameSelectView(onAction, {
+          type: 'miniGameSelect',
+          minigame: 'Asteroid',
+        }),
+    ],
+    [
+      'question result',
+      onAction =>
+        new QuestionResultScreenView(onAction, {
+          type: 'questionResult',
+          result: true,
+        }),
+    ],
+    [
+      'lesson result',
+      onAction =>
+        new LessonResultScreenView(onAction, {
+          type: 'lessonResult',
+          result: 'r',
+        }),
+    ],
+  ])('opens the settings when clicked on the %s screen', (name, build) => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    build(onAction);
+
+    expect(made.settingsIcons, name).toHaveLength(1);
+    made.settingsIcons[0]();
+
+    expect(onAction, name).toHaveBeenCalledExactlyOnceWith({
+      type: 'openSettings',
+    });
+  });
 });
 
 describe('redo and settings screen bounds', () => {
@@ -761,6 +834,24 @@ describe('redo and settings screen bounds', () => {
     );
     expect(SETTINGS_BUTTON_Y).toBeGreaterThanOrEqual(
       START_BUTTON_Y + START_BUTTON_HEIGHT,
+    );
+  });
+
+  it('keeps the Log Out button inside the settings screen, between Back and Save', () => {
+    checkBounds(
+      SETTINGS_LOGOUT_BUTTON_X,
+      SETTINGS_LOGOUT_BUTTON_Y,
+      SETTINGS_LOGOUT_BUTTON_WIDTH,
+      SETTINGS_LOGOUT_BUTTON_HEIGHT,
+    );
+    expect(SETTINGS_LOGOUT_BUTTON_X).toBeGreaterThanOrEqual(
+      BACK_BUTTON_X + BACK_BUTTON_WIDTH,
+    );
+    expect(
+      SETTINGS_LOGOUT_BUTTON_X + SETTINGS_LOGOUT_BUTTON_WIDTH,
+    ).toBeLessThanOrEqual(NEXT_BUTTON_X);
+    expect(SETTINGS_LOGOUT_BUTTON_Y).toBeGreaterThanOrEqual(
+      SETTINGS_MESSAGE_Y + SETTINGS_MESSAGE_HEIGHT,
     );
   });
 

@@ -8,7 +8,15 @@ import type {
   QuestionTask,
 } from '@graphalaxy/shared';
 import {PLANETS} from '../../server/src/db/seed';
-import {PRELOAD_IMAGES} from '../../client/src/UI/constants';
+import {
+  DEFAULT_ALIEN_IMAGE,
+  PRELOAD_IMAGES,
+  SETTINGS_ICON_IMAGE,
+} from '../../client/src/UI/constants';
+import {
+  INSTRUCTIONS_TEXT,
+  NAV_ALIEN_HELP_TEXT,
+} from '../../client/src/UI/instructions';
 
 interface TestPlanet extends Planet {
   username: string;
@@ -63,29 +71,54 @@ async function waitForCanvas(page: Page): Promise<void> {
   );
 }
 
-/** Finds a visible, loaded planet image without depending on hover text. */
-async function planetBounds(page: Page, planetId: number) {
-  return page.evaluate(id => {
+/** Finds a visible, loaded image drawn from the given asset path. */
+async function imageBounds(page: Page, path: string) {
+  return page.evaluate(pathname => {
     const konva = (window as unknown as Partial<Record<'Konva', typeof Konva>>)
       .Konva;
-    const planet = konva?.stages
+    const found = konva?.stages
       .flatMap(stage => stage.find('Image'))
       .find(node => {
         const image = (node as Konva.Image).image();
         return (
           node.isVisible() &&
           image instanceof HTMLImageElement &&
-          new URL(image.src).pathname === `/assets/planet-${id}.png`
+          new URL(image.src).pathname === pathname
         );
       });
-    return planet?.getClientRect() ?? null;
-  }, planetId);
+    return found?.getClientRect() ?? null;
+  }, path);
+}
+
+/** Finds a visible, loaded planet image without depending on hover text. */
+async function planetBounds(page: Page, planetId: number) {
+  return imageBounds(page, `/assets/planet-${planetId}.png`);
+}
+
+/** Clicks the middle of a visible image drawn from the given asset path. */
+async function clickImage(page: Page, path: string): Promise<void> {
+  await expect.poll(() => imageBounds(page, path)).not.toBeNull();
+  const box = await imageBounds(page, path);
+  if (!box) throw new Error(`Missing image: ${path}`);
+  await waitForCanvas(page);
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
 }
 
 /** Confirms that the map is rendered rather than the old placeholder end screen. */
 async function expectNavigation(page: Page): Promise<void> {
   await expect.poll(() => planetBounds(page, 0)).not.toBeNull();
   await expect.poll(() => planetBounds(page, 1)).not.toBeNull();
+}
+
+/**
+ * Presses Start on the title, reads past the instructions that come before
+ * the map after every login, and waits for the map.
+ */
+async function startGame(page: Page): Promise<void> {
+  await clickLabel(page, 'Start');
+  await expect.poll(() => screenTexts(page)).toContain(INSTRUCTIONS_TEXT);
+  await clickLabel(page, "Let's go!");
+  await expectNavigation(page);
 }
 
 /** Logs in with real keyboard input and chooses an unlocked planet on the map. */
@@ -116,8 +149,7 @@ async function openGame(
     planet => planet.unlocked && planet.questionCount > 0,
   );
   if (!summary) throw new Error('No unlocked seeded planet with questions');
-  await clickLabel(page, 'Start');
-  await expectNavigation(page);
+  await startGame(page);
   await expect.poll(() => planetBounds(page, summary.planetId)).not.toBeNull();
   const box = await planetBounds(page, summary.planetId);
   if (!box) throw new Error('Selected planet not rendered');
@@ -280,6 +312,45 @@ test('loads the real game and supports reading navigation in both directions', a
   await expect
     .poll(() => screenTexts(page))
     .toContain(`Welcome to ${planet.name}!`);
+  expect(errors).toEqual([]);
+});
+
+test('shows the instructions before the map, repeats them from the alien, and logs out from settings', async ({
+  page,
+}) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto('/');
+  await expect.poll(() => screenTexts(page)).toContain('Type your username');
+  await page.keyboard.type(`help-${randomUUID().slice(0, 16)}`);
+  await clickLabel(page, 'Log In');
+
+  // Start shows the instructions first; the map comes after
+  await clickLabel(page, 'Start');
+  await expect.poll(() => screenTexts(page)).toContain(INSTRUCTIONS_TEXT);
+  expect(await planetBounds(page, 0)).toBeNull();
+  await clickLabel(page, "Let's go!");
+  await expectNavigation(page);
+
+  // The alien's bubble is closed until the alien is clicked, and toggles
+  expect(await screenTexts(page)).not.toContain(NAV_ALIEN_HELP_TEXT);
+  await clickImage(page, DEFAULT_ALIEN_IMAGE);
+  await expect.poll(() => screenTexts(page)).toContain(NAV_ALIEN_HELP_TEXT);
+  await clickImage(page, DEFAULT_ALIEN_IMAGE);
+  await expect.poll(() => screenTexts(page)).not.toContain(NAV_ALIEN_HELP_TEXT);
+
+  // The gear opens the settings, and Back returns to the map
+  await clickImage(page, SETTINGS_ICON_IMAGE);
+  await expect.poll(() => screenTexts(page)).toContain('Log Out');
+  await clickLabel(page, 'Back');
+  await expectNavigation(page);
+
+  // Logging out returns to the login screen
+  await clickImage(page, SETTINGS_ICON_IMAGE);
+  await clickLabel(page, 'Log Out');
+  await expect
+    .poll(() => screenTexts(page))
+    .toEqual(expect.arrayContaining(['Type your username', 'Logged out.']));
   expect(errors).toEqual([]);
 });
 
@@ -525,8 +596,7 @@ test('shows a connection failure and recovers when login is retried', async ({
   await clickLabel(page, 'Log In');
   expect((await login).status()).toBe(200);
   await expect.poll(() => screenTexts(page)).toContain('Start');
-  await clickLabel(page, 'Start');
-  await expectNavigation(page);
+  await startGame(page);
 });
 
 test('shows submission failure instead of claiming success when the request fails', async ({

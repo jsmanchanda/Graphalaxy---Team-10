@@ -313,6 +313,48 @@ describe('Radio-wave minigame', () => {
     expect(getScoreText()).toBe('1 of 3 waves matched.');
   });
 
+  it('opens settings from the gear icon', () => {
+    const onAction = vi.fn();
+    view = new RadioWaveMinigameView(onAction, makeRadioWaveMinigameScreen());
+
+    view.getGroup().findOne('.settingsIcon')?.fire('click');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'openSettings'});
+  });
+
+  it('stops the clock and hides the inputs while paused, then carries on', () => {
+    startGame();
+    vi.advanceTimersByTime(ROUND_LENGTH_MS - 1000);
+
+    view?.pause();
+    expect(controlsContainer?.style).toMatchObject({display: 'none'});
+    expect(vi.getTimerCount()).toBe(0);
+    vi.advanceTimersByTime(ROUND_LENGTH_MS * 2);
+    expect(getScoreText()).toBeUndefined();
+
+    view?.resume();
+    expect(controlsContainer?.style).toMatchObject({display: 'flex'});
+    // The same question is still answerable with the time that was left.
+    submitAnswer();
+    vi.advanceTimersByTime(900);
+    expect(getScoreText()).toBeUndefined();
+    vi.advanceTimersByTime(200);
+    expect(getScoreText()).toBe('1 of 3 waves matched.');
+  });
+
+  it('pauses harmlessly before the round starts', () => {
+    const onAction = vi.fn();
+    view = new RadioWaveMinigameView(onAction, makeRadioWaveMinigameScreen());
+
+    view.pause();
+    view.resume();
+    expect(vi.getTimerCount()).toBe(0);
+
+    findButton('START').fire('click');
+    vi.advanceTimersByTime(ROUND_LENGTH_MS);
+    expect(getScoreText()).toBe('0 of 3 waves matched.');
+  });
+
   it('does not restart the timer after a correct answer', () => {
     startGame();
     vi.advanceTimersByTime(ROUND_LENGTH_MS / 2);

@@ -59,6 +59,13 @@ vi.mock('../src/UI/components', () => {
 
   class TextBoxComponent extends ButtonComponent {}
 
+  class SettingsIconComponent extends ImageComponent {
+    constructor(onClick: () => void) {
+      super(0, 0, 0, 0, '');
+      void onClick;
+    }
+  }
+
   class AlienDialogue extends ImageComponent {
     setWidth(width: number): void {
       void width;
@@ -76,6 +83,8 @@ vi.mock('../src/UI/components', () => {
     TextBoxComponent,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     AlienDialogue,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    SettingsIconComponent,
   };
 });
 

@@ -1,7 +1,12 @@
 import Konva from 'konva';
 import {GraphComponent} from '../../Graphing/GraphComponent';
 import {Interval} from '../../Graphing/functions';
-import {ButtonComponent, ImageComponent, TextBoxComponent} from '../components';
+import {
+  ButtonComponent,
+  ImageComponent,
+  SettingsIconComponent,
+  TextBoxComponent,
+} from '../components';
 import {
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
@@ -69,6 +74,12 @@ export class RadioWaveMinigameView implements View {
   private readonly content = new Konva.Group();
   private timer?: number;
   private roundEndsAt = 0;
+  private roundDuration = 0;
+  private timerBar?: Konva.Rect;
+  // Time left in the round when it was paused, or undefined if not paused.
+  private pausedRemaining?: number;
+  private paused = false;
+  private controls?: HTMLElement;
   private currentQuestion: RadioWaveQuestion;
   private graph?: GraphComponent;
   private inputs?: {
@@ -109,7 +120,16 @@ export class RadioWaveMinigameView implements View {
     });
     const dish = new ImageComponent(-14, -5, 128, 96, RADIO_WAVE_IMAGES.dish);
     dishWindow.add(dish.getGroup());
-    this.group.add(dishWindow, frame.getGroup(), this.content);
+    // The settings screen pauses this minigame and resumes it afterwards.
+    const settingsIcon = new SettingsIconComponent(() =>
+      this.onAction({type: 'openSettings'}),
+    );
+    this.group.add(
+      dishWindow,
+      frame.getGroup(),
+      this.content,
+      settingsIcon.getGroup(),
+    );
     // UIManager destroys this group when it switches to another view.
     this.group.on('destroy', () => this.clearRound());
     this.showInstructions(model);
@@ -538,14 +558,25 @@ export class RadioWaveMinigameView implements View {
    * Shrinks the timer bar for the duration of the round.
    */
   private startTimer(timerBar: Konva.Rect, timeLimitSeconds: number): void {
-    const startTime = Date.now();
-    const duration = Math.max(timeLimitSeconds, 1) * 1000;
-    this.roundEndsAt = startTime + duration;
+    this.timerBar = timerBar;
+    this.roundDuration = Math.max(timeLimitSeconds, 1) * 1000;
+    this.runTimer(this.roundDuration);
+  }
+
+  /**
+   * Runs the round clock with the given time left, so a paused round picks
+   * up where it stopped.
+   * @param remainingMs how long the round has left, in milliseconds
+   */
+  private runTimer(remainingMs: number): void {
+    window.clearInterval(this.timer);
+    this.roundEndsAt = Date.now() + remainingMs;
     this.timer = window.setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, duration - elapsed);
-      timerBar.width((HEADER_WIDTH - 6) * (remaining / duration));
-      timerBar.fill(
+      const remaining = Math.max(0, this.roundEndsAt - Date.now());
+      this.timerBar?.width(
+        (HEADER_WIDTH - 6) * (remaining / this.roundDuration),
+      );
+      this.timerBar?.fill(
         remaining <= TIMER_LOW_TIME_MS ? TIMER_LOW_FILL : TIMER_FILL,
       );
 
@@ -553,6 +584,36 @@ export class RadioWaveMinigameView implements View {
         this.showResults();
       }
     }, 100);
+  }
+
+  /**
+   * Freezes the round while the settings screen is open: stops the clock,
+   * keeping the time left, and hides the equation inputs, which sit above
+   * the canvas.
+   */
+  pause(): void {
+    if (this.paused) return;
+    this.paused = true;
+    if (this.timer !== undefined) {
+      this.pausedRemaining = Math.max(0, this.roundEndsAt - Date.now());
+      window.clearInterval(this.timer);
+      this.timer = undefined;
+    }
+    if (this.controls) this.controls.style.display = 'none';
+  }
+
+  /**
+   * Carries on after pause with the same question, inputs and time left.
+   */
+  resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    if (this.controls) this.controls.style.display = 'flex';
+    const remaining = this.pausedRemaining;
+    this.pausedRemaining = undefined;
+    if (this.screen === 'gameplay' && remaining !== undefined) {
+      this.runTimer(remaining);
+    }
   }
 
   /**
@@ -613,8 +674,10 @@ export class RadioWaveMinigameView implements View {
   private clearRound(): void {
     window.clearInterval(this.timer);
     this.timer = undefined;
+    this.pausedRemaining = undefined;
     this.removeControls?.();
     this.removeControls = undefined;
+    this.controls = undefined;
     this.inputs = undefined;
   }
 
@@ -678,6 +741,7 @@ export class RadioWaveMinigameView implements View {
       verticalShift,
     );
     document.body.append(controls);
+    this.controls = controls;
     const positionControls = (): void => {
       const scale = Math.min(
         window.innerWidth / DESIGN_WIDTH,

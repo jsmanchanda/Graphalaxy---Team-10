@@ -157,6 +157,15 @@ describe('ApiClient requests', () => {
     await expect(new ApiClient(http, OPTIONS).getPlanet(1)).rejects.toThrow();
     expect(http).not.toHaveBeenCalled();
   });
+
+  it('rejects user requests after logout without calling http', async () => {
+    const {client, http} = await loggedIn();
+
+    client.logout();
+
+    await expect(client.getPlanet(1)).rejects.toThrow();
+    expect(http).toHaveBeenCalledTimes(1); // just the login
+  });
 });
 
 describe('ApiClient errors', () => {

@@ -1,5 +1,6 @@
 import Konva from 'konva';
 import {TitleScreenView} from './screens/TitleScreenView';
+import {InstructionsScreenView} from './screens/InstructionsScreenView';
 import {ReadingScreenView} from './screens/ReadingScreenView';
 import {QuestionScreenView} from './screens/QuestionScreenView';
 import {RadioWaveMinigameView} from './screens/RadioWaveMinigameView';
@@ -22,6 +23,9 @@ export class UiManager {
   private stage: Konva.Stage;
   private layer: Konva.Layer;
   private currentView: View | null = null;
+  // A view set aside by suspendScreen, hidden and paused, until it is resumed
+  // or discarded. Lets settings open over a minigame without restarting it.
+  private suspendedView: View | null = null;
   private onAction: (action: UiAction) => void;
 
   /**
@@ -77,20 +81,75 @@ export class UiManager {
   }
 
   /**
-   * Renders different types of screens
+   * Sets the current view aside so another screen can be shown in its place
+   * without destroying it: the view is paused and hidden, and comes back as
+   * it was on resumeScreen. A view already set aside is discarded first.
+   */
+  suspendScreen(): void {
+    const view = this.currentView;
+    if (view == null) return;
+    this.discardSuspendedScreen();
+    view.pause?.();
+    view.getGroup().visible(false);
+    this.suspendedView = view;
+    this.currentView = null;
+    this.layer.batchDraw();
+  }
+
+  /**
+   * Brings back the view set aside by suspendScreen in place of the current
+   * one, which is destroyed, and lets it carry on.
+   * @returns false, changing nothing, if no view was set aside
+   */
+  resumeScreen(): boolean {
+    const view = this.suspendedView;
+    if (view == null) return false;
+    this.suspendedView = null;
+    this.destroyView(this.currentView);
+    this.currentView = view;
+    // On top, in case anything was added to the layer meanwhile.
+    view.getGroup().moveToTop();
+    view.getGroup().visible(true);
+    view.resume?.();
+    this.layer.batchDraw();
+    return true;
+  }
+
+  /**
+   * Destroys the view set aside by suspendScreen, if any, e.g. when the
+   * player logs out from the settings screen opened over a minigame.
+   */
+  discardSuspendedScreen(): void {
+    this.destroyView(this.suspendedView);
+    this.suspendedView = null;
+  }
+
+  /**
+   * Cleans up a view and removes it from the layer.
+   * @param view the view to destroy, or null for none
+   */
+  private destroyView(view: View | null): void {
+    if (view == null) return;
+    view.destroy?.();
+    view.getGroup().destroy();
+  }
+
+  /**
+   * Renders different types of screens. Replaces the current view; a view
+   * set aside by suspendScreen is kept until it is resumed or discarded.
    * @param model Screens data to be displayed
    */
   displayScreen(model: ScreenModel): void {
-    if (this.currentView != null) {
-      this.currentView.destroy?.();
-      this.currentView.getGroup().destroy();
-    }
+    this.destroyView(this.currentView);
     switch (model.type) {
       case 'login':
         this.currentView = new LoginScreenView(this.onAction, model);
         break;
       case 'title':
         this.currentView = new TitleScreenView(this.onAction, model);
+        break;
+      case 'instructions':
+        this.currentView = new InstructionsScreenView(this.onAction, model);
         break;
       case 'intro':
         this.currentView = new LessonIntroScreenView(this.onAction, model);

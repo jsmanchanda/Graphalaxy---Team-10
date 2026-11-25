@@ -202,6 +202,22 @@ export class AsteroidGameView implements View {
   }
 
   /**
+   * Hides the HTML boxes, which sit above the canvas, while the settings
+   * screen is open. What the player typed is kept.
+   */
+  pause(): void {
+    this.inputs.setVisible(false);
+  }
+
+  /** Shows the boxes again after pause, with the cursor back in them. */
+  resume(): void {
+    this.inputs.setVisible(true);
+    if (!this.fired) {
+      this.inputs.focus();
+    }
+  }
+
+  /**
    * Redraws the targeting screen and enables Fire, both exactly when every
    * box holds a valid number.
    * @param values what is typed in each box

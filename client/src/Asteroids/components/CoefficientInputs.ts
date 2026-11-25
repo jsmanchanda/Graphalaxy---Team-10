@@ -37,6 +37,11 @@ export interface CoefficientInputsHandle {
   focus(): void;
   /** Locks every box after Fire; they stay visible. */
   disable(): void;
+  /**
+   * Hides or shows the row, keeping what is typed, e.g. while the settings
+   * screen is open over the minigame.
+   */
+  setVisible(visible: boolean): void;
   /** Removes the boxes from the page. Safe to call twice. */
   remove(): void;
 }
@@ -130,6 +135,14 @@ export class CoefficientInputs implements CoefficientInputsHandle {
     for (const input of this.inputs) {
       input.disabled = true;
     }
+  }
+
+  /**
+   * Hides or shows the row, keeping what is typed.
+   * @param visible false to hide the row, true to show it again
+   */
+  setVisible(visible: boolean): void {
+    this.row.style.display = visible ? 'flex' : 'none';
   }
 
   /** Removes the boxes and the resize listener. Safe to call twice. */

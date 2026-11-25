@@ -1,7 +1,12 @@
 import Konva from 'konva';
 import {QuestionResultScreenModel, UiAction, View} from '../types';
 import {Group} from 'konva/lib/Group';
-import {AlienDialogue, ButtonComponent, ImageComponent} from '../components';
+import {
+  AlienDialogue,
+  ButtonComponent,
+  ImageComponent,
+  SettingsIconComponent,
+} from '../components';
 import {
   DESIGN_WIDTH,
   DESIGN_HEIGHT,
@@ -17,10 +22,6 @@ import {
   QUESTION_RESULT_OK_HEIGHT,
   QUESTION_RESULT_OK_WIDTH,
   QUESTION_RESULT_OK_Y,
-  SETTINGS_ICON_IMAGE,
-  SETTINGS_ICON_SIZE,
-  SETTINGS_ICON_X,
-  SETTINGS_ICON_Y,
 } from '../constants';
 
 /**
@@ -82,12 +83,8 @@ export class QuestionResultScreenView implements View {
       () => onAction({type: 'next'}),
     );
 
-    const settingsIcon = new ImageComponent(
-      SETTINGS_ICON_X,
-      SETTINGS_ICON_Y,
-      SETTINGS_ICON_SIZE,
-      SETTINGS_ICON_SIZE,
-      SETTINGS_ICON_IMAGE,
+    const settingsIcon = new SettingsIconComponent(() =>
+      onAction({type: 'openSettings'}),
     );
 
     this.group.add(background.getGroup());
