@@ -141,20 +141,16 @@ async function openGame(
   };
 }
 
-/** Enters the selected planet through its supported skip-minigame choice. */
+/** Enters the selected planet by flying around the asteroid belt. */
 async function enterLesson(page: Page, planet: Planet): Promise<void> {
+  // GameManager always offers the asteroid minigame for now
   await expect
     .poll(() => screenTexts(page))
-    .toEqual(
-      expect.arrayContaining([
-        'Do you want to play minigame?',
-        'Asteroid Defense',
-        'Radio Wave',
-        'Go to lesson',
-      ]),
-    );
-  await clickLabel(page, 'Go to lesson');
-  await expect.poll(() => screenTexts(page)).toContain(planet.name);
+    .toEqual(expect.arrayContaining(['Go through', 'Go around']));
+  await clickLabel(page, 'Go around');
+  await expect
+    .poll(() => screenTexts(page))
+    .toContain(`Welcome to ${planet.name}!`);
 }
 
 /** Waits for the real next-question response caused by a visible button. */
@@ -230,7 +226,7 @@ async function finishPlanet(
     );
     correct++;
     answered++;
-    await expect.poll(() => screenTexts(page)).toContain('Correct');
+    await expect.poll(() => screenTexts(page)).toContain('Correct!');
     const next = await nextQuestion(page, 'Ok');
     expect(next.progress).toMatchObject({
       planetId: planet.planetId,
@@ -246,7 +242,7 @@ async function finishPlanet(
   await expect
     .poll(() => screenTexts(page))
     .toContain(
-      `You answered ${correct} of ${planet.questionCount} questions correctly. ` +
+      `You answered ${correct} of ${planet.questionCount} questions correctly.\n ` +
         (correct === planet.questionCount
           ? `${planet.name} is now peaceful!`
           : `${planet.name} is still hostile. Redo the planet to try again.`),
@@ -280,7 +276,9 @@ test('loads the real game and supports reading navigation in both directions', a
   if (reading.type !== 'Reading') throw new Error('Expected a reading');
   await expect.poll(() => screenTexts(page)).toContain(reading.text);
   await clickLabel(page, 'back');
-  await expect.poll(() => screenTexts(page)).toContain(planet.name);
+  await expect
+    .poll(() => screenTexts(page))
+    .toContain(`Welcome to ${planet.name}!`);
   expect(errors).toEqual([]);
 });
 
@@ -318,7 +316,7 @@ test('shows wrong feedback, resumes after explicit login, and retries through co
   );
   expect(response.status()).toBe(200);
   expect((await response.json()).correct).toBe(false);
-  await expect.poll(() => screenTexts(page)).toContain('Wrong');
+  await expect.poll(() => screenTexts(page)).toContain('Incorrect, nice try');
   const again = await openGame(page, planet.username);
   expect(again.userId).toBe(planet.userId);
   const second = await reachFirstQuestion(page, again);
@@ -361,7 +359,7 @@ test('shows wrong feedback, resumes after explicit login, and retries through co
   const right = await answer(page, question, correctIndex(planet, question));
   expect(right.status()).toBe(200);
   expect((await right.json()).correct).toBe(true);
-  await expect.poll(() => screenTexts(page)).toContain('Correct');
+  await expect.poll(() => screenTexts(page)).toContain('Correct!');
 });
 
 test('selection alone never submits and changing selection submits the final option', async ({
@@ -416,7 +414,7 @@ test('ignores a second confirmation while the real answer request is pending', a
     await expect
       .poll(async () =>
         (await screenTexts(page)).some(
-          text => text === 'Correct' || text === 'Wrong',
+          text => text === 'Correct!' || text === 'Incorrect, nice try',
         ),
       )
       .toBe(true);
@@ -463,8 +461,8 @@ test('does not replace the current reading with a late answer response', async (
         new Promise<void>(resolve => requestAnimationFrame(() => resolve())),
     );
     await expect.poll(() => screenTexts(page)).toContain(reading.text);
-    expect(await screenTexts(page)).not.toContain('Correct');
-    expect(await screenTexts(page)).not.toContain('Wrong');
+    expect(await screenTexts(page)).not.toContain('Correct!');
+    expect(await screenTexts(page)).not.toContain('Incorrect, nice try');
   } finally {
     release();
   }
@@ -519,7 +517,7 @@ test('keeps canvas controls usable after resizing to a smaller viewport', async 
   await expect
     .poll(async () =>
       (await screenTexts(page)).some(
-        text => text === 'Correct' || text === 'Wrong',
+        text => text === 'Correct!' || text === 'Incorrect, nice try',
       ),
     )
     .toBe(true);

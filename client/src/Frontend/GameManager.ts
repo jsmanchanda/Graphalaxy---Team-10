@@ -188,7 +188,14 @@ export class GameManager {
         // is reported when the player tries to enter the planet.
         this.planetLoad.catch(() => undefined);
         this.taskIndex = INTRO_INDEX;
-        this.show('miniGameSelect', {type: 'miniGameSelect'});
+
+        // Randomize minigame here
+        // Currently hardcoded for asteroid
+        this.show('miniGameSelect', {
+          type: 'miniGameSelect',
+          minigame: 'Asteroid',
+          // minigame: 'Radio',
+        });
         break;
       }
       case 'startMiniGame': {
@@ -369,12 +376,16 @@ export class GameManager {
           planet.name,
           planet.introText,
           this.session.progressFor(planet.planetId),
+          planet.planetId,
         ),
       );
     } else {
       this.show(
         'lesson',
-        screenModelMaker.taskToScreen(planet.tasks[this.taskIndex]),
+        screenModelMaker.taskToScreen(
+          planet.tasks[this.taskIndex],
+          planet.planetId,
+        ),
       );
     }
   }
@@ -408,8 +419,8 @@ export class GameManager {
       if (screenId === this.screenId) {
         // Ok on this screen asks for the question again.
         this.show('questionResult', {
-          type: 'questionResult',
-          result: isOffline(error)
+          type: 'reading',
+          readingText: isOffline(error)
             ? 'Server offline. Press Ok to retry.'
             : "Couldn't load next question. Press Ok to retry.",
         });
@@ -440,7 +451,10 @@ export class GameManager {
     this.show(
       'lessonResult',
       progress
-        ? screenModelMaker.makeLessonResultScreen(progress)
+        ? screenModelMaker.makeLessonResultScreen(
+            progress,
+            this.session.currentPlanet?.planetId,
+          )
         : {type: 'lessonResult', result: 'You finished this planet!'},
     );
   }
@@ -557,15 +571,18 @@ export class GameManager {
       if (screenId === this.screenId) {
         this.show(
           'questionResult',
-          screenModelMaker.makeQuestionResultScreen(result.correct),
+          screenModelMaker.makeQuestionResultScreen(
+            result.correct,
+            this.session.currentPlanet?.planetId,
+          ),
         );
       }
     } catch (error) {
       console.error(error);
       if (screenId === this.screenId) {
         this.show('questionResult', {
-          type: 'questionResult',
-          result: answerFailureMessage(error),
+          type: 'reading',
+          readingText: answerFailureMessage(error),
         });
       }
     } finally {

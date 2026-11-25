@@ -26,21 +26,10 @@ import type {
 } from '../UI/types';
 
 /**
- * The alien that lives on each planet, by planet ID. Matches the animals in
- * each planet's story in the server's seed data.
- */
-const ALIEN_BY_PLANET: Record<number, string> = {
-  1: '/assets/alien-dog.png', // Linear Land
-  2: '/assets/alien-cat.png', // Quadratic Quay
-  3: '/assets/alien-seal.png', // Sine Shores
-  4: '/assets/alien-hamster.png', // Phase Planet
-};
-
-/**
  * Converts a task into the screen model for that task's type.
  * Hands reading tasks and question tasks to their own mappers.
  * @param task The current task from the planet.
- * @param planetId The planet the task is on, used to pick its alien.
+ * @param planetId The planet the task is on, passed to the question screen.
  * @returns The reading or question screen model for the UI.
  */
 export function taskToScreen(task: Task, planetId?: number): ScreenModel {
@@ -48,17 +37,19 @@ export function taskToScreen(task: Task, planetId?: number): ScreenModel {
     case 'Question':
       return questionTaskToQuestionScreen(task, planetId);
     case 'Reading':
-      return readingTaskToScreen(task);
+      return readingTaskToScreen(task, planetId);
   }
 }
 
 /**
  * Converts a reading task into a reading screen model.
  * @param readingTask The reading task to display.
+ * @param planetId The planet the task is on, passed to the question screen.
  * @returns The reading screen model for the UI.
  */
 export function readingTaskToScreen(
   readingTask: ReadingTask,
+  planetId?: number,
 ): ReadingScreenModel {
   const model: ReadingScreenModel = {
     type: 'reading',
@@ -68,6 +59,10 @@ export function readingTaskToScreen(
   if (readingTask.graph) {
     model.equation = readingTask.graph['fn'];
   }
+
+  if (planetId !== undefined) {
+    model.planetId = planetId;
+  }
   return model;
 }
 
@@ -76,7 +71,8 @@ export function readingTaskToScreen(
  * option texts in order. The UI reports the chosen option by its index, and
  * GameManager maps that index back to an optionId.
  * @param questionTask The question task to display.
- * @param planetId The planet the question is on, used to pick its alien.
+ * @param planetId The planet the question is on, which picks its alien and
+ *   background.
  * @returns The question screen model for the UI.
  */
 export function questionTaskToQuestionScreen(
@@ -94,10 +90,8 @@ export function questionTaskToQuestionScreen(
     model.equation = questionTask.question.graph['fn'];
   }
 
-  const alienImage =
-    planetId === undefined ? undefined : ALIEN_BY_PLANET[planetId];
-  if (alienImage) {
-    model.alienImage = alienImage;
+  if (planetId !== undefined) {
+    model.planetId = planetId;
   }
   return model;
 }
@@ -109,8 +103,18 @@ export function questionTaskToQuestionScreen(
  */
 export function makeQuestionResultScreen(
   correct: boolean,
+  planetId?: number,
 ): QuestionResultScreenModel {
-  return {type: 'questionResult', result: correct ? 'Correct' : 'Wrong'};
+  const model: QuestionResultScreenModel = {
+    type: 'questionResult',
+    result: correct,
+  };
+
+  if (planetId !== undefined) {
+    model.planetId = planetId;
+  }
+
+  return model;
 }
 
 /**
@@ -125,14 +129,19 @@ export function makeLessonIntroScreen(
   title: string,
   description: string,
   progress?: PlanetSummary | null,
+  planetId?: number,
 ): LessonIntroScreenModel {
-  return {
+  const model: LessonIntroScreenModel = {
     type: 'intro',
     title: title,
     description: progress
       ? `${description}\n\nCurrent progress: ${describeProgress(progress)}`
       : description,
   };
+  if (planetId !== undefined) {
+    model.planetId = planetId;
+  }
+  return model;
 }
 
 /**
@@ -143,7 +152,7 @@ export function makeLessonIntroScreen(
 export function describeProgress(progress: PlanetSummary): string {
   const {correctCount, questionCount, completionPct, status} = progress;
   const percent = Math.round(completionPct * 100);
-  return `${correctCount} of ${questionCount} questions correct (${percent}%), ${status}`;
+  return `${correctCount} of ${questionCount} questions correct (${percent}%)\n\nStatus: ${status}`;
 }
 
 /**
@@ -154,16 +163,23 @@ export function describeProgress(progress: PlanetSummary): string {
  */
 export function makeLessonResultScreen(
   progress: PlanetSummary,
+  planetId?: number,
 ): LessonResultScreenModel {
   const {name, correctCount, questionCount, status} = progress;
   const outcome =
     status === 'peaceful'
       ? `${name} is now peaceful!`
       : `${name} is still hostile. Redo the planet to try again.`;
-  return {
+  const model: LessonResultScreenModel = {
     type: 'lessonResult',
-    result: `You answered ${correctCount} of ${questionCount} questions correctly. ${outcome}`,
+    result: `You answered ${correctCount} of ${questionCount} questions correctly.\n ${outcome}`,
   };
+
+  if (planetId !== undefined) {
+    model.planetId = planetId;
+  }
+
+  return model;
 }
 
 /**

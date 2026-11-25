@@ -60,6 +60,7 @@ export interface LessonIntroScreenModel {
   type: 'intro';
   title: string;
   description: string;
+  planetId?: number;
 }
 
 /**
@@ -68,6 +69,7 @@ export interface LessonIntroScreenModel {
 export interface ReadingScreenModel {
   type: 'reading';
   readingText: string;
+  planetId?: number;
   equation?: string;
 }
 
@@ -87,7 +89,7 @@ export interface QuestionScreenModel {
   type: 'question';
   question: QuestionDisplay;
   equation?: string;
-  alienImage?: string; // path of the planet's alien; defaults to the cat
+  planetId?: number; // picks the alien and background; defaults to planet 2
 }
 
 /**
@@ -95,7 +97,8 @@ export interface QuestionScreenModel {
  */
 export interface QuestionResultScreenModel {
   type: 'questionResult';
-  result: string;
+  result: boolean;
+  planetId?: number;
 }
 
 /**
@@ -104,6 +107,7 @@ export interface QuestionResultScreenModel {
 export interface LessonResultScreenModel {
   type: 'lessonResult';
   result: string;
+  planetId?: number;
 }
 
 /**
@@ -138,6 +142,7 @@ export interface NavigationScreenModel {
  */
 export interface MiniGameSelectModel {
   type: 'miniGameSelect';
+  minigame: 'Asteroid' | 'Radio';
 }
 
 /**
