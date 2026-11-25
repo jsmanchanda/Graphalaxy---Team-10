@@ -16,9 +16,18 @@ seed(db);
 
 const dataWriter = createDataWriter(db);
 
+// Each attempt at a planet asks this many of its questions, picked at random.
+// Both managers need the same number.
+const QUESTIONS_PER_ATTEMPT = 5;
+
 // Progress Manager subscribes to Question Manager's first-correct-answer event.
-const progress = new ProgressManager(dataWriter);
-const questions = new QuestionManager(dataWriter, progress, shuffle);
+const progress = new ProgressManager(dataWriter, QUESTIONS_PER_ATTEMPT);
+const questions = new QuestionManager(
+  dataWriter,
+  progress,
+  shuffle,
+  QUESTIONS_PER_ATTEMPT,
+);
 const hints = new HintManager(dataWriter);
 
 createApp({questions, progress, hints, dataWriter}).listen(PORT, () => {
