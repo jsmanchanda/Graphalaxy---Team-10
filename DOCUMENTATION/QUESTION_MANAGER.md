@@ -6,12 +6,12 @@ implemented service and its current demo integration. See
 
 ## Files and dependencies
 
-| File | Responsibility |
-| --- | --- |
-| [QuestionManager.ts](../server/src/question-manager/QuestionManager.ts) | Reading retrieval, next-question selection, grading, serialization, and typed errors |
-| [AnswerProgress.ts](../server/src/question-manager/AnswerProgress.ts) | First-correct event and synchronous progress callback interfaces |
-| [QuestionManager.test.ts](../server/src/question-manager/QuestionManager.test.ts) | Unit tests using a fake Data Writer |
-| [QuestionManager.integration.test.ts](../server/src/question-manager/QuestionManager.integration.test.ts) | Integration tests using the official migration, Data Writer, and in-memory SQLite |
+| File                                                                                                      | Responsibility                                                                       |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [QuestionManager.ts](../server/src/question-manager/QuestionManager.ts)                                   | Reading retrieval, next-question selection, grading, serialization, and typed errors |
+| [AnswerProgress.ts](../server/src/question-manager/AnswerProgress.ts)                                     | First-correct event and synchronous progress callback interfaces                     |
+| [QuestionManager.test.ts](../server/src/question-manager/QuestionManager.test.ts)                         | Unit tests using a fake Data Writer                                                  |
+| [QuestionManager.integration.test.ts](../server/src/question-manager/QuestionManager.integration.test.ts) | Integration tests using the official migration, Data Writer, and in-memory SQLite    |
 
 The constructor accepts `Pick<DataWriter, 'content' | 'answers' | 'transaction'>`
 and an `AnswerProgress` handler. The service uses the existing
@@ -53,15 +53,31 @@ this method does not attach question tasks to reading pages.
 
 ### nextQuestion(userId, planetId): Question | null
 
-Checks the planet and delegates to `content.nextUnsolvedQuestion`. The official
-repository selects by ascending `question_id`, excluding questions with a
-correct attempt by this user. Wrong attempts remain eligible; another user's
-completion has no effect. Questions can be retrieved even without any readings.
-Returns `null` when none remain, including an existing planet with no questions.
+Checks the planet and loads its multiple-choice questions that this user has
+not attempted, right or wrong (`content.getQuestions` filtered with
+`answers.hasAnswered`). Another
+user's answers have no effect. Questions can be retrieved even without any
+readings. Returns `null` when none remain, including an existing planet with no
+questions.
+
+**Random order.** Each attempt at a planet gets its own shuffled question order,
+kept in memory per user and planet. The manager serves the first unanswered
+question in that order, so each question is asked exactly once per attempt.
+That question's options are shuffled too, and the shuffled question is cached,
+so asking again before answering returns the same question with the same option
+order. Answers are graded by `optionId` instead of position. `newAttempt(userId,
+planetId)` forgets the order; the reset route calls it so `Redo Planet` gets a
+new order. After a server restart, the questions left get a new order.
+
+The constructor's optional third argument is the shuffle function.
+[index.ts](../server/src/index.ts) passes lodash's `shuffle`. Without one,
+questions keep question ID order and options keep label order, which is what
+most tests rely on. The randomness tests pass lodash's `shuffle` or a
+predictable one that reverses the list.
 
 The response contains `questionId`, `prompt`, `type: 'mcq'`, optional `graph`, and
 `options: AnswerOption[]`. Each option contains only `optionId`, `label`, and
-`text`. Options are ordered by label by the Data Writer. The stored `qtype` field
+`text`. The Data Writer orders options by label; the manager then shuffles them. The stored `qtype` field
 maps to response `type`. Null graphs are omitted; non-null graph text is returned
 unchanged, including seeded JSON strings such as `'{"fn":"2*x+3"}'`.
 
@@ -105,13 +121,13 @@ copied into service question responses. Grading feedback is returned only after
 a valid submission. This service guarantee does not cover the separate demo
 planet payload described below.
 
-| Error code | Meaning | Current HTTP mapping |
-| --- | --- | --- |
-| `INVALID_INPUT` | Invalid ID or option outside the question | 400 |
-| `NOT_FOUND` | Missing question or planet | 404 |
-| `INVALID_CONTENT` | Unsupported type or malformed question content | 500 |
-| `STORAGE_ERROR` | Data Writer operation or transaction failed | 500 |
-| `PROGRESS_UPDATE_FAILED` | Synchronous progress handler threw | 500 |
+| Error code               | Meaning                                        | Current HTTP mapping |
+| ------------------------ | ---------------------------------------------- | -------------------- |
+| `INVALID_INPUT`          | Invalid ID or option outside the question      | 400                  |
+| `NOT_FOUND`              | Missing question or planet                     | 404                  |
+| `INVALID_CONTENT`        | Unsupported type or malformed question content | 500                  |
+| `STORAGE_ERROR`          | Data Writer operation or transaction failed    | 500                  |
+| `PROGRESS_UPDATE_FAILED` | Synchronous progress handler threw             | 500                  |
 
 `QuestionManagerError` preserves an internal `cause`. The HTTP error handler logs
 that cause and sends only `{error: {code, message}}`. Database foreign keys reject

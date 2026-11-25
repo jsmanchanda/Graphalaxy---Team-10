@@ -107,8 +107,11 @@ A second answer to the same question is rejected with status 409 and code
 
 - **One at a time.** A planet's payload no longer includes its questions. The
   client asks for the next one when the player reaches it.
-- **In question ID order.** The next question is the first one, by ascending
-  ID, that the player has not answered.
+- **In a shuffled order.** Each attempt at a planet asks its questions in a
+  random order, with each question's options shuffled too. Asking for the
+  next question again before answering returns the same question with the
+  same option order. `Redo Planet` starts a new random order. See
+  [Question Manager](QUESTION_MANAGER.md#nextquestionuserid-planetid-question--null).
 - **Asked once.** A wrong answer counts as answered and the player moves on.
 - **Multiple choice only.** Questions of any other type are never asked and do
   not count toward a planet's total.

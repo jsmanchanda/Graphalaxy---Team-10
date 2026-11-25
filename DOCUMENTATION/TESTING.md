@@ -70,7 +70,8 @@ responses and answer the rendered question through canvas controls.
 
 Each question accepts one answer, whether right or wrong. The next-question
 endpoint keeps returning an unanswered question until it is answered, then
-advances in question ID order. Duplicate submissions return
+advances to another unanswered question in the attempt's shuffled order.
+Options are shuffled too, so tests find the correct option by its text. Duplicate submissions return
 `409 ALREADY_ANSWERED`; exhaustion returns `question: null` with the latest
 progress. Wrong answers do not increase the correct count. A fully correct run
 makes the planet peaceful. Browser completion checks the result screen and
