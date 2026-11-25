@@ -7,6 +7,7 @@ import type {
   CoefficientInputsHandle,
   CoefficientInputsOptions,
 } from '../../src/Asteroids/components/CoefficientInputs';
+import {PANEL_FRAME_IMAGE} from '../../src/Asteroids/constants';
 import {ASTEROID_RADIUS} from '../../src/Asteroids/math/asteroids';
 import type {
   Asteroid,
@@ -14,6 +15,7 @@ import type {
   Screen,
 } from '../../src/Asteroids/types';
 import {AsteroidGameView} from '../../src/Asteroids/views/AsteroidGameView';
+import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../../src/UI/constants';
 
 // Build the real components in Node; see helpers/konvaStubs.ts
 installKonvaStubs();
@@ -150,6 +152,23 @@ describe('AsteroidGameView', () => {
     expect(screen.find('.asteroid')).toHaveLength(1);
     expect(hasText(screen, 'Question 1/3 · Slope-intercept form')).toBe(true);
     expect(hasText(screen, 'y = mx + b')).toBe(true);
+  });
+
+  it('draws the cockpit frame full screen, behind everything else', () => {
+    const {screen} = setup();
+    const frame = screen.findOne<Konva.Group>('.cockpitFrame');
+    const image = frame?.findOne<Konva.Image>('Image');
+
+    expect(Konva.Image.fromURL).toHaveBeenCalledWith(
+      PANEL_FRAME_IMAGE,
+      expect.any(Function),
+    );
+    expect(screen.getChildren()[0]).toBe(frame);
+    expect([frame?.x(), frame?.y()]).toEqual([0, 0]);
+    expect([image?.width(), image?.height()]).toEqual([
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+    ]);
   });
 
   it("makes one focused box per coefficient of the question's form", () => {
