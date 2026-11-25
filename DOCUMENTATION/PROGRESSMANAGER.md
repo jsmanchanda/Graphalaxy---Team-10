@@ -112,6 +112,11 @@ A second answer to the same question is rejected with status 409 and code
   next question again before answering returns the same question with the
   same option order. `Redo Planet` starts a new random order. See
   [Question Manager](QUESTION_MANAGER.md#nextquestionuserid-planetid-question--null).
+- **Five per attempt.** Each attempt asks 5 of the planet's questions, picked
+  at random (all of them if the planet has fewer). `QUESTIONS_PER_ATTEMPT` in
+  [index.ts](../server/src/index.ts) sets the number for both managers.
+  `questionCount` in a planet summary is this attempt size, so winning, the
+  completion percentage and "3 of 5 correct" all count against it.
 - **Asked once.** A wrong answer counts as answered and the player moves on.
 - **Multiple choice only.** Questions of any other type are never asked and do
   not count toward a planet's total.

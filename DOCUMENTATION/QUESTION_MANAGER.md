@@ -69,6 +69,13 @@ order. Answers are graded by `optionId` instead of position. `newAttempt(userId,
 planetId)` forgets the order; the reset route calls it so `Redo Planet` gets a
 new order. After a server restart, the questions left get a new order.
 
+**Questions per attempt.** The constructor's fourth argument limits how many
+questions an attempt asks (default: all of them). `nextQuestion` returns `null`
+once the player has answered that many on the planet. A reset deletes the
+planet's answers, so every answer counted belongs to the current attempt, even
+after a server restart. Because the order is shuffled, each attempt asks a
+different random subset. Progress Manager is given the same number.
+
 The constructor's optional third argument is the shuffle function.
 [index.ts](../server/src/index.ts) passes lodash's `shuffle`. Without one,
 questions keep question ID order and options keep label order, which is what
