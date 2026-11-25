@@ -4,6 +4,7 @@ import {openDb} from './db/connection';
 import {migrate} from './db/migrate';
 import {seed} from './db/seed';
 import {ProgressManager} from './progress-manager/ProgressManager';
+import shuffle from 'lodash/shuffle';
 import {QuestionManager} from './question-manager/QuestionManager';
 import {HintManager} from './hint-manager/hintmanager';
 
@@ -17,7 +18,7 @@ const dataWriter = createDataWriter(db);
 
 // Progress Manager subscribes to Question Manager's first-correct-answer event.
 const progress = new ProgressManager(dataWriter);
-const questions = new QuestionManager(dataWriter, progress);
+const questions = new QuestionManager(dataWriter, progress, shuffle);
 const hints = new HintManager(dataWriter);
 
 createApp({questions, progress, hints, dataWriter}).listen(PORT, () => {
