@@ -1,8 +1,16 @@
 import Konva from 'konva';
 import {GraphComponent} from '../../Graphing/GraphComponent';
 import {Interval} from '../../Graphing/functions';
-import {ButtonComponent} from '../components';
-import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../constants';
+import {ButtonComponent, ImageComponent, TextBoxComponent} from '../components';
+import {
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
+  FONT_CONTHRAX,
+  RADIO_WAVE_IMAGES,
+  TEXT_BOX_BORDER_COLOR,
+  TEXT_BOX_FILL_COLOR,
+  TEXT_COLOR,
+} from '../constants';
 import {
   RadioWaveMinigameScreenModel,
   RadioWaveQuestion,
@@ -10,17 +18,24 @@ import {
   View,
 } from '../types';
 
-const GRAPH_WIDTH = 600;
-const GRAPH_HEIGHT = 275;
+// Keep the header beside the portrait window and the graph below it.
+const HEADER_X = 180;
+const HEADER_WIDTH = 550;
+const HEADER_Y = 45;
+const HEADER_HEIGHT = 40;
+const GRAPH_WIDTH = 660;
+const GRAPH_HEIGHT = 215;
 const GRAPH_X = (DESIGN_WIDTH - GRAPH_WIDTH) / 2;
-const GRAPH_Y = 70;
-const TIMER_Y = 45;
+const GRAPH_Y = 143;
+const TIMER_Y = 102;
 const TIMER_HEIGHT = 12;
-const CONTROLS_Y = GRAPH_Y + GRAPH_HEIGHT + 18;
+// The cockpit console begins around y = 377 in the 800 × 500 layout.
+const CONTROLS_Y = 386;
 const CHECK_BUTTON_WIDTH = 180;
-const CHECK_BUTTON_HEIGHT = 45;
+const CHECK_BUTTON_HEIGHT = 36;
 const CHECK_BUTTON_X = (DESIGN_WIDTH - CHECK_BUTTON_WIDTH) / 2;
-const CHECK_BUTTON_Y = 430;
+const CHECK_BUTTON_Y = 432;
+const START_BUTTON_Y = 410;
 
 const DEFAULT_AMPLITUDE = 1;
 const DEFAULT_FREQUENCY = 2;
@@ -32,7 +47,8 @@ const ANSWER_TOLERANCE = 0.05;
  * Displays the instructions, timed round, and results for the minigame.
  */
 export class RadioWaveMinigameView implements View {
-  private group: Konva.Group;
+  private readonly group = new Konva.Group();
+  private readonly content = new Konva.Group();
   private timer?: number;
   private roundEndsAt = 0;
   private currentQuestion: RadioWaveQuestion;
@@ -58,7 +74,23 @@ export class RadioWaveMinigameView implements View {
   ) {
     this.correctAnswersForHint = model.config.correctAnswersForHint;
     this.currentQuestion = model.question;
-    this.group = new Konva.Group();
+    const frame = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      '/assets/general-nav.png',
+    );
+    frame.getGroup().listening(false);
+    const dishWindow = new Konva.Group({
+      x: 49,
+      y: 39,
+      clip: {x: 0, y: 0, width: 100, height: 80},
+      listening: false,
+    });
+    const dish = new ImageComponent(-14, -5, 128, 96, RADIO_WAVE_IMAGES.dish);
+    dishWindow.add(dish.getGroup());
+    this.group.add(dishWindow, frame.getGroup(), this.content);
     // UIManager destroys this group when it switches to another view.
     this.group.on('destroy', () => this.clearRound());
     this.showInstructions(model);
@@ -68,43 +100,32 @@ export class RadioWaveMinigameView implements View {
    * Explains the round before the player starts the timer.
    */
   private showInstructions(model: RadioWaveMinigameScreenModel): void {
-    this.group.add(
-      new Konva.Text({
-        x: GRAPH_X,
-        y: 65,
-        width: GRAPH_WIDTH,
-        text: 'Match the radio wave',
-        align: 'center',
-        fontSize: 28,
-        fill: 'white',
-      }),
+    const title = new TextBoxComponent(
+      HEADER_X,
+      HEADER_Y,
+      HEADER_WIDTH,
+      HEADER_HEIGHT,
+      'Match the radio wave',
+    ).setFontSize(22);
+    const instructions = new TextBoxComponent(
+      GRAPH_X,
+      145,
+      GRAPH_WIDTH,
+      178,
+      "We're losing our ship signal! Adjust the blue wave to match the white wave.\n\n" +
+        'Use y = A sin(B(x - h)) + k, then submit your answer.\n\n' +
+        `Match ${model.config.correctAnswersForHint} waves in ${model.config.timeLimitSeconds} seconds to earn a hint.`,
     );
-    this.group.add(
-      new Konva.Text({
-        x: GRAPH_X,
-        y: 135,
-        width: GRAPH_WIDTH,
-        text:
-          "We're losing our ship signal! Change the equation values to match the ship's radio wave to the desired white wave.\n\n" +
-          'Use y = A sin(B(x - h)) + k, then submit your answer.\n\n' +
-          `You have ${model.config.timeLimitSeconds} seconds.\n\n` +
-          `Goal: ${model.config.correctAnswersForHint} correct answers to regain signal.` +
-          '\n\n Reward: +1 Hint',
-        align: 'center',
-        fontSize: 20,
-        lineHeight: 1.3,
-        fill: 'white',
-      }),
-    );
+    this.content.add(title.getGroup(), instructions.getGroup());
     const startButton = new ButtonComponent(
       CHECK_BUTTON_X,
-      CHECK_BUTTON_Y,
+      START_BUTTON_Y,
       CHECK_BUTTON_WIDTH,
       CHECK_BUTTON_HEIGHT,
       'START',
       () => this.startRound(model),
     );
-    this.group.add(startButton.getGroup());
+    this.content.add(startButton.getGroup());
   }
 
   /**
@@ -113,22 +134,20 @@ export class RadioWaveMinigameView implements View {
   private startRound(model: RadioWaveMinigameScreenModel): void {
     if (this.screen !== 'instructions') return;
     this.screen = 'gameplay';
-    this.group.destroyChildren();
+    this.content.destroyChildren();
     this.correctAnswers = 0;
 
-    const instructions = new Konva.Text({
-      x: GRAPH_X,
-      y: 10,
-      width: GRAPH_WIDTH,
-      text: 'SIGNAL: SEARCHING',
-      align: 'center',
-      fontSize: 24,
-      fill: 'white',
-    });
+    const status = new TextBoxComponent(
+      HEADER_X,
+      HEADER_Y,
+      HEADER_WIDTH,
+      HEADER_HEIGHT,
+      'SIGNAL: SEARCHING',
+    ).setFontSize(20);
     const timerTrack = new Konva.Rect({
-      x: GRAPH_X,
+      x: HEADER_X,
       y: TIMER_Y,
-      width: GRAPH_WIDTH,
+      width: HEADER_WIDTH,
       height: TIMER_HEIGHT,
       fill: '#7f1d2d',
       stroke: '#f97316',
@@ -136,17 +155,15 @@ export class RadioWaveMinigameView implements View {
       cornerRadius: TIMER_HEIGHT / 2,
     });
     const timerBar = new Konva.Rect({
-      x: GRAPH_X + 3,
+      x: HEADER_X + 3,
       y: TIMER_Y + 3,
-      width: GRAPH_WIDTH - 6,
+      width: HEADER_WIDTH - 6,
       height: TIMER_HEIGHT - 6,
       fill: '#84cc16',
       cornerRadius: (TIMER_HEIGHT - 6) / 2,
     });
 
-    this.group.add(instructions);
-    this.group.add(timerTrack);
-    this.group.add(timerBar);
+    this.content.add(status.getGroup(), timerTrack, timerBar);
     this.nextQuestion();
     this.createControls();
     this.startTimer(timerBar, model.config.timeLimitSeconds);
@@ -160,7 +177,7 @@ export class RadioWaveMinigameView implements View {
       () => this.checkAnswer(),
     );
 
-    this.group.add(checkButton.getGroup());
+    this.content.add(checkButton.getGroup());
   }
 
   /**
@@ -227,7 +244,7 @@ export class RadioWaveMinigameView implements View {
     this.setWaveColor(graph, 'player-wave', '#38bdf8');
 
     this.graph = graph;
-    this.group.add(graph.getGroup());
+    this.content.add(graph.getGroup());
     if (this.inputs) {
       this.inputs.amplitude.value = String(DEFAULT_AMPLITUDE);
       this.inputs.frequency.value = String(DEFAULT_FREQUENCY);
@@ -306,7 +323,7 @@ export class RadioWaveMinigameView implements View {
     this.timer = window.setInterval(() => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, 1 - elapsed / duration);
-      timerBar.width((GRAPH_WIDTH - 6) * remaining);
+      timerBar.width((HEADER_WIDTH - 6) * remaining);
 
       if (remaining === 0) {
         this.showResults();
@@ -321,43 +338,32 @@ export class RadioWaveMinigameView implements View {
     if (this.screen !== 'gameplay') return;
     this.screen = 'results';
     this.clearRound();
-    this.group.destroyChildren();
-    this.group.add(
-      new Konva.Text({
-        x: GRAPH_X,
-        y: 150,
-        width: GRAPH_WIDTH,
-        text: "Time's up!",
-        align: 'center',
-        fontSize: 32,
-        fill: 'white',
-      }),
-    );
-    this.group.add(
-      new Konva.Text({
-        x: GRAPH_X,
-        y: 230,
-        width: GRAPH_WIDTH,
-        text: `Correct answers: ${this.correctAnswers}`,
-        align: 'center',
-        fontSize: 24,
-        fill: 'white',
-      }),
-    );
+    this.content.destroyChildren();
     const addHint = this.correctAnswers >= this.correctAnswersForHint;
-    this.group.add(
-      new Konva.Text({
-        x: GRAPH_X,
-        y: 290,
-        width: GRAPH_WIDTH,
-        text: addHint
-          ? 'Signal restored! Hint reward earned.'
-          : 'No hint earned this round.',
-        align: 'center',
-        fontSize: 20,
-        fill: 'white',
-      }),
+    const title = new TextBoxComponent(
+      HEADER_X,
+      HEADER_Y,
+      HEADER_WIDTH,
+      HEADER_HEIGHT,
+      "Time's up!",
+    ).setFontSize(22);
+    const score = new TextBoxComponent(
+      GRAPH_X,
+      156,
+      GRAPH_WIDTH,
+      68,
+      `Correct answers: ${this.correctAnswers}`,
+    ).setFontSize(24);
+    const outcome = new TextBoxComponent(
+      GRAPH_X,
+      238,
+      GRAPH_WIDTH,
+      62,
+      addHint
+        ? 'Signal restored! Hint reward earned.'
+        : 'No hint earned this round.',
     );
+    this.content.add(title.getGroup(), score.getGroup(), outcome.getGroup());
     const continueButton = new ButtonComponent(
       CHECK_BUTTON_X,
       CHECK_BUTTON_Y,
@@ -370,7 +376,7 @@ export class RadioWaveMinigameView implements View {
         this.onAction({type: 'endMiniGame', addHint});
       },
     );
-    this.group.add(continueButton.getGroup());
+    this.content.add(continueButton.getGroup());
   }
 
   /**
@@ -428,22 +434,19 @@ export class RadioWaveMinigameView implements View {
     const controls = document.createElement('div');
     controls.style.position = 'fixed';
     controls.style.display = 'flex';
+    controls.style.width = 'max-content';
     controls.style.alignItems = 'center';
-    controls.style.gap = '12px';
-    controls.style.color = 'white';
-    controls.style.fontFamily = 'Conthrax';
-    controls.style.fontSize = '18px';
-    controls.style.whiteSpace = 'nowrap';
+    controls.style.gap = '8px';
     controls.style.zIndex = '1';
-    controls.style.transform = 'translateX(-50%)';
+    controls.style.transformOrigin = 'top center';
     controls.append(
-      document.createTextNode('y ='),
+      this.createEquationSymbol(RADIO_WAVE_IMAGES.yEquals, 'y ='),
       amplitude,
-      document.createTextNode('sin('),
+      this.createEquationSymbol(RADIO_WAVE_IMAGES.sine, 'sin('),
       frequency,
-      document.createTextNode('(x -'),
+      this.createEquationSymbol(RADIO_WAVE_IMAGES.xMinus, '(x -'),
       horizontalShift,
-      document.createTextNode(')) +'),
+      this.createEquationSymbol(RADIO_WAVE_IMAGES.closePlus, ')) +'),
       verticalShift,
     );
     document.body.append(controls);
@@ -456,8 +459,7 @@ export class RadioWaveMinigameView implements View {
       const offsetY = (window.innerHeight - DESIGN_HEIGHT * scale) / 2;
       controls.style.left = `${offsetX + (DESIGN_WIDTH / 2) * scale}px`;
       controls.style.top = `${offsetY + CONTROLS_Y * scale}px`;
-      controls.style.gap = `${12 * scale}px`;
-      controls.style.fontSize = `${18 * scale}px`;
+      controls.style.transform = `translateX(-50%) scale(${scale})`;
     };
     positionControls();
     window.addEventListener('resize', positionControls);
@@ -494,6 +496,26 @@ export class RadioWaveMinigameView implements View {
     };
   }
 
+  /** Places the artwork in a compact slot, cropping its transparent margins. */
+  private createEquationSymbol(url: string, text: string): HTMLElement {
+    const slot = document.createElement('span');
+    slot.style.position = 'relative';
+    slot.style.width = '66px';
+    slot.style.height = '36px';
+    slot.style.overflow = 'hidden';
+
+    const image = document.createElement('img');
+    image.src = url;
+    image.alt = text;
+    image.style.position = 'absolute';
+    image.style.left = '50%';
+    image.style.top = '50%';
+    image.style.width = '116px';
+    image.style.transform = 'translate(-50%, -50%)';
+    slot.append(image);
+    return slot;
+  }
+
   /**
    * Creates one numeric input for the wave expression.
    */
@@ -504,16 +526,17 @@ export class RadioWaveMinigameView implements View {
   ): HTMLInputElement {
     const input = document.createElement('input');
     input.name = name;
+    input.ariaLabel = name.replaceAll('-', ' ');
     input.type = 'number';
     input.step = step;
     input.value = value;
-    input.style.width = '75px';
-    input.style.padding = '10px';
-    input.style.border = '1px solid white';
+    input.style.width = '65px';
+    input.style.padding = '6px 8px';
+    input.style.border = `1px solid ${TEXT_BOX_BORDER_COLOR}`;
     input.style.borderRadius = '4px';
-    input.style.backgroundColor = '#0c22cbc3';
-    input.style.color = 'white';
-    input.style.fontFamily = 'Conthrax';
+    input.style.backgroundColor = TEXT_BOX_FILL_COLOR;
+    input.style.color = TEXT_COLOR;
+    input.style.fontFamily = FONT_CONTHRAX;
     input.style.fontSize = '18px';
     return input;
   }

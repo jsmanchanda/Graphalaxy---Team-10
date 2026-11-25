@@ -81,14 +81,11 @@ afterEach(() => {
 function findButton(label: string): Konva.Group {
   if (!view) throw new Error('The minigame has not been created');
 
-  for (const child of view.getGroup().getChildren()) {
-    if (child instanceof Konva.Group) {
-      const labelNode = child.findOne(
-        (node: Konva.Node) => node.getAttr('text') === label,
-      );
-      if (labelNode) return child;
-    }
-  }
+  const labelNode = view
+    .getGroup()
+    .findOne((node: Konva.Node) => node.getAttr('text') === label);
+  const button = labelNode?.getParent();
+  if (button instanceof Konva.Group) return button;
   throw new Error(`Missing button: ${label}`);
 }
 
