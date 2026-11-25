@@ -29,6 +29,21 @@ export const BUBBLE_TAIL_WIDTH = 11;
 export const BUBBLE_TAIL_HEIGHT = 12;
 export const BUBBLE_FONT_SIZE = 15;
 
+// Every image the game draws, loaded once at startup so screens never wait on them.
+// TODO(134): Add advanced image preloading
+export const PRELOAD_IMAGES: readonly string[] = [
+  '/assets/background.jpeg',
+  '/assets/general-nav.png',
+  '/assets/nav-frame.png',
+  '/assets/setting-symbol.png',
+  ...[1, 2, 3, 4].flatMap(id => [
+    `/assets/alien-planet-${id}.png`,
+    `/assets/planet-background-${id}.jpg`,
+    `/assets/planet-intro-background-${id}.jpg`,
+  ]),
+  ...[0, 1, 2, 3, 4, 5, 6, 7].map(id => `/assets/planet-${id}.png`),
+];
+
 // Font
 export const FONT_PLANET_KOSMOS = 'PlanetKosmos';
 export const FONT_CONTHRAX = 'Conthrax';

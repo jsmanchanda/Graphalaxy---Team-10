@@ -9,6 +9,7 @@ import {
   TEXT_FONT_FAMILY,
   TEXT_FONT_SIZE,
 } from './constants';
+import {getCachedImage} from './imageCache';
 
 /**
  * Base class for UI components. Holds the Konva group a screen displays.
@@ -234,7 +235,7 @@ export class ButtonComponent extends TextBoxComponent {
  */
 export class ImageComponent extends Component {
   /**
-   * Builds the image. It appears once it finishes loading.
+   * Builds the image. A preloaded image appears right away; any other image appears once it finishes loading.
    */
   constructor(
     x: number,
@@ -246,7 +247,7 @@ export class ImageComponent extends Component {
   ) {
     super(x, y);
 
-    Konva.Image.fromURL(url, image => {
+    const addImage = (image: Konva.Image): void => {
       image.width(width);
       image.height(height);
       this.group.add(image);
@@ -257,7 +258,14 @@ export class ImageComponent extends Component {
       }
 
       this.group.getLayer()?.batchDraw();
-    });
+    };
+
+    const cached = getCachedImage(url);
+    if (cached) {
+      addImage(new Konva.Image({image: cached}));
+    } else {
+      Konva.Image.fromURL(url, addImage);
+    }
   }
 
   /**
