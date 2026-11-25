@@ -564,33 +564,37 @@ export class RadioWaveMinigameView implements View {
     this.clearRound();
     this.content.destroyChildren();
     const addHint = this.correctAnswers >= this.correctAnswersForHint;
+    const waveLabel = this.correctAnswers === 1 ? 'wave' : 'waves';
+    const scoreText = addHint
+      ? `${this.correctAnswers} ${waveLabel} matched.`
+      : `${this.correctAnswers} of ${this.correctAnswersForHint} waves matched.`;
     const title = new TextBoxComponent(
-      HEADER_X,
-      HEADER_Y,
-      HEADER_WIDTH,
-      HEADER_HEIGHT,
-      "Time's up!",
-    ).setFontSize(22);
+      GRAPH_X,
+      147,
+      GRAPH_WIDTH,
+      76,
+      addHint ? 'Signal restored!' : 'Signal lost!',
+    )
+      .setFontSize(34)
+      .setTextColor(addHint ? '#86efac' : '#fbbf24');
     const score = new TextBoxComponent(
       GRAPH_X,
-      156,
+      237,
       GRAPH_WIDTH,
-      68,
-      `Correct answers: ${this.correctAnswers}`,
-    ).setFontSize(24);
-    const outcome = new TextBoxComponent(
+      48,
+      scoreText,
+    ).setFontSize(22);
+    const hintStatus = new TextBoxComponent(
       GRAPH_X,
-      238,
+      299,
       GRAPH_WIDTH,
-      62,
-      addHint
-        ? 'Signal restored! Hint reward earned.'
-        : 'No hint earned this round.',
-    );
-    this.content.add(title.getGroup(), score.getGroup(), outcome.getGroup());
+      42,
+      addHint ? 'Hint earned.' : 'No hint earned.',
+    ).setFontSize(17);
+    this.content.add(title.getGroup(), score.getGroup(), hintStatus.getGroup());
     const continueButton = new ButtonComponent(
       CHECK_BUTTON_X,
-      CHECK_BUTTON_Y,
+      412,
       CHECK_BUTTON_WIDTH,
       CHECK_BUTTON_HEIGHT,
       'Go to lesson',

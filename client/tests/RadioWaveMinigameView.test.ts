@@ -77,14 +77,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+/** Finds text using the wording the player sees. */
+function findText(label: string) {
+  return view
+    ?.getGroup()
+    .findOne((node: Konva.Node) => node.getAttr('text') === label);
+}
+
 /** Finds a button using the label the player sees. */
 function findButton(label: string): Konva.Group {
-  if (!view) throw new Error('The minigame has not been created');
-
-  const labelNode = view
-    .getGroup()
-    .findOne((node: Konva.Node) => node.getAttr('text') === label);
-  const button = labelNode?.getParent();
+  const button = findText(label)?.getParent();
   if (button instanceof Konva.Group) return button;
   throw new Error(`Missing button: ${label}`);
 }
@@ -129,7 +131,7 @@ function getScoreText() {
   return view
     ?.getGroup()
     .findOne((node: Konva.Node) =>
-      String(node.getAttr('text')).startsWith('Correct answers:'),
+      /\b waves? matched\.$/.test(String(node.getAttr('text'))),
     )
     ?.getAttr('text');
 }
@@ -171,7 +173,7 @@ describe('Radio-wave minigame', () => {
     expect(getScoreText()).toBeUndefined();
 
     vi.advanceTimersByTime(100);
-    expect(getScoreText()).toBe('Correct answers: 0');
+    expect(getScoreText()).toBe('0 of 3 waves matched.');
     expect(controlsContainer?.remove).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
     expect(onAction).not.toHaveBeenCalled();
@@ -184,18 +186,24 @@ describe('Radio-wave minigame', () => {
   });
 
   it.each([
-    {score: 0, earnsHint: false},
-    {score: 2, earnsHint: false},
-    {score: 3, earnsHint: true},
-    {score: 4, earnsHint: true},
+    {score: 0, earnsHint: false, scoreText: '0 of 3 waves matched.'},
+    {score: 2, earnsHint: false, scoreText: '2 of 3 waves matched.'},
+    {score: 3, earnsHint: true, scoreText: '3 waves matched.'},
+    {score: 4, earnsHint: true, scoreText: '4 waves matched.'},
   ])(
     'reports addHint=$earnsHint for $score correct answers',
-    ({score, earnsHint}) => {
+    ({score, earnsHint, scoreText}) => {
       const onAction = startGame();
       answerCorrectQuestions(score);
 
       vi.advanceTimersByTime(ROUND_LENGTH_MS);
-      expect(getScoreText()).toBe(`Correct answers: ${score}`);
+      expect(getScoreText()).toBe(scoreText);
+      expect(
+        findText(earnsHint ? 'Signal restored!' : 'Signal lost!'),
+      ).toBeDefined();
+      expect(
+        findText(earnsHint ? 'Hint earned.' : 'No hint earned.'),
+      ).toBeDefined();
 
       findButton('Go to lesson').fire('click');
       expect(onAction).toHaveBeenCalledExactlyOnceWith({
@@ -230,7 +238,7 @@ describe('Radio-wave minigame', () => {
     submitAnswer(amplitude);
 
     vi.advanceTimersByTime(ROUND_LENGTH_MS);
-    expect(getScoreText()).toBe('Correct answers: 0');
+    expect(getScoreText()).toBe('0 of 3 waves matched.');
   });
 
   it('uses whole-number steps for both shift controls', () => {
@@ -262,7 +270,7 @@ describe('Radio-wave minigame', () => {
     findButton('SUBMIT').fire('click');
 
     vi.advanceTimersByTime(ROUND_LENGTH_MS);
-    expect(getScoreText()).toBe('Correct answers: 0');
+    expect(getScoreText()).toBe('0 of 3 waves matched.');
   });
 
   it.each(['horizontal-shift', 'vertical-shift'])(
@@ -302,7 +310,7 @@ describe('Radio-wave minigame', () => {
     setInputValue('horizontal-shift', '2');
     findButton('SUBMIT').fire('click');
     vi.advanceTimersByTime(ROUND_LENGTH_MS);
-    expect(getScoreText()).toBe('Correct answers: 1');
+    expect(getScoreText()).toBe('1 of 3 waves matched.');
   });
 
   it('does not restart the timer after a correct answer', () => {
@@ -311,7 +319,7 @@ describe('Radio-wave minigame', () => {
     submitAnswer();
 
     vi.advanceTimersByTime(ROUND_LENGTH_MS / 2);
-    expect(getScoreText()).toBe('Correct answers: 1');
+    expect(getScoreText()).toBe('1 of 3 waves matched.');
     expect(vi.getTimerCount()).toBe(0);
   });
 });
