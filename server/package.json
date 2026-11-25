@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "lint": "eslint . --no-error-on-unmatched-pattern",
-    "dev" : "tsx watch src/index.ts",
-    "start" : "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "node -e \"require('fs').rmSync('var/game.db',{force:true})\" && npm run db:migrate && npm run db:seed",
@@ -15,11 +15,13 @@
   "dependencies": {
     "@graphalaxy/shared": "*",
     "better-sqlite3": "^13.0.3",
-    "express": "^5.3.0"
+    "express": "^5.3.0",
+    "lodash": "^4.18.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/express": "^5.0.6",
+    "@types/lodash": "^4.17.27",
     "@types/supertest": "^7.2.1",
     "supertest": "^7.3.1",
     "tsx": "^4.23.15",

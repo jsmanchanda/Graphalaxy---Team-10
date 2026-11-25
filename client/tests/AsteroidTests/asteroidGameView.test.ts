@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 import Konva from 'konva';
 import {installKonvaStubs} from '../helpers/konvaStubs';
 import {AsteroidMiniGameController} from '../../src/Asteroids/AsteroidMiniGameController';
@@ -7,6 +7,7 @@ import type {
   CoefficientInputsHandle,
   CoefficientInputsOptions,
 } from '../../src/Asteroids/components/CoefficientInputs';
+import {PANEL_FRAME_IMAGE} from '../../src/Asteroids/constants';
 import {ASTEROID_RADIUS} from '../../src/Asteroids/math/asteroids';
 import type {
   Asteroid,
@@ -14,9 +15,18 @@ import type {
   Screen,
 } from '../../src/Asteroids/types';
 import {AsteroidGameView} from '../../src/Asteroids/views/AsteroidGameView';
+import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../../src/UI/constants';
 
 // Build the real components in Node; see helpers/konvaStubs.ts
 installKonvaStubs();
+
+// The stub is installed once per file; clear its calls so each test only
+// sees the images it loaded itself.
+const loadImage = vi.mocked(Konva.Image.fromURL);
+// Braces matter: a function returned from beforeEach runs as its cleanup.
+beforeEach(() => {
+  loadImage.mockClear();
+});
 
 /** An asteroid at (x, y) with the default radius. */
 function asteroidAt(x: number, y: number): Asteroid {
@@ -152,6 +162,23 @@ describe('AsteroidGameView', () => {
     expect(hasText(screen, 'y = mx + b')).toBe(true);
   });
 
+  it('draws the cockpit frame full screen, behind everything else', () => {
+    const {screen} = setup();
+    const frame = screen.findOne<Konva.Group>('.cockpitFrame');
+    const image = frame?.findOne<Konva.Image>('Image');
+
+    expect(loadImage).toHaveBeenCalledWith(
+      PANEL_FRAME_IMAGE,
+      expect.any(Function),
+    );
+    expect(screen.getChildren()[0]).toBe(frame);
+    expect([frame?.x(), frame?.y()]).toEqual([0, 0]);
+    expect([image?.width(), image?.height()]).toEqual([
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+    ]);
+  });
+
   it("makes one focused box per coefficient of the question's form", () => {
     const {inputs} = setup(1);
     expect(inputs.options.letters).toEqual(['a', 'h', 'k']);
@@ -177,6 +204,24 @@ describe('AsteroidGameView', () => {
     expect(fire.opacity()).toBe(1);
     inputs.type(['2', 'abc']);
     expect(fire.opacity()).toBe(0.5);
+  });
+
+  it('draws the curve on the targeting screen while every box holds a number', () => {
+    const {screen, inputs} = setup();
+    const previewCurves = () => screen.find('.previewCurve');
+
+    expect(previewCurves()).toHaveLength(0);
+    inputs.type(['2', '1']);
+    expect(previewCurves()).toHaveLength(1);
+    inputs.type(['2', 'abc']);
+    expect(previewCurves()).toHaveLength(0);
+  });
+
+  it('keeps the shot on the targeting screen after Fire', () => {
+    const {screen, inputs} = setup();
+    inputs.type(HITS[0]);
+    findComponent(screen, 'Fire').fire('click');
+    expect(screen.find('.previewCurve')).toHaveLength(1);
   });
 
   it('fires: draws the shot, locks the boxes and shows HIT! and Next', () => {

@@ -2,7 +2,9 @@ import {beforeEach, describe, expect, it, vi, type Mock} from 'vitest';
 import {
   QuestionManager,
   QuestionManagerError,
+  type Shuffle,
 } from '../src/question-manager/QuestionManager';
+import lodashShuffle from 'lodash/shuffle';
 import type {AnswerProgress} from '../src/question-manager/AnswerProgress';
 import type {
   AnswerRep,
@@ -180,10 +182,8 @@ describe('QuestionManager using Data Writer', () => {
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(1);
   });
 
-  it('uses the Data Writer next-unanswered operation and its question ID order', () => {
-    const next = vi.spyOn(writer.content, 'nextUnansweredQuestion');
+  it('serves questions in question ID order when not shuffled', () => {
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(1);
-    expect(next).toHaveBeenCalledWith(1, 1);
     manager.submit(1, 1, 11);
     expect(manager.nextQuestion(1, 1)?.questionId).toBe(2);
     manager.submit(1, 2, 21);
@@ -490,5 +490,143 @@ describe('QuestionManager using Data Writer', () => {
       expect.objectContaining({code: 'STORAGE_ERROR'}),
     );
     expect(onAnswer).not.toHaveBeenCalled();
+  });
+});
+
+describe('QuestionManager random question order', () => {
+  /** A known order that is not question ID order. */
+  const reverseOrder: Shuffle = items => [...items].reverse();
+
+  /** Reverses, and records each list it was given. */
+  const recordingShuffle = () => {
+    const calls: unknown[][] = [];
+    const shuffle: Shuffle = items => {
+      calls.push([...items]);
+      return reverseOrder(items);
+    };
+    return {shuffle, calls};
+  };
+  /** Answers every question left (correctly) and returns the IDs served. */
+  const playThrough = (manager: QuestionManager, userId = 1): number[] => {
+    const served: number[] = [];
+    for (
+      let question = manager.nextQuestion(userId, 1);
+      question;
+      question = manager.nextQuestion(userId, 1)
+    ) {
+      served.push(question.questionId);
+      manager.submit(userId, question.questionId, question.questionId * 10 + 1);
+    }
+    return served;
+  };
+
+  /** The next question for user 1 on planet 1, which must exist. */
+  const requireNext = (manager: QuestionManager) => {
+    const question = manager.nextQuestion(1, 1);
+    if (!question) throw new Error('Expected a question');
+    return question;
+  };
+
+  /** Loads a QuestionManager with lodash's shuffle by default */
+  const newManager = (
+    writer = new FakeDataWriter(),
+    shuffle: Shuffle = lodashShuffle,
+  ) => new QuestionManager(writer, {onAnswer: vi.fn()}, shuffle);
+
+  it('asks questions in the order the shuffle gives, options too', () => {
+    const manager = newManager(new FakeDataWriter(), reverseOrder);
+    const first = requireNext(manager);
+    expect(first.questionId).toBe(3);
+    expect(first.options.map(option => option.label)).toEqual(['b', 'a']);
+    manager.submit(1, 3, 31);
+    expect(playThrough(manager)).toEqual([2, 1]);
+  });
+
+  it('asks every question exactly once per attempt, in a random order', () => {
+    const orders = new Set<string>();
+    for (let run = 0; run < 20; run++) {
+      const served = playThrough(newManager());
+      expect([...served].sort()).toEqual([1, 2, 3]);
+      orders.add(served.join());
+    }
+    // 3 questions have 6 orders; 20 random runs all matching is ~1 in 10^15.
+    expect(orders.size).toBeGreaterThan(1);
+  });
+
+  it('returns the same question and option order when asked again before answering', () => {
+    const {shuffle, calls} = recordingShuffle();
+    const manager = newManager(new FakeDataWriter(), shuffle);
+    const first = manager.nextQuestion(1, 1);
+    const count = calls.length;
+    expect(manager.nextQuestion(1, 1)).toEqual(first);
+    expect(calls).toHaveLength(count);
+  });
+
+  it('shuffles the options and still grades by option ID, not position', () => {
+    // reverseOrder puts the correct option (label a) last.
+    const manager = newManager(new FakeDataWriter(), reverseOrder);
+    const question = requireNext(manager);
+    const correctId = question.questionId * 10 + 1;
+    expect(question.options.at(-1)?.optionId).toBe(correctId);
+    expect(manager.submit(1, question.questionId, correctId)).toMatchObject({
+      correct: true,
+      correctOption: {optionId: correctId, label: 'a'},
+    });
+  });
+
+  it('shuffles again with all questions after the planet is reset', () => {
+    const writer = new FakeDataWriter();
+    const {shuffle, calls} = recordingShuffle();
+    const manager = newManager(writer, shuffle);
+    playThrough(manager);
+    writer.answers.clearForPlanet(1, 1);
+    manager.newAttempt(1, 1);
+    calls.length = 0;
+    expect(playThrough(manager)).toEqual([3, 2, 1]);
+    expect(calls).toContainEqual([1, 2, 3]);
+  });
+
+  it("keeps each player's order separate", () => {
+    const manager = newManager();
+    const first = manager.nextQuestion(1, 1);
+    playThrough(manager, 2);
+    expect(manager.nextQuestion(1, 1)).toEqual(first);
+  });
+
+  it('includes a question added to the planet during an attempt', () => {
+    const writer = new FakeDataWriter();
+    const manager = newManager(writer);
+    const first = requireNext(manager);
+    manager.submit(1, first.questionId, first.questionId * 10 + 1);
+    writer.questions.push({
+      questionId: 4,
+      planetId: 1,
+      prompt: 'New?',
+      graph: null,
+      qtype: 'mcq',
+    });
+    writer.options.push(
+      {questionId: 4, optionId: 41, label: 'a', text: '1', isCorrect: true},
+      {questionId: 4, optionId: 42, label: 'b', text: '2', isCorrect: false},
+    );
+    const rest = playThrough(manager);
+    expect([first.questionId, ...rest].sort()).toEqual([1, 2, 3, 4]);
+  });
+  it('asks a random subset when an attempt asks fewer questions than the planet has', () => {
+    const subsets = new Set<string>();
+    for (let run = 0; run < 20; run++) {
+      const manager = new QuestionManager(
+        new FakeDataWriter(),
+        {onAnswer: vi.fn()},
+        lodashShuffle,
+        2,
+      );
+      const asked = playThrough(manager);
+      expect(asked).toHaveLength(2);
+      expect(new Set(asked).size).toBe(2);
+      subsets.add([...asked].sort().join());
+    }
+    // 3 questions have 3 pairs; 20 random runs all picking one is ~1 in 10^9.
+    expect(subsets.size).toBeGreaterThan(1);
   });
 });

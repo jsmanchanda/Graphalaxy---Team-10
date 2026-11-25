@@ -280,4 +280,87 @@ describe('ProgressManager subscribed to QuestionManager', () => {
       expect(progress.getPlanetSummary(userId, PLANET_ID).correctCount).toBe(1);
     });
   });
+  describe('attempts that ask only some of the questions', () => {
+    const PER_ATTEMPT = 3; // of the fixture's 5
+
+    beforeEach(() => {
+      // The same wiring as server/src/index.ts, with a smaller attempt.
+      progress = new ProgressManager(writer, PER_ATTEMPT);
+      questions = new QuestionManager(writer, progress, undefined, PER_ATTEMPT);
+    });
+
+    /** Answers every question the attempt asks; returns their ids. */
+    function playAttempt(correct: (index: number) => boolean = () => true) {
+      const asked: number[] = [];
+      for (
+        let question = questions.nextQuestion(userId, PLANET_ID);
+        question;
+        question = questions.nextQuestion(userId, PLANET_ID)
+      ) {
+        answer(question.questionId, correct(asked.length));
+        asked.push(question.questionId);
+      }
+      return asked;
+    }
+
+    it('asks only that many different questions, then ends the attempt', () => {
+      const asked = playAttempt();
+      expect(asked).toHaveLength(PER_ATTEMPT);
+      expect(new Set(asked).size).toBe(PER_ATTEMPT);
+      expect(questions.nextQuestion(userId, PLANET_ID)).toBeNull();
+    });
+
+    it('reports the attempt size as the question count', () => {
+      answer(1);
+      expect(progress.getPlanetSummary(userId, PLANET_ID)).toMatchObject({
+        correctCount: 1,
+        questionCount: PER_ATTEMPT,
+        completionPct: 1 / PER_ATTEMPT,
+      });
+    });
+
+    it('turns the planet peaceful when every question in the attempt is right', () => {
+      playAttempt();
+      expect(progress.getPlanetSummary(userId, PLANET_ID)).toMatchObject({
+        correctCount: PER_ATTEMPT,
+        completionPct: 1,
+        status: 'peaceful',
+      });
+    });
+
+    it('stays hostile after a wrong answer, and a redo asks a full attempt again', () => {
+      playAttempt(index => index !== 0);
+      expect(progress.getPlanetSummary(userId, PLANET_ID).status).toBe(
+        'hostile',
+      );
+      progress.resetPlanet(userId, PLANET_ID);
+      questions.newAttempt(userId, PLANET_ID);
+      expect(playAttempt()).toHaveLength(PER_ATTEMPT);
+      expect(progress.getPlanetSummary(userId, PLANET_ID).status).toBe(
+        'peaceful',
+      );
+    });
+
+    it('rejects answers to unasked questions once the attempt is over', () => {
+      const asked = playAttempt(index => index !== 0);
+      const unasked = QUESTION_IDS.filter(id => !asked.includes(id));
+      expect(() => answer(unasked[0])).toThrow(
+        expect.objectContaining({code: 'ALREADY_ANSWERED'}),
+      );
+      expect(progress.getPlanetSummary(userId, PLANET_ID)).toMatchObject({
+        correctCount: PER_ATTEMPT - 1,
+        status: 'hostile',
+      });
+    });
+
+    it('asks every question when the planet has fewer than the attempt size', () => {
+      progress = new ProgressManager(writer, 10);
+      questions = new QuestionManager(writer, progress, undefined, 10);
+      expect(playAttempt()).toEqual(QUESTION_IDS);
+      expect(progress.getPlanetSummary(userId, PLANET_ID)).toMatchObject({
+        questionCount: QUESTION_IDS.length,
+        status: 'peaceful',
+      });
+    });
+  });
 });
