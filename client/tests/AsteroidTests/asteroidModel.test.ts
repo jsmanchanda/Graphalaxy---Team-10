@@ -6,7 +6,11 @@ import {
 import {ASTEROID_RADIUS} from '../../src/Asteroids/math/asteroids';
 import {expressionToFunction} from '../../src/Asteroids/math/evaluate';
 import {FORMS} from '../../src/Asteroids/math/forms';
-import type {Asteroid, AsteroidQuestion} from '../../src/Asteroids/types';
+import type {
+  Asteroid,
+  AsteroidQuestion,
+  FormId,
+} from '../../src/Asteroids/types';
 
 /**
  * A small seeded random number generator (mulberry32), so each test run
@@ -39,16 +43,16 @@ function knownQuestions(): AsteroidQuestion[] {
       formId: 'linearSlopeIntercept',
       asteroids: [asteroidAt(1, 3)],
     },
-    // y = (x - 0)² + 1 passes through (0, 1) and (1, 2).
+    // y - 1 = 1(x - 0) passes through (0, 1) and (1, 2).
     {
       difficulty: 2,
-      formId: 'quadraticVertex',
+      formId: 'linearPointSlope',
       asteroids: [asteroidAt(0, 1), asteroidAt(1, 2)],
     },
-    // y = x³ passes through (0, 0) and (1, 1).
+    // y = 1x + 0 passes through (0, 0) and (1, 1).
     {
       difficulty: 3,
-      formId: 'cubicStandard',
+      formId: 'linearSlopeIntercept',
       asteroids: [asteroidAt(0, 0), asteroidAt(1, 1)],
     },
   ];
@@ -57,12 +61,12 @@ function knownQuestions(): AsteroidQuestion[] {
 const HITS = [
   [2, 1],
   [1, 0, 1],
-  [1, 0, 0, 0],
+  [1, 0],
 ];
 const MISSES = [
   [0, -5],
   [0, 0, -5],
-  [0, 0, 0, -5],
+  [0, -5],
 ];
 
 describe('generateQuestions', () => {
@@ -75,15 +79,34 @@ describe('generateQuestions', () => {
     }
   });
 
-  it('uses a linear, then a quadratic, then a cubic form', () => {
+  it('uses a linear form for every question', () => {
     for (const seed of seeds) {
       const questions = generateQuestions(seededRng(seed));
-      expect(questions.map(q => FORMS[q.formId].type)).toEqual([
-        'linear',
-        'quadratic',
-        'cubic',
-      ]);
+      for (const question of questions) {
+        expect(FORMS[question.formId].type).toBe('linear');
+      }
     }
+  });
+
+  it('can use every linear form', () => {
+    const used = new Set<FormId>();
+    for (const seed of seeds) {
+      for (const question of generateQuestions(seededRng(seed))) {
+        used.add(question.formId);
+      }
+    }
+    const linearForms = (Object.keys(FORMS) as FormId[]).filter(
+      formId => FORMS[formId].type === 'linear',
+    );
+    expect(used).toEqual(new Set(linearForms));
+  });
+
+  it('can repeat a form within a run', () => {
+    const repeats = seeds.some(seed => {
+      const forms = generateQuestions(seededRng(seed)).map(q => q.formId);
+      return new Set(forms).size < forms.length;
+    });
+    expect(repeats).toBe(true);
   });
 
   it('has 1, 2 and 2 asteroids', () => {

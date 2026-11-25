@@ -34,12 +34,12 @@ const SEEDS = Array.from({length: 200}, (unused, i) => i + 1);
 
 describe('expressionToFunction', () => {
   it('evaluates a toExpression result', () => {
-    // y = 2(x + 3)² - 1
+    // y + 1 = 2(x + 3), so y = 2(x + 3) - 1
     const fn = expressionToFunction(
-      toExpression('quadraticVertex', [2, -3, -1]),
+      toExpression('linearPointSlope', [2, -3, -1]),
     );
     expect(fn(-3)).toBe(-1);
-    expect(fn(0)).toBe(17);
+    expect(fn(0)).toBe(5);
   });
 });
 
@@ -52,7 +52,11 @@ describe('generateQuestion', () => {
 
   it.each(difficulties)('difficulty %d has %d asteroid(s)', (d, count) => {
     for (const seed of SEEDS) {
-      const question = generateQuestion(d, 'cubicStandard', seededRng(seed));
+      const question = generateQuestion(
+        d,
+        'linearSlopeIntercept',
+        seededRng(seed),
+      );
       expect(question.asteroids).toHaveLength(count);
     }
   });
@@ -65,7 +69,7 @@ describe('generateQuestion', () => {
       for (const seed of SEEDS) {
         const {asteroids} = generateQuestion(
           d,
-          'cubicStandard',
+          'linearSlopeIntercept',
           seededRng(seed),
         );
         for (const {position} of asteroids) {
@@ -83,7 +87,7 @@ describe('generateQuestion', () => {
     for (const seed of SEEDS) {
       const {asteroids} = generateQuestion(
         2,
-        'quadraticStandard',
+        'linearPointSlope',
         seededRng(seed),
       );
       const onAxis = asteroids.some(
@@ -98,7 +102,7 @@ describe('generateQuestion', () => {
     for (const seed of SEEDS) {
       const [first] = generateQuestion(
         2,
-        'quadraticStandard',
+        'linearPointSlope',
         seededRng(seed),
       ).asteroids;
       axes.add(first.position.x === 0 ? 'y-axis' : 'x-axis');
@@ -112,7 +116,7 @@ describe('generateQuestion', () => {
       for (const seed of SEEDS) {
         const [a, b] = generateQuestion(
           d,
-          'cubicStandard',
+          'linearSlopeIntercept',
           seededRng(seed),
         ).asteroids;
         const dx = a.position.x - b.position.x;
@@ -127,7 +131,7 @@ describe('generateQuestion', () => {
     const gaps = SEEDS.map(seed => {
       const [a, b] = generateQuestion(
         3,
-        'cubicStandard',
+        'linearSlopeIntercept',
         seededRng(seed),
       ).asteroids;
       return Math.abs(a.position.x - b.position.x);
@@ -136,9 +140,9 @@ describe('generateQuestion', () => {
   });
 
   it('passes through difficulty and formId and starts asteroids intact', () => {
-    const question = generateQuestion(3, 'cubicIntercept', seededRng(1));
+    const question = generateQuestion(3, 'linearPointSlope', seededRng(1));
     expect(question.difficulty).toBe(3);
-    expect(question.formId).toBe('cubicIntercept');
+    expect(question.formId).toBe('linearPointSlope');
     for (const asteroid of question.asteroids) {
       expect(asteroid.radius).toBe(ASTEROID_RADIUS);
       expect(asteroid.destroyed).toBe(false);
@@ -149,7 +153,11 @@ describe('generateQuestion', () => {
     'stays in range and finishes when rng always returns %d',
     n => {
       for (const d of [1, 2, 3] as Difficulty[]) {
-        const {asteroids} = generateQuestion(d, 'cubicStandard', () => n);
+        const {asteroids} = generateQuestion(
+          d,
+          'linearSlopeIntercept',
+          () => n,
+        );
         for (const {position} of asteroids) {
           expect(Math.abs(position.x)).toBeLessThanOrEqual(
             WINDOW_MAX - ASTEROID_RADIUS,
@@ -242,10 +250,8 @@ describe('curveHitsAsteroid', () => {
   });
 
   it('works with expressionToFunction and toExpression together', () => {
-    // y = -2(x - 1)(x + 4) has a root at x = 1.
-    const fn = expressionToFunction(
-      toExpression('quadraticIntercept', [-2, 1, -4]),
-    );
+    // 2x + y = 2 crosses the x-axis at x = 1.
+    const fn = expressionToFunction(toExpression('linearStandard', [2, 1, 2]));
     expect(curveHitsAsteroid(fn, asteroidAt(1, 0))).toBe(true);
     expect(curveHitsAsteroid(fn, asteroidAt(1, 5))).toBe(false);
   });

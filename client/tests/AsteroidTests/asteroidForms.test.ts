@@ -30,62 +30,62 @@ describe('toExpression', () => {
         [-1, 3],
       ],
     ],
-    // linearStandard is commented out in FORMS.
-    // // 2x - 4y = 8, so y = (2x - 8) / 4
+    // 2x - 4y = 8, so y = (2x - 8) / 4
+    [
+      'linearStandard',
+      [2, -4, 8],
+      [
+        [0, -2],
+        [4, 0],
+      ],
+    ],
+    // Quadratic and cubic forms are commented out in FORMS.
+    // // y = -x² + 2x + 3
     // [
-    //   'linearStandard',
-    //   [2, -4, 8],
+    //   'quadraticStandard',
+    //   [-1, 2, 3],
     //   [
-    //     [0, -2],
-    //     [4, 0],
+    //     [3, 0],
+    //     [-2, -5],
     //   ],
     // ],
-    // y = -x² + 2x + 3
-    [
-      'quadraticStandard',
-      [-1, 2, 3],
-      [
-        [3, 0],
-        [-2, -5],
-      ],
-    ],
-    // y = 2(x + 3)² - 1
-    [
-      'quadraticVertex',
-      [2, -3, -1],
-      [
-        [-3, -1],
-        [0, 17],
-      ],
-    ],
-    // y = -2(x - 1)(x + 4)
-    [
-      'quadraticIntercept',
-      [-2, 1, -4],
-      [
-        [0, 8],
-        [1, 0],
-        [-4, 0],
-      ],
-    ],
-    // y = x³ - 2x² - 3x + 4
-    [
-      'cubicStandard',
-      [1, -2, -3, 4],
-      [
-        [2, -2],
-        [-1, 4],
-      ],
-    ],
-    // y = 0.5(x + 2)x(x - 3)
-    [
-      'cubicIntercept',
-      [0.5, -2, 0, 3],
-      [
-        [1, -3],
-        [-2, 0],
-      ],
-    ],
+    // // y = 2(x + 3)² - 1
+    // [
+    //   'quadraticVertex',
+    //   [2, -3, -1],
+    //   [
+    //     [-3, -1],
+    //     [0, 17],
+    //   ],
+    // ],
+    // // y = -2(x - 1)(x + 4)
+    // [
+    //   'quadraticIntercept',
+    //   [-2, 1, -4],
+    //   [
+    //     [0, 8],
+    //     [1, 0],
+    //     [-4, 0],
+    //   ],
+    // ],
+    // // y = x³ - 2x² - 3x + 4
+    // [
+    //   'cubicStandard',
+    //   [1, -2, -3, 4],
+    //   [
+    //     [2, -2],
+    //     [-1, 4],
+    //   ],
+    // ],
+    // // y = 0.5(x + 2)x(x - 3)
+    // [
+    //   'cubicIntercept',
+    //   [0.5, -2, 0, 3],
+    //   [
+    //     [1, -3],
+    //     [-2, 0],
+    //   ],
+    // ],
   ];
 
   it.each(cases)('%s with %j evaluates correctly', (id, coeffs, points) => {
@@ -95,13 +95,12 @@ describe('toExpression', () => {
     }
   });
 
-  // linearStandard is commented out in FORMS.
-  // it('rejects B = 0 in linear standard form', () => {
-  //   expect(() => toExpression('linearStandard', [1, 0, 2])).toThrow(RangeError);
-  // });
+  it('rejects B = 0 in linear standard form', () => {
+    expect(() => toExpression('linearStandard', [1, 0, 2])).toThrow(RangeError);
+  });
 
   it('rejects the wrong number of coefficients', () => {
-    expect(() => toExpression('quadraticVertex', [1, 2])).toThrow();
+    expect(() => toExpression('linearSlopeIntercept', [1, 2, 3])).toThrow();
   });
 
   it('rejects values that are not finite numbers', () => {
@@ -154,23 +153,24 @@ describe('pickForm', () => {
 
   it('can return each linear form', () => {
     expect(formsReachable('linear')).toEqual(
-      new Set(['linearSlopeIntercept', 'linearPointSlope']),
+      new Set(['linearSlopeIntercept', 'linearPointSlope', 'linearStandard']),
     );
   });
 
-  it('can return each quadratic form', () => {
-    expect(formsReachable('quadratic')).toEqual(
-      new Set(['quadraticStandard', 'quadraticVertex', 'quadraticIntercept']),
-    );
-  });
-
-  it('can return each cubic form', () => {
-    expect(formsReachable('cubic')).toEqual(
-      new Set(['cubicStandard', 'cubicIntercept']),
-    );
-  });
+  // Quadratic and cubic forms are commented out in FORMS.
+  // it('can return each quadratic form', () => {
+  //   expect(formsReachable('quadratic')).toEqual(
+  //     new Set(['quadraticStandard', 'quadraticVertex', 'quadraticIntercept']),
+  //   );
+  // });
+  //
+  // it('can return each cubic form', () => {
+  //   expect(formsReachable('cubic')).toEqual(
+  //     new Set(['cubicStandard', 'cubicIntercept']),
+  //   );
+  // });
 
   it('does not run past the end when rng returns exactly 1', () => {
-    expect(FORMS[pickForm('cubic', () => 1)].type).toBe('cubic');
+    expect(FORMS[pickForm('linear', () => 1)].type).toBe('linear');
   });
 });

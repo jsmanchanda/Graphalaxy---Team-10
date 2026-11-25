@@ -33,16 +33,16 @@ function knownQuestions(): AsteroidQuestion[] {
       formId: 'linearSlopeIntercept',
       asteroids: [asteroidAt(1, 3)],
     },
-    // y = (x - 0)² + 1 passes through (0, 1) and (1, 2).
+    // y - 1 = 1(x - 0) passes through (0, 1) and (1, 2).
     {
       difficulty: 2,
-      formId: 'quadraticVertex',
+      formId: 'linearPointSlope',
       asteroids: [asteroidAt(0, 1), asteroidAt(1, 2)],
     },
-    // y = x³ passes through (0, 0) and (1, 1).
+    // y = 1x + 0 passes through (0, 0) and (1, 1).
     {
       difficulty: 3,
-      formId: 'cubicStandard',
+      formId: 'linearSlopeIntercept',
       asteroids: [asteroidAt(0, 0), asteroidAt(1, 1)],
     },
   ];
@@ -52,7 +52,7 @@ function knownQuestions(): AsteroidQuestion[] {
 const HITS = [
   ['2', '1'],
   ['1', '0', '1'],
-  ['1', '0', '0', '0'],
+  ['1', '0'],
 ];
 const ONE_MISS = [HITS[0], ['0', '0', '-5'], HITS[2]];
 

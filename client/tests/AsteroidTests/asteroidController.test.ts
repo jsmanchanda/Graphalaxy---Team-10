@@ -25,16 +25,16 @@ function knownQuestions(): AsteroidQuestion[] {
       formId: 'linearSlopeIntercept',
       asteroids: [asteroidAt(1, 3)],
     },
-    // y = (x - 0)² + 1 passes through (0, 1) and (1, 2).
+    // y - 1 = 1(x - 0) passes through (0, 1) and (1, 2).
     {
       difficulty: 2,
-      formId: 'quadraticVertex',
+      formId: 'linearPointSlope',
       asteroids: [asteroidAt(0, 1), asteroidAt(1, 2)],
     },
-    // y = x³ passes through (0, 0) and (1, 1).
+    // y = 1x + 0 passes through (0, 0) and (1, 1).
     {
       difficulty: 3,
-      formId: 'cubicStandard',
+      formId: 'linearSlopeIntercept',
       asteroids: [asteroidAt(0, 0), asteroidAt(1, 1)],
     },
   ];
@@ -44,12 +44,12 @@ function knownQuestions(): AsteroidQuestion[] {
 const HITS = [
   ['2', '1'],
   ['1', '0', '1'],
-  ['1', '0', '0', '0'],
+  ['1', '0'],
 ];
 const MISSES = [
   ['0', '-5'],
   ['0', '0', '-5'],
-  ['0', '0', '0', '-5'],
+  ['0', '-5'],
 ];
 
 /**
@@ -138,6 +138,31 @@ describe('AsteroidMiniGameController', () => {
 
     // The player can fix the input and still take their shot.
     expect(controller.fire(HITS[0])?.hit).toBe(true);
+  });
+
+  it('treats B = 0 in standard form as invalid input', () => {
+    // x + y = 1 passes through (1, 0).
+    const question: AsteroidQuestion = {
+      difficulty: 1,
+      formId: 'linearStandard',
+      asteroids: [asteroidAt(1, 0)],
+    };
+    const controller = new AsteroidMiniGameController(
+      () => {},
+      () => {},
+      new AsteroidMiniGameModel([question]),
+    );
+    controller.start();
+    controller.launch();
+
+    // 1x + 0y = 2 is a vertical line, not a function.
+    expect(controller.preview(['1', '0', '2'])).toBeNull();
+    expect(controller.fire(['1', '0', '2'])).toBeNull();
+    expect(controller.model.hasFired).toBe(false);
+
+    // Any B other than 0 works.
+    expect(controller.preview(['1', '1', '1'])).not.toBeNull();
+    expect(controller.fire(['1', '1', '1'])?.hit).toBe(true);
   });
 
   it('returns what the shot hit', () => {
