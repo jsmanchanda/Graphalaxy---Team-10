@@ -267,6 +267,6 @@ export function makeRadioWaveMinigameScreen(): RadioWaveMinigameScreenModel {
       horizontalShift: 0,
       verticalShift: 0,
     },
-    config: {timeLimitSeconds: 80, correctAnswersForHint: 5},
+    config: {timeLimitSeconds: 65, correctAnswersForHint: 3},
   };
 }
