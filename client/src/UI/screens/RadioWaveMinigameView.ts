@@ -38,7 +38,7 @@ const CHECK_BUTTON_WIDTH = 180;
 const CHECK_BUTTON_HEIGHT = 36;
 const CHECK_BUTTON_X = (DESIGN_WIDTH - CHECK_BUTTON_WIDTH) / 2;
 const CHECK_BUTTON_Y = 432;
-const START_BUTTON_Y = 410;
+const START_BUTTON_Y = 423;
 
 const DEFAULT_AMPLITUDE = 1;
 const DEFAULT_FREQUENCY = 2;
@@ -126,16 +126,20 @@ export class RadioWaveMinigameView implements View {
       HEADER_HEIGHT,
       'Match the radio wave',
     ).setFontSize(22);
-    const instructions = new TextBoxComponent(
+    const objective = new TextBoxComponent(
+      HEADER_X,
+      93,
+      HEADER_WIDTH,
+      42,
+      'We’ve lost the ship’s signal!\nMatch the waves to restore it before time runs out.',
+    ).setFontSize(13);
+    const goal = new TextBoxComponent(
       GRAPH_X,
-      145,
+      385,
       GRAPH_WIDTH,
-      178,
-      "We're losing our ship signal! Adjust the blue wave to match the white wave.\n\n" +
-        'Use y = A sin(B(x - h)) + k, then submit your answer.\n\n' +
-        `Match ${model.config.correctAnswersForHint} waves in ${model.config.timeLimitSeconds} seconds to earn a hint.`,
-    );
-    this.content.add(title.getGroup(), instructions.getGroup());
+      28,
+      `Match ${this.correctAnswersForHint} waves in ${model.config.timeLimitSeconds} seconds to decode a hint.`,
+    ).setFontSize(16);
     const startButton = new ButtonComponent(
       CHECK_BUTTON_X,
       START_BUTTON_Y,
@@ -144,7 +148,176 @@ export class RadioWaveMinigameView implements View {
       'START',
       () => this.startRound(model),
     );
-    this.content.add(startButton.getGroup());
+    this.content.add(title.getGroup(), objective.getGroup());
+    this.addWavePreview();
+    this.content.add(goal.getGroup(), startButton.getGroup());
+  }
+
+  /** Lets players try changing one coefficient before the timer starts. */
+  private addWavePreview(): void {
+    const previewWidth = 394;
+    const panelX = GRAPH_X + previewWidth + 16;
+    const panelWidth = GRAPH_WIDTH - previewWidth - 16;
+    const graph = new GraphComponent(
+      GRAPH_X,
+      145,
+      previewWidth,
+      179,
+      new Interval(-6, 6, 1),
+      new Interval(-5, 5, 1),
+    );
+    graph.addFunction(this.playerEquation(1, 1, 0, 0), 'target-wave');
+    this.styleWave(graph, 'target-wave');
+    const original = new TextBoxComponent(
+      GRAPH_X,
+      332,
+      previewWidth / 2 - 4,
+      24,
+      'Original wave',
+    ).setFontSize(12);
+    const edited = new TextBoxComponent(
+      GRAPH_X + previewWidth / 2 + 4,
+      332,
+      previewWidth / 2 - 4,
+      24,
+      'Your wave',
+    )
+      .setFontSize(12)
+      .setTextColor('#7dd3fc');
+
+    const equation = new TextBoxComponent(
+      panelX,
+      145,
+      panelWidth,
+      34,
+      'y = A sin(B(x − h)) + k',
+    ).setFontSize(13);
+    const explanation = new TextBoxComponent(
+      panelX,
+      229,
+      panelWidth,
+      55,
+      '',
+    ).setFontSize(12);
+    const valueLabel = new TextBoxComponent(
+      panelX + 64,
+      297,
+      panelWidth - 128,
+      34,
+      '',
+    ).setFontSize(16);
+    const previewTip = new TextBoxComponent(
+      panelX,
+      339,
+      panelWidth,
+      17,
+      'Pick a letter, then use − or +.',
+    ).setFontSize(11);
+
+    const coefficients = [
+      {
+        symbol: 'A',
+        description: 'Amplitude\nChanges the wave height',
+        start: 1,
+        min: 1,
+        max: 4,
+      },
+      {
+        symbol: 'B',
+        description: 'Frequency\nChanges the spacing of peaks',
+        start: 1,
+        min: 1,
+        max: 3,
+      },
+      {
+        symbol: 'h',
+        description: 'Horizontal shift\nMoves the wave left or right',
+        start: 0,
+        min: -2,
+        max: 2,
+      },
+      {
+        symbol: 'k',
+        description: 'Vertical shift\nMoves the wave up or down',
+        start: 0,
+        min: -2,
+        max: 2,
+      },
+    ];
+    let selected = 0;
+    let value = coefficients[selected].start;
+    const redraw = (): void => {
+      const [amplitude, frequency, horizontalShift, verticalShift] =
+        coefficients.map((coefficient, index) =>
+          index === selected ? value : coefficient.start,
+        );
+      const coefficient = coefficients[selected];
+      explanation.setText(coefficient.description);
+      valueLabel.setText(`${coefficient.symbol} = ${value}`);
+      graph.clearFunction('player-wave');
+      graph.addFunction(
+        this.playerEquation(
+          amplitude,
+          frequency,
+          horizontalShift,
+          verticalShift,
+        ),
+        'player-wave',
+      );
+      this.styleWave(graph, 'player-wave');
+      // The original stays visible between the dashes when the waves overlap.
+      graph.getGroup().findOne<Konva.Line>('#player-wave')?.dash([7, 4]);
+    };
+
+    const tabs = coefficients.map((coefficient, index) =>
+      new ButtonComponent(
+        panelX + index * 64,
+        189,
+        58,
+        30,
+        coefficient.symbol,
+        () => {
+          if (selected === index) return;
+          selected = index;
+          value = coefficient.start;
+          tabs.forEach((tab, tabIndex) =>
+            tab.setTextColor(tabIndex === selected ? '#7dd3fc' : TEXT_COLOR),
+          );
+          redraw();
+        },
+      ).setFontSize(15),
+    );
+    tabs[0].setTextColor('#7dd3fc');
+
+    const stepButtons = [-1, 1].map(
+      step =>
+        new ButtonComponent(
+          step < 0 ? panelX : panelX + panelWidth - 56,
+          297,
+          56,
+          34,
+          step < 0 ? '−' : '+',
+          () => {
+            const {min, max} = coefficients[selected];
+            const nextValue = Math.max(min, Math.min(max, value + step));
+            if (nextValue === value) return;
+            value = nextValue;
+            redraw();
+          },
+        ),
+    );
+    this.content.add(
+      graph.getGroup(),
+      original.getGroup(),
+      edited.getGroup(),
+      equation.getGroup(),
+      explanation.getGroup(),
+      valueLabel.getGroup(),
+      previewTip.getGroup(),
+      ...tabs.map(tab => tab.getGroup()),
+      ...stepButtons.map(button => button.getGroup()),
+    );
+    redraw();
   }
 
   /**
