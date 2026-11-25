@@ -29,6 +29,9 @@ const GRAPH_X = (DESIGN_WIDTH - GRAPH_WIDTH) / 2;
 const GRAPH_Y = 143;
 const TIMER_Y = 102;
 const TIMER_HEIGHT = 12;
+const TIMER_FILL = '#38d9ff';
+const TIMER_LOW_FILL = '#fbbf24';
+const TIMER_LOW_TIME_MS = 10000;
 // The cockpit console begins around y = 377 in the 800 × 500 layout.
 const CONTROLS_Y = 386;
 const CHECK_BUTTON_WIDTH = 180;
@@ -42,6 +45,21 @@ const DEFAULT_FREQUENCY = 2;
 const DEFAULT_HORIZONTAL_SHIFT = 0;
 const DEFAULT_VERTICAL_SHIFT = 0;
 const ANSWER_TOLERANCE = 0.05;
+
+/** A shared text box with a green accent once the signal is found. */
+class SignalStatusBox extends TextBoxComponent {
+  /** Keeps the white prefix and green result centered as one line. */
+  showFound(goal: number): void {
+    const result = this.label.clone({text: `FOUND (${goal}/${goal})`});
+    this.label.text('SIGNAL:');
+    const resultOffset = this.label.getTextWidth() + 6;
+    const startX =
+      (this.box.width() - resultOffset - result.getTextWidth()) / 2;
+    this.label.setAttrs({x: startX, align: 'left'});
+    result.setAttrs({x: startX + resultOffset, align: 'left', fill: '#86efac'});
+    this.group.add(result);
+  }
+}
 
 /**
  * Displays the instructions, timed round, and results for the minigame.
@@ -61,6 +79,7 @@ export class RadioWaveMinigameView implements View {
   };
   private removeControls?: () => void;
   private correctAnswers = 0;
+  private signalStatus?: SignalStatusBox;
   private resultReported = false;
   private readonly correctAnswersForHint: number;
   private screen: 'instructions' | 'gameplay' | 'results' = 'instructions';
@@ -137,21 +156,22 @@ export class RadioWaveMinigameView implements View {
     this.content.destroyChildren();
     this.correctAnswers = 0;
 
-    const status = new TextBoxComponent(
+    this.signalStatus = new SignalStatusBox(
       HEADER_X,
       HEADER_Y,
       HEADER_WIDTH,
       HEADER_HEIGHT,
-      'SIGNAL: SEARCHING',
+      '',
     ).setFontSize(20);
+    this.updateSignalStatus();
     const timerTrack = new Konva.Rect({
       x: HEADER_X,
       y: TIMER_Y,
       width: HEADER_WIDTH,
       height: TIMER_HEIGHT,
-      fill: '#7f1d2d',
-      stroke: '#f97316',
-      strokeWidth: 3,
+      fill: '#0b1834',
+      stroke: '#a9ddff',
+      strokeWidth: 1.5,
       cornerRadius: TIMER_HEIGHT / 2,
     });
     const timerBar = new Konva.Rect({
@@ -159,11 +179,14 @@ export class RadioWaveMinigameView implements View {
       y: TIMER_Y + 3,
       width: HEADER_WIDTH - 6,
       height: TIMER_HEIGHT - 6,
-      fill: '#84cc16',
+      fill:
+        model.config.timeLimitSeconds * 1000 <= TIMER_LOW_TIME_MS
+          ? TIMER_LOW_FILL
+          : TIMER_FILL,
       cornerRadius: (TIMER_HEIGHT - 6) / 2,
     });
 
-    this.content.add(status.getGroup(), timerTrack, timerBar);
+    this.content.add(this.signalStatus.getGroup(), timerTrack, timerBar);
     this.nextQuestion();
     this.createControls();
     this.startTimer(timerBar, model.config.timeLimitSeconds);
@@ -240,8 +263,8 @@ export class RadioWaveMinigameView implements View {
       ),
       'player-wave',
     );
-    this.setWaveColor(graph, 'target-wave', '#ffffff');
-    this.setWaveColor(graph, 'player-wave', '#38bdf8');
+    this.styleWave(graph, 'target-wave');
+    this.styleWave(graph, 'player-wave');
 
     this.graph = graph;
     this.content.add(graph.getGroup());
@@ -281,7 +304,20 @@ export class RadioWaveMinigameView implements View {
     // Empty or invalid number inputs produce NaN, so they cannot match.
     if (!matches) return;
     this.correctAnswers += 1;
+    this.updateSignalStatus();
     this.nextQuestion();
+  }
+
+  /** Shows progress toward finding the signal. */
+  private updateSignalStatus(): void {
+    const goal = this.correctAnswersForHint;
+    if (this.correctAnswers === goal) {
+      this.signalStatus?.showFound(goal);
+    } else if (this.correctAnswers < goal) {
+      this.signalStatus?.setText(
+        `SIGNAL: SEARCHING (${this.correctAnswers}/${goal})`,
+      );
+    }
   }
 
   /**
@@ -304,12 +340,24 @@ export class RadioWaveMinigameView implements View {
   }
 
   /**
-   * Applies the minigame's colors without changing the shared graph component.
+   * Gives the player wave a soft glow around its solid stroke.
    */
-  private setWaveColor(graph: GraphComponent, id: string, color: string): void {
+  private styleWave(
+    graph: GraphComponent,
+    id: 'target-wave' | 'player-wave',
+  ): void {
     const wave = graph.getGroup().findOne(`#${id}`);
-    if (wave instanceof Konva.Line) {
-      wave.stroke(color);
+    if (!(wave instanceof Konva.Line)) return;
+
+    if (id === 'player-wave') {
+      wave.setAttrs({
+        stroke: '#38bdf8',
+        shadowColor: '#22d3ee',
+        shadowBlur: 7,
+        shadowOpacity: 0.55,
+      });
+    } else {
+      wave.stroke('#ffffff');
     }
   }
 
@@ -322,8 +370,11 @@ export class RadioWaveMinigameView implements View {
     this.roundEndsAt = startTime + duration;
     this.timer = window.setInterval(() => {
       const elapsed = Date.now() - startTime;
-      const remaining = Math.max(0, 1 - elapsed / duration);
-      timerBar.width((HEADER_WIDTH - 6) * remaining);
+      const remaining = Math.max(0, duration - elapsed);
+      timerBar.width((HEADER_WIDTH - 6) * (remaining / duration));
+      timerBar.fill(
+        remaining <= TIMER_LOW_TIME_MS ? TIMER_LOW_FILL : TIMER_FILL,
+      );
 
       if (remaining === 0) {
         this.showResults();
@@ -574,7 +625,7 @@ export class RadioWaveMinigameView implements View {
       ),
       'player-wave',
     );
-    this.setWaveColor(graph, 'player-wave', '#38bdf8');
+    this.styleWave(graph, 'player-wave');
   }
 
   /**

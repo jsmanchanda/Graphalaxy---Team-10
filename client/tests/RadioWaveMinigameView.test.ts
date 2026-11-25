@@ -135,8 +135,33 @@ function getScoreText() {
 }
 
 describe('Radio-wave minigame', () => {
-  it('requires five correct answers to earn a hint', () => {
-    expect(makeRadioWaveMinigameScreen().config.correctAnswersForHint).toBe(5);
+  it('requires three correct answers in 65 seconds to earn a hint', () => {
+    expect(makeRadioWaveMinigameScreen().config).toMatchObject({
+      correctAnswersForHint: 3,
+      timeLimitSeconds: 65,
+    });
+  });
+
+  it('updates the signal banner as correct answers reach the hint goal', () => {
+    startGame();
+    const banner = view?.getGroup().findOne((node: Konva.Node) => {
+      return node.getAttr('text') === 'SIGNAL: SEARCHING (0/3)';
+    });
+    expect(banner).toBeDefined();
+
+    submitAnswer('9');
+    expect(banner?.getAttr('text')).toBe('SIGNAL: SEARCHING (0/3)');
+
+    answerCorrectQuestions(2);
+    expect(banner?.getAttr('text')).toBe('SIGNAL: SEARCHING (2/3)');
+
+    submitAnswer();
+    expect(banner?.getAttr('text')).toBe('SIGNAL:');
+    expect(banner?.getAttr('fill')).toBe('#ffffff');
+    const found = banner?.getParent()?.findOne((node: Konva.Node) => {
+      return node.getAttr('text') === 'FOUND (3/3)';
+    });
+    expect(found?.getAttr('fill')).toBe('#86efac');
   });
 
   it('shows results when time runs out and cleans up the controls and timer', () => {
@@ -160,9 +185,9 @@ describe('Radio-wave minigame', () => {
 
   it.each([
     {score: 0, earnsHint: false},
-    {score: 4, earnsHint: false},
-    {score: 5, earnsHint: true},
-    {score: 6, earnsHint: true},
+    {score: 2, earnsHint: false},
+    {score: 3, earnsHint: true},
+    {score: 4, earnsHint: true},
   ])(
     'reports addHint=$earnsHint for $score correct answers',
     ({score, earnsHint}) => {
@@ -182,7 +207,7 @@ describe('Radio-wave minigame', () => {
 
   it('reports the result only once after repeated clicks or taps', () => {
     const onAction = startGame();
-    answerCorrectQuestions(5);
+    answerCorrectQuestions(3);
     vi.advanceTimersByTime(ROUND_LENGTH_MS);
 
     const continueButton = findButton('Go to lesson');
