@@ -192,10 +192,10 @@ function correctIndex(planet: Planet, task: QuestionTask): number {
     question => question.prompt === task.question.prompt,
   );
   if (!seed) throw new Error('Question missing from production seed');
-  expect(task.question.options.map(option => option.text)).toEqual(
-    seed.options,
-  );
-  return seed.correct;
+  // Options arrive shuffled, so find the correct one by its text.
+  const texts = task.question.options.map(option => option.text);
+  expect([...texts].sort()).toEqual([...seed.options].sort());
+  return texts.indexOf(seed.options[seed.correct]);
 }
 
 /** Completes the remaining real questions and verifies the final persisted score. */
@@ -321,9 +321,8 @@ test('shows wrong feedback, resumes after explicit login, and retries through co
   const again = await openGame(page, planet.username);
   expect(again.userId).toBe(planet.userId);
   const second = await reachFirstQuestion(page, again);
-  expect(second.question.questionId).toBeGreaterThan(
-    question.question.questionId,
-  );
+  // Questions are shuffled; the one answered wrong is not asked again.
+  expect(second.question.questionId).not.toBe(question.question.questionId);
   await finishPlanet(page, again, second, 0, 1);
   const resets: string[] = [];
   page.on('request', request => {
@@ -352,12 +351,12 @@ test('shows wrong feedback, resumes after explicit login, and retries through co
     status: 'hostile',
   });
   const restarted: NextQuestion = await (await next).json();
-  expect(restarted.question?.questionId).toBe(question.question.questionId);
+  // After a reset every question can be asked again, in a new shuffled order.
+  if (!restarted.question) throw new Error('Reset planet has no question');
+  const first: QuestionTask = {type: 'Question', question: restarted.question};
   expect(resets).toHaveLength(1);
-  await expect
-    .poll(() => screenTexts(page))
-    .toContain(question.question.prompt);
-  const right = await answer(page, question, correctIndex(planet, question));
+  await expect.poll(() => screenTexts(page)).toContain(first.question.prompt);
+  const right = await answer(page, first, correctIndex(planet, first));
   expect(right.status()).toBe(200);
   expect((await right.json()).correct).toBe(true);
   await expect.poll(() => screenTexts(page)).toContain('Correct!');
