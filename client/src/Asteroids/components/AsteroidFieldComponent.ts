@@ -1,10 +1,9 @@
 import Konva from 'konva';
 import {GraphComponent} from '../../Graphing/GraphComponent';
+import {ImageComponent} from '../../UI/components';
 import {
-  ASTEROID_FILL_COLOR,
-  ASTEROID_STROKE_COLOR,
-  DESTROYED_FILL_COLOR,
-  DESTROYED_STROKE_COLOR,
+  ASTEROID_SPRITE_URL,
+  DESTROYED_ASTEROID_SPRITE_URL,
   SHOT_COLOR,
 } from '../constants';
 import {WINDOW_MAX, WINDOW_MIN} from '../math/asteroids';
@@ -12,17 +11,22 @@ import type {Asteroid, FireResult} from '../types';
 
 // Konva id of the player's curve, so there is only ever one.
 const SHOT_ID = 'shot';
-const ASTEROID_STROKE_WIDTH = 2;
+
+/** One asteroid's two looks; the destroyed one stays hidden until a hit. */
+interface AsteroidSprites {
+  intact: ImageComponent;
+  destroyed: ImageComponent;
+}
 
 /**
  * The window out of the ship: the graph grid with the question's asteroids
  * on it. The player's curve only appears here after Fire.
  */
 export class AsteroidFieldComponent extends GraphComponent {
-  private readonly circles: Konva.Circle[];
+  private readonly sprites: AsteroidSprites[];
 
   /**
-   * Builds the window with the grid and one circle per asteroid.
+   * Builds the window with the grid and one sprite per asteroid.
    * @param x left edge, in design-canvas units
    * @param y top edge, in design-canvas units
    * @param size width and height; square, so x and y use the same scale
@@ -33,23 +37,30 @@ export class AsteroidFieldComponent extends GraphComponent {
     super(x, y, size, size);
 
     const pixelsPerUnit = size / (WINDOW_MAX - WINDOW_MIN);
-    this.circles = asteroids.map(
-      asteroid =>
-        new Konva.Circle({
-          name: 'asteroid',
-          x: this.convertToPixelsX(asteroid.position.x),
-          y: this.convertToPixelsY(asteroid.position.y),
-          radius: asteroid.radius * pixelsPerUnit,
-          fill: ASTEROID_FILL_COLOR,
-          stroke: ASTEROID_STROKE_COLOR,
-          strokeWidth: ASTEROID_STROKE_WIDTH,
-        }),
-    );
-    this.group.add(...this.circles);
+    this.sprites = asteroids.map(asteroid => {
+      // A square around the center, the same size as the hit circle, so the
+      // art covers exactly the area the hit test checks.
+      const radius = asteroid.radius * pixelsPerUnit;
+      const left = this.convertToPixelsX(asteroid.position.x) - radius;
+      const top = this.convertToPixelsY(asteroid.position.y) - radius;
+      const sprite = (url: string) =>
+        new ImageComponent(left, top, 2 * radius, 2 * radius, url);
+
+      const intact = sprite(ASTEROID_SPRITE_URL);
+      const destroyed = sprite(DESTROYED_ASTEROID_SPRITE_URL);
+      intact.getGroup().name('asteroid');
+      destroyed.getGroup().name('asteroid-destroyed').visible(false);
+      return {intact, destroyed};
+    });
+
+    for (const {intact, destroyed} of this.sprites) {
+      this.group.add(intact.getGroup(), destroyed.getGroup());
+    }
   }
 
   /**
-   * Draws the fired curve and marks the asteroids it hit.
+   * Draws the fired curve and swaps each hit asteroid to its destroyed
+   * sprite.
    * @param shot what controller.fire returned
    */
   showShot(shot: FireResult): void {
@@ -58,10 +69,8 @@ export class AsteroidFieldComponent extends GraphComponent {
 
     shot.hits.forEach((hit, i) => {
       if (hit) {
-        this.circles[i].setAttrs({
-          fill: DESTROYED_FILL_COLOR,
-          stroke: DESTROYED_STROKE_COLOR,
-        });
+        this.sprites[i].intact.getGroup().visible(false);
+        this.sprites[i].destroyed.getGroup().visible(true);
       }
     });
     this.group.getLayer()?.batchDraw();
