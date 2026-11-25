@@ -1,12 +1,20 @@
-import {afterEach, describe, expect, it, vi} from 'vitest';
+import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import Konva from 'konva';
 import {installKonvaStubs} from './helpers/konvaStubs';
 import {GraphComponent} from '../src/Graphing/GraphComponent';
 import {ReadingScreenView} from '../src/UI/screens/ReadingScreenView';
 import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
+import {NavigationScreenView} from '../src/UI/screens/NavigationScreenView';
 import {QuestionScreenModel, ReadingScreenModel} from '../src/UI/types';
 import {
+  BUBBLE_WIDTH,
+  BUBBLE_WIDTH_WITH_GRAPH,
+  BUBBLE_X,
+  BUBBLE_Y,
+  DEFAULT_PLANET_ID,
+  MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
   MULTIPLE_CHOICE_PROMPT_WIDTH,
+  MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
   MULTIPLE_CHOICE_PROMPT_X,
   MULTIPLE_CHOICE_PROMPT_Y,
   QUESTION_GRAPH_HEIGHT,
@@ -16,16 +24,14 @@ import {
   READING_TEXT_WIDTH,
   READING_TEXT_X,
   READING_TEXT_Y,
-  VISUAL_QUESTION_PROMPT_WIDTH,
-  VISUAL_QUESTION_PROMPT_X,
-  VISUAL_QUESTION_PROMPT_Y,
   VISUAL_READING_GRAPH_HEIGHT,
   VISUAL_READING_GRAPH_WIDTH,
   VISUAL_READING_GRAPH_X,
   VISUAL_READING_GRAPH_Y,
   VISUAL_READING_TEXT_WIDTH,
-  VISUAL_READING_TEXT_X,
-  VISUAL_READING_TEXT_Y,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../src/UI/constants';
 
 // Build the real components and GraphComponent in Node; see helpers/konvaStubs.ts
@@ -33,8 +39,6 @@ installKonvaStubs();
 
 const addFunction = vi.spyOn(GraphComponent.prototype, 'addFunction');
 afterEach(() => addFunction.mockClear());
-
-const SELECTED_FILL = '#3b82f6';
 
 /** The top-level component on a screen whose text box shows the given text. */
 function findComponent(screen: Konva.Group, text: string): Konva.Group {
@@ -71,6 +75,9 @@ function placement(component: Konva.Group) {
   };
 }
 
+/** What the alien says on every reading screen. */
+const READING_DIALOGUE = 'Complete This reading!';
+
 function background(button: Konva.Group): Konva.Rect {
   return button.getChildren()[0] as Konva.Rect;
 }
@@ -103,13 +110,23 @@ describe('ReadingScreenView with a graph', () => {
     expect(graph?.clipHeight()).toBe(VISUAL_READING_GRAPH_HEIGHT);
   });
 
-  it('moves the reading text beside the graph', () => {
+  it('narrows the reading text to fit beside the graph', () => {
     const screen = new ReadingScreenView(vi.fn(), model).getGroup();
 
     expect(placement(findComponent(screen, model.readingText))).toEqual({
-      x: VISUAL_READING_TEXT_X,
-      y: VISUAL_READING_TEXT_Y,
+      x: READING_TEXT_X,
+      y: READING_TEXT_Y,
       width: VISUAL_READING_TEXT_WIDTH,
+    });
+  });
+
+  it('narrows the alien dialogue to fit beside the graph', () => {
+    const screen = new ReadingScreenView(vi.fn(), model).getGroup();
+
+    expect(placement(findComponent(screen, READING_DIALOGUE))).toEqual({
+      x: BUBBLE_X,
+      y: BUBBLE_Y,
+      width: BUBBLE_WIDTH_WITH_GRAPH,
     });
   });
 
@@ -143,6 +160,115 @@ describe('ReadingScreenView without a graph', () => {
       width: READING_TEXT_WIDTH,
     });
   });
+
+  it('uses the full-width alien dialogue', () => {
+    const screen = new ReadingScreenView(vi.fn(), model).getGroup();
+
+    expect(placement(findComponent(screen, READING_DIALOGUE))).toEqual({
+      x: BUBBLE_X,
+      y: BUBBLE_Y,
+      width: BUBBLE_WIDTH,
+    });
+  });
+
+  it('still sends next and back', () => {
+    const onAction = vi.fn();
+    const screen = new ReadingScreenView(onAction, model).getGroup();
+
+    findComponent(screen, 'Next').fire('click');
+    findComponent(screen, 'back').fire('click');
+
+    expect(onAction.mock.calls).toEqual([[{type: 'next'}], [{type: 'back'}]]);
+  });
+});
+
+describe('ReadingScreenView planet images', () => {
+  const loadImage = vi.mocked(Konva.Image.fromURL);
+  // Braces matter: a function returned from beforeEach runs as its cleanup
+  beforeEach(() => {
+    loadImage.mockClear();
+  });
+
+  /** The urls of every image the screen loaded, in the order it loaded them. */
+  function loadedImages(): string[] {
+    return loadImage.mock.calls.map(([url]) => url);
+  }
+
+  it.each([1, 2, 3, 4])('draws the background and alien for planet %i', id => {
+    new ReadingScreenView(vi.fn(), {
+      type: 'reading',
+      readingText: 'r',
+      planetId: id,
+    });
+
+    expect(loadedImages()).toEqual(
+      expect.arrayContaining([
+        `/assets/planet-background-${id}.jpg`,
+        `/assets/alien-planet-${id}.png`,
+        '/assets/general-nav.png',
+      ]),
+    );
+  });
+
+  it('falls back to the default planet when none is given', () => {
+    new ReadingScreenView(vi.fn(), {type: 'reading', readingText: 'r'});
+
+    expect(loadedImages()).toEqual(
+      expect.arrayContaining([
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.jpg`,
+        `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
+      ]),
+    );
+  });
+});
+
+describe('settings icon', () => {
+  const loadImage = vi.mocked(Konva.Image.fromURL);
+  beforeEach(() => {
+    loadImage.mockClear();
+  });
+
+  it.each([
+    [
+      'reading',
+      () => new ReadingScreenView(vi.fn(), {type: 'reading', readingText: 'r'}),
+    ],
+    [
+      'question',
+      () =>
+        new QuestionScreenView(vi.fn(), {
+          type: 'question',
+          question: {prompt: 'p', options: ['a', 'b']},
+        }),
+    ],
+    [
+      'navigation',
+      () =>
+        new NavigationScreenView(vi.fn(), {
+          type: 'navigation',
+          planets: [],
+          overallStatus: 0,
+        }),
+    ],
+  ])(
+    'is drawn once in the top-right corner of the %s screen',
+    (name, build) => {
+      const screen = build().getGroup();
+
+      const icons = loadImage.mock.calls.filter(
+        ([url]) => url === SETTINGS_ICON_IMAGE,
+      );
+      expect(icons, name).toHaveLength(1);
+      // Each image sits in its own group, placed where the screen asked
+      const corner = screen
+        .getChildren()
+        .filter(
+          child =>
+            child.x() === SETTINGS_ICON_X && child.y() === SETTINGS_ICON_Y,
+        );
+      expect(corner, name).toHaveLength(1);
+    },
+  );
 });
 
 describe('QuestionScreenView with a graph', () => {
@@ -176,13 +302,13 @@ describe('QuestionScreenView with a graph', () => {
     expect(graph?.clipHeight()).toBe(QUESTION_GRAPH_HEIGHT);
   });
 
-  it('moves the prompt beside the graph', () => {
+  it('narrows the prompt to fit beside the graph', () => {
     const screen = new QuestionScreenView(vi.fn(), model).getGroup();
 
     expect(placement(findComponent(screen, model.question.prompt))).toEqual({
-      x: VISUAL_QUESTION_PROMPT_X,
-      y: VISUAL_QUESTION_PROMPT_Y,
-      width: VISUAL_QUESTION_PROMPT_WIDTH,
+      x: MULTIPLE_CHOICE_PROMPT_X,
+      y: MULTIPLE_CHOICE_PROMPT_Y,
+      width: MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
     });
   });
 
@@ -195,8 +321,10 @@ describe('QuestionScreenView with a graph', () => {
     a.fire('click');
     b.fire('click');
 
-    expect(background(a).fill()).not.toBe(SELECTED_FILL);
-    expect(background(b).fill()).toBe(SELECTED_FILL);
+    expect(background(a).fill()).not.toBe(
+      MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
+    );
+    expect(background(b).fill()).toBe(MULTIPLE_CHOICE_OPTION_SELECTED_COLOR);
   });
 
   it('submits the selected option when confirm is clicked', () => {

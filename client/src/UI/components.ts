@@ -1,11 +1,15 @@
 import Konva from 'konva';
 import {
+  BUBBLE_FONT_SIZE,
+  BUBBLE_TAIL_HEIGHT,
+  BUBBLE_TAIL_WIDTH,
   TEXT_BOX_BORDER_COLOR,
   TEXT_BOX_FILL_COLOR,
   TEXT_COLOR,
   TEXT_FONT_FAMILY,
   TEXT_FONT_SIZE,
 } from './constants';
+import {getCachedImage} from './imageCache';
 
 /**
  * Base class for UI components. Holds the Konva group a screen displays.
@@ -36,10 +40,91 @@ export abstract class Component {
 }
 
 /**
+ * A speech bubble for the alien friend, with a tail on the bottom-left
+ * pointing back at the alien.
+ */
+export class AlienDialogue extends Component {
+  protected bubble: Konva.Shape;
+  protected dialogue: Konva.Text;
+
+  /**
+   * Builds the speech bubble. The width includes the tail.
+   */
+  constructor(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    dialogue: string,
+  ) {
+    super(x, y);
+
+    this.bubble = new Konva.Shape({
+      width,
+      height,
+      fill: TEXT_BOX_FILL_COLOR,
+      stroke: TEXT_BOX_BORDER_COLOR,
+      sceneFunc(context, shape) {
+        const w = shape.width();
+        const h = shape.height();
+
+        context.beginPath();
+        context.moveTo(0, h);
+        context.lineTo(w, h);
+        context.lineTo(w, 0);
+        context.lineTo(BUBBLE_TAIL_WIDTH, 0);
+        context.lineTo(BUBBLE_TAIL_WIDTH, h - BUBBLE_TAIL_HEIGHT);
+        context.closePath();
+        context.fillStrokeShape(shape);
+      },
+    });
+
+    this.group.add(this.bubble);
+
+    this.dialogue = new Konva.Text({
+      x: BUBBLE_TAIL_WIDTH,
+      y: 0,
+      text: dialogue,
+      width: width - BUBBLE_TAIL_WIDTH,
+      height,
+      align: 'center',
+      verticalAlign: 'middle',
+      fontSize: BUBBLE_FONT_SIZE,
+      fontFamily: TEXT_FONT_FAMILY,
+      fill: TEXT_COLOR,
+    });
+
+    this.group.add(this.dialogue);
+  }
+
+  /**
+   * Changes the width of the bubble, keeping the text beside the tail.
+   * @param width The new full width, including the tail.
+   * @returns This dialogue, so setters can be chained.
+   */
+  setWidth(width: number): this {
+    this.bubble.width(width);
+    this.dialogue.width(width - BUBBLE_TAIL_WIDTH);
+    return this;
+  }
+
+  /**
+   * Changes what the alien says, e.g. to show a hint.
+   * @param text The new dialogue.
+   * @returns This dialogue, so setters can be chained.
+   */
+  setText(text: string): this {
+    this.dialogue.text(text);
+    return this;
+  }
+}
+
+/**
  * A box with text in the middle.
  */
 export class TextBoxComponent extends Component {
   protected label: Konva.Text;
+  protected box: Konva.Rect;
 
   /**
    * Builds the text box.
@@ -53,7 +138,7 @@ export class TextBoxComponent extends Component {
   ) {
     super(x, y);
 
-    const box = new Konva.Rect({
+    this.box = new Konva.Rect({
       width,
       height,
       cornerRadius: 0,
@@ -72,7 +157,18 @@ export class TextBoxComponent extends Component {
       fill: TEXT_COLOR,
     });
 
-    this.group.add(box, this.label);
+    this.group.add(this.box, this.label);
+  }
+
+  /**
+   * Changes the width of the box and its text.
+   * @param width The new width in pixels.
+   * @returns This text box, so setters can be chained.
+   */
+  setWidth(width: number): this {
+    this.box.width(width);
+    this.label.width(width);
+    return this;
   }
 
   /**
@@ -139,7 +235,7 @@ export class ButtonComponent extends TextBoxComponent {
  */
 export class ImageComponent extends Component {
   /**
-   * Builds the image. It appears once it finishes loading.
+   * Builds the image. A preloaded image appears right away; any other image appears once it finishes loading.
    */
   constructor(
     x: number,
@@ -151,7 +247,7 @@ export class ImageComponent extends Component {
   ) {
     super(x, y);
 
-    Konva.Image.fromURL(url, image => {
+    const addImage = (image: Konva.Image): void => {
       image.width(width);
       image.height(height);
       this.group.add(image);
@@ -162,7 +258,14 @@ export class ImageComponent extends Component {
       }
 
       this.group.getLayer()?.batchDraw();
-    });
+    };
+
+    const cached = getCachedImage(url);
+    if (cached) {
+      addImage(new Konva.Image({image: cached}));
+    } else {
+      Konva.Image.fromURL(url, addImage);
+    }
   }
 
   /**

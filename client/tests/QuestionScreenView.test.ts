@@ -59,6 +59,12 @@ vi.mock('../src/UI/components', () => {
 
   class TextBoxComponent extends ButtonComponent {}
 
+  class AlienDialogue extends ImageComponent {
+    setWidth(width: number): void {
+      void width;
+    }
+  }
+
   return {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     Component,
@@ -68,10 +74,19 @@ vi.mock('../src/UI/components', () => {
     ImageComponent,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     TextBoxComponent,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    AlienDialogue,
   };
 });
 
 import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
+import {MULTIPLE_CHOICE_OPTION_SELECTED_COLOR} from '../src/UI/constants';
+
+// Children are added in this order: background, alien, border, settings icon,
+// back button, alien dialogue, hint button, prompt, confirm button, then the
+// options
+const CONFIRM_INDEX = 8;
+const FIRST_OPTION_INDEX = 9;
 
 const questionModel: QuestionScreenModel = {
   type: 'question',
@@ -86,7 +101,7 @@ function getOptionButtons(view: QuestionScreenView): Konva.Group[] {
     .getGroup()
     .getChildren()
     .filter((child): child is Konva.Group => child instanceof Konva.Group)
-    .slice(-4);
+    .slice(FIRST_OPTION_INDEX);
 }
 
 function getButtonBackground(button: Konva.Group): Konva.Rect {
@@ -100,7 +115,9 @@ describe('QuestionScreenView option selection', () => {
 
     option1.fire('click');
 
-    expect(getButtonBackground(option1).fill()).toBe('#3b82f6');
+    expect(getButtonBackground(option1).fill()).toBe(
+      MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
+    );
   });
 
   it('moves the highlight when a different option is selected', () => {
@@ -110,15 +127,19 @@ describe('QuestionScreenView option selection', () => {
     option1.fire('click');
     option2.fire('click');
 
-    expect(getButtonBackground(option1).fill()).not.toBe('#3b82f6');
-    expect(getButtonBackground(option2).fill()).toBe('#3b82f6');
+    expect(getButtonBackground(option1).fill()).not.toBe(
+      MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
+    );
+    expect(getButtonBackground(option2).fill()).toBe(
+      MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
+    );
   });
 
   it('submits the selected option when confirm is clicked', () => {
     const onAction = vi.fn();
     const view = new QuestionScreenView(onAction, questionModel);
     const children = view.getGroup().getChildren();
-    const confirmButton = children[3] as Konva.Group;
+    const confirmButton = children[CONFIRM_INDEX] as Konva.Group;
     const option3 = getOptionButtons(view)[2];
 
     option3.fire('click');
@@ -130,7 +151,9 @@ describe('QuestionScreenView option selection', () => {
   it('does not submit when no option is selected', () => {
     const onAction = vi.fn();
     const view = new QuestionScreenView(onAction, questionModel);
-    const confirmButton = view.getGroup().getChildren()[3] as Konva.Group;
+    const confirmButton = view.getGroup().getChildren()[
+      CONFIRM_INDEX
+    ] as Konva.Group;
 
     confirmButton.fire('click');
 
@@ -139,7 +162,8 @@ describe('QuestionScreenView option selection', () => {
 });
 
 describe('QuestionScreenView with fewer than four options', () => {
-  const OTHER_COMPONENTS = 4; // back button, alien, prompt, confirm button
+  // background, alien, border, settings, back, dialogue, hint, prompt, confirm
+  const OTHER_COMPONENTS = 9;
 
   it.each([2, 3, 4])('builds one button per option for %i options', count => {
     const options = ['A', 'B', 'C', 'D'].slice(0, count);
@@ -160,13 +184,15 @@ describe('QuestionScreenView with fewer than four options', () => {
       question: {prompt: 'True or false?', options: ['True', 'False']},
     });
     const children = view.getGroup().getChildren() as Konva.Group[];
-    const confirmButton = children[3];
-    const lastOption = children[children.length - 1];
+    const confirmButton = children[CONFIRM_INDEX];
+    const lastOption = children[children.length - 1]; // options are last
 
     lastOption.fire('click');
     confirmButton.fire('click');
 
-    expect(getButtonBackground(lastOption).fill()).toBe('#3b82f6');
+    expect(getButtonBackground(lastOption).fill()).toBe(
+      MULTIPLE_CHOICE_OPTION_SELECTED_COLOR,
+    );
     expect(onAction).toHaveBeenCalledWith({type: 'answer', option: 1});
   });
 });

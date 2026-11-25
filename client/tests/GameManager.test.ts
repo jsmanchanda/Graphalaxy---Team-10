@@ -159,35 +159,51 @@ const intro = (progress: string): ScreenModel => ({
   type: 'intro',
   title: 'Linear Land',
   description: `A hostile world of straight lines.\n\nCurrent progress: ${progress}`,
+  planetId: 1,
 });
-const INTRO = intro('0 of 2 questions correct (0%), hostile');
+const INTRO = intro('0 of 2 questions correct (0%)\n\nStatus: hostile');
 const READING: ScreenModel = {
   type: 'reading',
   readingText: 'A linear function has the form y = mx + b.',
+  planetId: 1,
 };
 const QUESTION_1: ScreenModel = {
   type: 'question',
   question: {prompt: 'Question 1', options: ['2', '3']},
+  planetId: 1,
 };
 const QUESTION_2: ScreenModel = {
   type: 'question',
   question: {prompt: 'Question 2', options: ['2', '3']},
+  planetId: 1,
 };
-const CORRECT: ScreenModel = {type: 'questionResult', result: 'Correct'};
-const WRONG: ScreenModel = {type: 'questionResult', result: 'Wrong'};
+const CORRECT: ScreenModel = {
+  type: 'questionResult',
+  result: true,
+  planetId: 1,
+};
+const WRONG: ScreenModel = {
+  type: 'questionResult',
+  result: false,
+  planetId: 1,
+};
 const LESSON_RESULT: ScreenModel = {
   type: 'lessonResult',
   result:
-    'You answered 2 of 2 questions correctly. Linear Land is now peaceful!',
+    'You answered 2 of 2 questions correctly.\n Linear Land is now peaceful!',
+  planetId: 1,
 };
 const WARNING =
-  'Redo Linear Land? Current progress: 2 of 2 questions correct (100%), peaceful.' +
+  'Redo Linear Land? Current progress: 2 of 2 questions correct (100%)\n\nStatus: peaceful.' +
   ' This resets all progress here. ' +
   'The planet turns hostile again and you answer every question from the start.';
 const RETRY_WARNING: ScreenModel = {type: 'retryWarning', message: WARNING};
 /** Matches any navigation map screen; its planet list is checked separately. */
 const NAV = expect.objectContaining({type: 'navigation'});
-const MINI_GAME_SELECT: ScreenModel = {type: 'miniGameSelect'};
+const MINI_GAME_SELECT: ScreenModel = {
+  type: 'miniGameSelect',
+  minigame: 'Asteroid',
+};
 const RIGHT_OPTION = 0;
 const WRONG_OPTION = 1;
 
@@ -553,19 +569,15 @@ describe('GameManager navigation', () => {
     );
   });
 
-  it.each(['Asteroid'] as const)(
-    'does not change screens when the %s minigame starts',
-    async name => {
-      await setup();
-      act({type: 'start'});
-      act({type: 'selectPlanet', planetId: 1});
-      ui.displayScreen.mockClear();
+  it('shows the asteroid minigame when it starts', async () => {
+    await setup();
+    act({type: 'start'});
+    act({type: 'selectPlanet', planetId: 1});
 
-      act({type: 'startMiniGame', name});
+    act({type: 'startMiniGame', name: 'Asteroid'});
 
-      expect(ui.displayScreen).not.toHaveBeenCalled();
-    },
-  );
+    expect(lastScreen()).toEqual({type: 'asteroidMinigame'});
+  });
 
   it('loads the picked planet while the player chooses a minigame', async () => {
     const {gateway} = await setup();
@@ -641,7 +653,7 @@ describe('GameManager lesson', () => {
     await enterPlanet();
 
     expect(lastScreen()).toEqual(
-      intro('1 of 2 questions correct (50%), hostile'),
+      intro('1 of 2 questions correct (50%)\n\nStatus: hostile'),
     );
   });
 
@@ -743,13 +755,13 @@ describe('GameManager questions, one at a time', () => {
       name: 'every answer was wrong',
       options: [WRONG_OPTION, WRONG_OPTION],
       result:
-        'You answered 0 of 2 questions correctly. Linear Land is still hostile. Redo the planet to try again.',
+        'You answered 0 of 2 questions correctly.\n Linear Land is still hostile. Redo the planet to try again.',
     },
     {
       name: 'some answers were wrong',
       options: [WRONG_OPTION, RIGHT_OPTION],
       result:
-        'You answered 1 of 2 questions correctly. Linear Land is still hostile. Redo the planet to try again.',
+        'You answered 1 of 2 questions correctly.\n Linear Land is still hostile. Redo the planet to try again.',
     },
   ])(
     'asks every question once and ends on the lesson result when $name',
@@ -765,7 +777,7 @@ describe('GameManager questions, one at a time', () => {
 
       expect(shownAfterEachAnswer).toEqual([
         QUESTION_2,
-        {type: 'lessonResult', result},
+        {type: 'lessonResult', result, planetId: 1},
       ]);
       expect(gateway.submitAnswer).toHaveBeenCalledTimes(2);
     },
@@ -783,7 +795,7 @@ describe('GameManager questions, one at a time', () => {
       type: 'retryWarning',
       // One answer of two was correct, so the planet is still hostile.
       message:
-        'Redo Linear Land? Current progress: 1 of 2 questions correct (50%), hostile.' +
+        'Redo Linear Land? Current progress: 1 of 2 questions correct (50%)\n\nStatus: hostile.' +
         ' This resets all progress here. ' +
         'You answer every question from the start.',
     });
@@ -849,7 +861,7 @@ describe('GameManager questions, one at a time', () => {
       act({type: 'next'});
 
       await actAndWait({type: 'next'});
-      expect(lastScreen()).toEqual({type: 'questionResult', result: message});
+      expect(lastScreen()).toEqual({type: 'reading', readingText: message});
 
       await actAndWait({type: 'next'});
       expect(lastScreen()).toEqual(QUESTION_1);
@@ -993,7 +1005,7 @@ describe('GameManager answers', () => {
 
       await actAndWait({type: 'answer', option: RIGHT_OPTION});
 
-      expect(lastScreen()).toEqual({type: 'questionResult', result: message});
+      expect(lastScreen()).toEqual({type: 'reading', readingText: message});
 
       await actAndWait({type: 'next'});
       expect(lastScreen()).toEqual(QUESTION_1);
@@ -1013,8 +1025,8 @@ describe('GameManager answers', () => {
 
     await actAndWait({type: 'answer', option: RIGHT_OPTION});
     expect(lastScreen()).toEqual({
-      type: 'questionResult',
-      result: 'Question has already been answered. Press Ok to continue.',
+      type: 'reading',
+      readingText: 'Question has already been answered. Press Ok to continue.',
     });
 
     await actAndWait({type: 'next'});
@@ -1106,7 +1118,7 @@ describe('GameManager redoing a planet', () => {
     await setup(gateway);
     await enterPlanet();
     expect(lastScreen()).toEqual(
-      intro('2 of 2 questions correct (100%), peaceful'),
+      intro('2 of 2 questions correct (100%)\n\nStatus: peaceful'),
     );
     act({type: 'next'});
 

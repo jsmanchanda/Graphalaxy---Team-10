@@ -1,8 +1,23 @@
 import Konva from 'konva';
 import {LessonResultScreenModel, UiAction, View} from '../types';
 import {Group} from 'konva/lib/Group';
-import {ButtonComponent, TextBoxComponent} from '../components';
 import {
+  AlienDialogue,
+  ButtonComponent,
+  ImageComponent,
+  TextBoxComponent,
+} from '../components';
+import {
+  ALIEN_FRIEND_WIDTH,
+  ALIEN_FRIEND_X,
+  ALIEN_FRIEND_Y,
+  BUBBLE_HEIGHT,
+  BUBBLE_WIDTH,
+  BUBBLE_X,
+  BUBBLE_Y,
+  DEFAULT_PLANET_ID,
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
   OK_BUTTON_HEIGHT,
   OK_BUTTON_WIDTH,
   OK_BUTTON_X,
@@ -15,6 +30,10 @@ import {
   RESULT_TEXT_WIDTH,
   RESULT_TEXT_X,
   RESULT_TEXT_Y,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../constants';
 
 /**
@@ -31,6 +50,41 @@ export class LessonResultScreenView implements View {
     model: LessonResultScreenModel,
   ) {
     this.group = new Konva.Group();
+
+    const planetId = model.planetId ?? DEFAULT_PLANET_ID;
+
+    const alien = new ImageComponent(
+      ALIEN_FRIEND_X,
+      ALIEN_FRIEND_Y,
+      ALIEN_FRIEND_WIDTH,
+      ALIEN_FRIEND_WIDTH,
+      `/assets/alien-planet-${planetId}.png`,
+    );
+
+    const background = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      `/assets/planet-background-${planetId}.jpg`,
+    );
+
+    const border = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      '/assets/general-nav.png',
+    );
+
+    const alienDialogue = new AlienDialogue(
+      BUBBLE_X,
+      BUBBLE_Y,
+      BUBBLE_WIDTH,
+      BUBBLE_HEIGHT,
+      'You reached the end of the Lesson!',
+    );
+
     const resultText = new TextBoxComponent(
       RESULT_TEXT_X,
       RESULT_TEXT_Y,
@@ -58,13 +112,26 @@ export class LessonResultScreenView implements View {
       () => onAction({type: 'retryLesson'}),
     );
 
+    this.group.add(background.getGroup());
+    this.group.add(alien.getGroup());
+    const settingsIcon = new ImageComponent(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_IMAGE,
+    );
+    this.group.add(border.getGroup());
+    this.group.add(settingsIcon.getGroup());
+    this.group.add(alienDialogue.getGroup());
+
     this.group.add(okButton.getGroup());
     this.group.add(redoButton.getGroup());
     this.group.add(resultText.getGroup());
   }
 
   /**
-   * asd
+   * Getter for Konva Group
    * @returns Konva Group element
    */
   getGroup(): Group {

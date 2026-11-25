@@ -27,12 +27,7 @@ describe('UI screen bounds', () => {
   });
 
   it('keeps the lesson intro components inside the screen', () => {
-    checkBounds(
-      UI.LESSON_INTRO_TITLE_X,
-      UI.LESSON_INTRO_TITLE_Y,
-      UI.LESSON_INTRO_TITLE_WIDTH,
-      UI.LESSON_INTRO_TITLE_HEIGHT,
-    );
+    checkBounds(UI.BUBBLE_X, UI.BUBBLE_Y, UI.BUBBLE_WIDTH, UI.BUBBLE_HEIGHT);
     checkBounds(
       UI.LESSON_INTRO_DESCRIPTION_X,
       UI.LESSON_INTRO_DESCRIPTION_Y,
@@ -51,6 +46,17 @@ describe('UI screen bounds', () => {
       UI.BACK_BUTTON_WIDTH,
       UI.BACK_BUTTON_HEIGHT,
     );
+  });
+
+  it('stacks the lesson intro dialogue, description, then buttons', () => {
+    expect(UI.LESSON_INTRO_DESCRIPTION_Y).toBeGreaterThanOrEqual(
+      UI.BUBBLE_Y + UI.BUBBLE_HEIGHT,
+    );
+    for (const buttonY of [UI.NEXT_BUTTON_Y, UI.BACK_BUTTON_Y]) {
+      expect(buttonY).toBeGreaterThanOrEqual(
+        UI.LESSON_INTRO_DESCRIPTION_Y + UI.LESSON_INTRO_DESCRIPTION_HEIGHT,
+      );
+    }
   });
 
   it('keeps the reading screen components inside the screen', () => {
@@ -76,16 +82,25 @@ describe('UI screen bounds', () => {
 
   it('keeps the reading screen with a graph components inside the screen', () => {
     checkBounds(
-      UI.VISUAL_READING_TEXT_X,
-      UI.VISUAL_READING_TEXT_Y,
+      UI.READING_TEXT_X,
+      UI.READING_TEXT_Y,
       UI.VISUAL_READING_TEXT_WIDTH,
-      UI.VISUAL_READING_TEXT_HEIGHT,
+      UI.READING_TEXT_HEIGHT,
     );
     checkBounds(
       UI.VISUAL_READING_GRAPH_X,
       UI.VISUAL_READING_GRAPH_Y,
       UI.VISUAL_READING_GRAPH_WIDTH,
       UI.VISUAL_READING_GRAPH_HEIGHT,
+    );
+  });
+
+  it('keeps the narrowed reading text and dialogue left of the graph', () => {
+    expect(
+      UI.READING_TEXT_X + UI.VISUAL_READING_TEXT_WIDTH,
+    ).toBeLessThanOrEqual(UI.VISUAL_READING_GRAPH_X);
+    expect(UI.BUBBLE_X + UI.BUBBLE_WIDTH_WITH_GRAPH).toBeLessThanOrEqual(
+      UI.VISUAL_READING_GRAPH_X,
     );
   });
 
@@ -133,7 +148,13 @@ describe('UI screen bounds', () => {
       UI.QUESTION_BACK_BUTTON_HEIGHT,
     );
     checkBounds(
-      UI.DESIGN_WIDTH - UI.ALIEN_FRIEND_WIDTH,
+      UI.QUESTION_HINT_BUTTON_X,
+      UI.QUESTION_HINT_BUTTON_Y,
+      UI.QUESTION_HINT_BUTTON_WIDTH,
+      UI.QUESTION_HINT_BUTTON_HEIGHT,
+    );
+    checkBounds(
+      UI.ALIEN_FRIEND_X,
       UI.ALIEN_FRIEND_Y,
       UI.ALIEN_FRIEND_WIDTH,
       UI.ALIEN_FRIEND_WIDTH,
@@ -142,10 +163,16 @@ describe('UI screen bounds', () => {
 
   it('keeps the question screen with a graph components inside the screen', () => {
     checkBounds(
-      UI.VISUAL_QUESTION_PROMPT_X,
-      UI.VISUAL_QUESTION_PROMPT_Y,
-      UI.VISUAL_QUESTION_PROMPT_WIDTH,
-      UI.VISUAL_QUESTION_PROMPT_HEIGHT,
+      UI.MULTIPLE_CHOICE_PROMPT_X,
+      UI.MULTIPLE_CHOICE_PROMPT_Y,
+      UI.MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
+      UI.MULTIPLE_CHOICE_PROMPT_HEIGHT,
+    );
+    checkBounds(
+      UI.BUBBLE_X,
+      UI.BUBBLE_Y,
+      UI.BUBBLE_WIDTH_WITH_GRAPH,
+      UI.BUBBLE_HEIGHT,
     );
     checkBounds(
       UI.QUESTION_GRAPH_X,
@@ -153,6 +180,37 @@ describe('UI screen bounds', () => {
       UI.QUESTION_GRAPH_WIDTH,
       UI.QUESTION_GRAPH_HEIGHT,
     );
+  });
+
+  it('keeps the narrowed prompt and dialogue left of the graph', () => {
+    expect(
+      UI.MULTIPLE_CHOICE_PROMPT_X + UI.MULTIPLE_CHOICE_PROMPT_WIDTH_WITH_GRAPH,
+    ).toBeLessThanOrEqual(UI.QUESTION_GRAPH_X);
+    expect(UI.BUBBLE_X + UI.BUBBLE_WIDTH_WITH_GRAPH).toBeLessThanOrEqual(
+      UI.QUESTION_GRAPH_X,
+    );
+  });
+
+  it('keeps the alien dialogue inside the screen', () => {
+    checkBounds(UI.BUBBLE_X, UI.BUBBLE_Y, UI.BUBBLE_WIDTH, UI.BUBBLE_HEIGHT);
+  });
+
+  it('keeps the navigation screen components inside the screen', () => {
+    checkBounds(
+      UI.NAV_ALIEN_X,
+      UI.NAV_ALIEN_Y,
+      UI.NAV_ALIEN_WIDTH,
+      UI.NAV_ALIEN_WIDTH,
+    );
+    checkBounds(
+      UI.NAV_PROGRESS_X,
+      UI.NAV_PROGRESS_Y,
+      UI.NAV_PROGRESS_WIDTH,
+      UI.NAV_PROGRESS_HEIGHT,
+    );
+    for (const {x, y} of UI.PLANET_POSITIONS) {
+      checkBounds(x, y, UI.PLANET_DIAMETER, UI.PLANET_DIAMETER);
+    }
   });
 
   it('keeps result screen components inside the screen', () => {
@@ -168,5 +226,25 @@ describe('UI screen bounds', () => {
       UI.OK_BUTTON_WIDTH,
       UI.OK_BUTTON_HEIGHT,
     );
+  });
+
+  it('keeps the question result Ok button inside the screen', () => {
+    checkBounds(
+      UI.QUESTION_RESULT_OK_X,
+      UI.QUESTION_RESULT_OK_Y,
+      UI.QUESTION_RESULT_OK_WIDTH,
+      UI.QUESTION_RESULT_OK_HEIGHT,
+    );
+  });
+
+  it('stacks the result dialogue, text, then buttons', () => {
+    expect(UI.RESULT_TEXT_Y).toBeGreaterThanOrEqual(
+      UI.BUBBLE_Y + UI.BUBBLE_HEIGHT,
+    );
+    for (const buttonY of [UI.OK_BUTTON_Y, UI.REDO_BUTTON_Y]) {
+      expect(buttonY).toBeGreaterThanOrEqual(
+        UI.RESULT_TEXT_Y + UI.RESULT_TEXT_HEIGHT,
+      );
+    }
   });
 });

@@ -60,6 +60,7 @@ export interface LessonIntroScreenModel {
   type: 'intro';
   title: string;
   description: string;
+  planetId?: number;
 }
 
 /**
@@ -68,6 +69,7 @@ export interface LessonIntroScreenModel {
 export interface ReadingScreenModel {
   type: 'reading';
   readingText: string;
+  planetId?: number;
   equation?: string;
 }
 
@@ -87,6 +89,7 @@ export interface QuestionScreenModel {
   type: 'question';
   question: QuestionDisplay;
   equation?: string;
+  planetId?: number; // picks the alien and background; defaults to planet 2
 }
 
 /**
@@ -94,7 +97,8 @@ export interface QuestionScreenModel {
  */
 export interface QuestionResultScreenModel {
   type: 'questionResult';
-  result: string;
+  result: boolean;
+  planetId?: number;
 }
 
 /**
@@ -103,6 +107,7 @@ export interface QuestionResultScreenModel {
 export interface LessonResultScreenModel {
   type: 'lessonResult';
   result: string;
+  planetId?: number;
 }
 
 /**
@@ -137,6 +142,7 @@ export interface NavigationScreenModel {
  */
 export interface MiniGameSelectModel {
   type: 'miniGameSelect';
+  minigame: 'Asteroid' | 'Radio';
 }
 
 /**
@@ -167,6 +173,14 @@ export interface RadioWaveMinigameScreenModel {
 }
 
 /**
+ * Asteroid minigame screen. It needs no data: the minigame makes its own
+ * questions.
+ */
+export interface AsteroidMiniGameScreenModel {
+  type: 'asteroidMinigame';
+}
+
+/**
  * Generic Screen Model Type
  */
 export type ScreenModel =
@@ -181,4 +195,5 @@ export type ScreenModel =
   | SettingsScreenModel
   | NavigationScreenModel
   | MiniGameSelectModel
-  | RadioWaveMinigameScreenModel;
+  | RadioWaveMinigameScreenModel
+  | AsteroidMiniGameScreenModel;

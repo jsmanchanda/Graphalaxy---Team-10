@@ -6,13 +6,18 @@ import {
   BACK_BUTTON_WIDTH,
   BACK_BUTTON_X,
   BACK_BUTTON_Y,
+  DEFAULT_PLANET_ID,
+  MINI_GAME_BUTTON_HEIGHT,
+  MINI_GAME_BUTTON_WIDTH,
+  MINI_GAME_BUTTON_Y,
+  MINIGAME_SKIP_X,
+  MINIGAME_START_X,
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
   NEXT_BUTTON_HEIGHT,
   NEXT_BUTTON_WIDTH,
   NEXT_BUTTON_X,
   NEXT_BUTTON_Y,
-  OK_BUTTON_WIDTH,
   OK_BUTTON_X,
   REDO_BUTTON_HEIGHT,
   REDO_BUTTON_WIDTH,
@@ -51,12 +56,18 @@ import {
   SETTINGS_VALUE_X,
   START_BUTTON_HEIGHT,
   START_BUTTON_Y,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
 } from '../src/UI/constants';
 
-// Every text box and button the screen under test builds, in build order.
+// Every component the screen under test builds, in build order.
 const made = vi.hoisted(() => ({
   boxes: [] as Array<{text: string}>,
   buttons: [] as Array<{text: string; click: () => void}>,
+  images: [] as string[],
+  dialogues: [] as string[],
 }));
 
 // Replace the components so no canvas is needed: Konva.Text measures itself
@@ -116,14 +127,59 @@ vi.mock('../src/UI/components', () => {
     }
   }
 
+  class ImageComponent {
+    private group: Konva.Group;
+
+    constructor(
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      url: string,
+    ) {
+      this.group = new Konva.Group({x, y, width, height});
+      made.images.push(url);
+    }
+
+    getGroup(): Konva.Group {
+      return this.group;
+    }
+  }
+
+  class AlienDialogue {
+    private group: Konva.Group;
+
+    constructor(
+      x: number,
+      y: number,
+      width: number,
+      height: number,
+      text: string,
+    ) {
+      this.group = new Konva.Group({x, y, width, height});
+      made.dialogues.push(text);
+    }
+
+    getGroup(): Konva.Group {
+      return this.group;
+    }
+  }
+
   return {
     // eslint-disable-next-line @typescript-eslint/naming-convention
+    AlienDialogue,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
     ButtonComponent,
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    ImageComponent,
     // eslint-disable-next-line @typescript-eslint/naming-convention
     TextBoxComponent,
   };
 });
 
+import {MiniGameSelectView} from '../src/UI/screens/MiniGameSelectView';
+import {LessonIntroScreenView} from '../src/UI/screens/LessonIntroScreenView';
+import {QuestionResultScreenView} from '../src/UI/screens/QuestionResultView';
 import {LessonResultScreenView} from '../src/UI/screens/LessonResultScreenView';
 import {RetryWarningScreenView} from '../src/UI/screens/RetryWarningScreenView';
 import {
@@ -154,6 +210,199 @@ function checkBounds(x: number, y: number, width: number, height: number) {
 beforeEach(() => {
   made.boxes.length = 0;
   made.buttons.length = 0;
+  made.images.length = 0;
+  made.dialogues.length = 0;
+});
+
+describe('LessonIntroScreenView', () => {
+  const model = {
+    type: 'intro' as const,
+    title: 'Linear Land',
+    description: 'A world of lines',
+  };
+
+  it('welcomes the player in the alien dialogue and shows the description', () => {
+    const view = new LessonIntroScreenView(vi.fn(), model);
+
+    expect(made.dialogues).toEqual(['Welcome to Linear Land!']);
+    expect(texts()).toEqual(['A world of lines']);
+    expect(made.buttons.map(b => b.text)).toEqual(['Next', 'back']);
+    // background, alien, border, settings, dialogue, description, Next, back
+    expect(view.getGroup().getChildren()).toHaveLength(8);
+  });
+
+  it.each([1, 2, 3, 4])(
+    'draws the intro background and alien for planet %i',
+    id => {
+      new LessonIntroScreenView(vi.fn(), {...model, planetId: id});
+
+      expect(made.images).toEqual([
+        `/assets/planet-intro-background-${id}.jpg`,
+        '/assets/general-nav.png',
+        `/assets/alien-planet-${id}.png`,
+        SETTINGS_ICON_IMAGE,
+      ]);
+    },
+  );
+
+  it('falls back to the default planet when none is given', () => {
+    new LessonIntroScreenView(vi.fn(), model);
+
+    expect(made.images).toEqual(
+      expect.arrayContaining([
+        `/assets/planet-intro-background-${DEFAULT_PLANET_ID}.jpg`,
+        `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
+      ]),
+    );
+  });
+
+  it('moves on when Next is pressed', () => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    new LessonIntroScreenView(onAction, model);
+
+    press('Next');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'next'});
+  });
+
+  it('goes back when back is pressed', () => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    new LessonIntroScreenView(onAction, model);
+
+    press('back');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'back'});
+  });
+});
+
+describe('MiniGameSelectView', () => {
+  it.each([
+    {
+      minigame: 'Asteroid' as const,
+      intro: 'You are now approaching an asteroid belt!',
+      play: 'Go through',
+      skip: 'Go around',
+    },
+    {
+      minigame: 'Radio' as const,
+      intro: 'Your ship has lost signal!',
+      play: 'Configure Radio',
+      skip: 'Skip',
+    },
+  ])('offers the $minigame minigame', ({minigame, intro, play, skip}) => {
+    const view = new MiniGameSelectView(vi.fn(), {
+      type: 'miniGameSelect',
+      minigame,
+    });
+
+    expect(made.dialogues).toHaveLength(1);
+    expect(made.dialogues[0].startsWith(intro)).toBe(true);
+    expect(made.buttons.map(b => b.text)).toEqual([play, skip]);
+    // alien, border, settings, dialogue, play, skip
+    expect(view.getGroup().getChildren()).toHaveLength(6);
+  });
+
+  it.each([
+    {minigame: 'Asteroid' as const, play: 'Go through'},
+    {minigame: 'Radio' as const, play: 'Configure Radio'},
+  ])(
+    'starts the $minigame minigame when $play is pressed',
+    ({minigame, play}) => {
+      const onAction = vi.fn<(action: UiAction) => void>();
+      new MiniGameSelectView(onAction, {type: 'miniGameSelect', minigame});
+
+      press(play);
+
+      expect(onAction).toHaveBeenCalledExactlyOnceWith({
+        type: 'startMiniGame',
+        name: minigame,
+      });
+    },
+  );
+
+  it.each([
+    {minigame: 'Asteroid' as const, skip: 'Go around'},
+    {minigame: 'Radio' as const, skip: 'Skip'},
+  ])('goes to the lesson when $skip is pressed', ({minigame, skip}) => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    new MiniGameSelectView(onAction, {type: 'miniGameSelect', minigame});
+
+    press(skip);
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'enterPlanet'});
+  });
+
+  it('draws the alien inside the frame', () => {
+    new MiniGameSelectView(vi.fn(), {
+      type: 'miniGameSelect',
+      minigame: 'Asteroid',
+    });
+
+    expect(made.images).toEqual([
+      '/assets/general-nav.png',
+      '/assets/alien-planet-2.png',
+      SETTINGS_ICON_IMAGE,
+    ]);
+  });
+});
+
+describe('QuestionResultScreenView', () => {
+  it.each([
+    {result: true, says: 'Correct!'},
+    {result: false, says: 'Incorrect, nice try'},
+  ])('says "$says" when the answer was $result', ({result, says}) => {
+    const view = new QuestionResultScreenView(vi.fn(), {
+      type: 'questionResult',
+      result,
+    });
+
+    expect(made.dialogues).toEqual([says]);
+    expect(texts()).toEqual([]);
+    expect(made.buttons.map(b => b.text)).toEqual(['Ok']);
+    // background, alien, border, settings, dialogue, Ok
+    expect(view.getGroup().getChildren()).toHaveLength(6);
+  });
+
+  it.each([1, 2, 3, 4])('draws the background and alien for planet %i', id => {
+    new QuestionResultScreenView(vi.fn(), {
+      type: 'questionResult',
+      result: true,
+      planetId: id,
+    });
+
+    expect(made.images).toEqual([
+      '/assets/general-nav.png',
+      `/assets/planet-background-${id}.jpg`,
+      `/assets/alien-planet-${id}.png`,
+      SETTINGS_ICON_IMAGE,
+    ]);
+  });
+
+  it('falls back to the default planet when none is given', () => {
+    new QuestionResultScreenView(vi.fn(), {
+      type: 'questionResult',
+      result: true,
+    });
+
+    expect(made.images).toEqual(
+      expect.arrayContaining([
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.jpg`,
+        `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
+      ]),
+    );
+  });
+
+  it('moves on when Ok is pressed', () => {
+    const onAction = vi.fn<(action: UiAction) => void>();
+    new QuestionResultScreenView(onAction, {
+      type: 'questionResult',
+      result: false,
+    });
+
+    press('Ok');
+
+    expect(onAction).toHaveBeenCalledExactlyOnceWith({type: 'next'});
+  });
 });
 
 describe('LessonResultScreenView', () => {
@@ -163,8 +412,32 @@ describe('LessonResultScreenView', () => {
     const view = new LessonResultScreenView(vi.fn(), model);
 
     expect(texts()).toEqual(['5 of 5 correct']);
+    expect(made.dialogues).toEqual(['You reached the end of the Lesson!']);
     expect(made.buttons.map(b => b.text)).toEqual(['Ok', 'Redo Planet']);
-    expect(view.getGroup().getChildren()).toHaveLength(3);
+    // background, alien, border, settings, dialogue, Ok, Redo Planet, result
+    expect(view.getGroup().getChildren()).toHaveLength(8);
+  });
+
+  it.each([1, 2, 3, 4])('draws the background and alien for planet %i', id => {
+    new LessonResultScreenView(vi.fn(), {...model, planetId: id});
+
+    expect(made.images).toEqual([
+      `/assets/alien-planet-${id}.png`,
+      `/assets/planet-background-${id}.jpg`,
+      '/assets/general-nav.png',
+      SETTINGS_ICON_IMAGE,
+    ]);
+  });
+
+  it('falls back to the default planet when none is given', () => {
+    new LessonResultScreenView(vi.fn(), model);
+
+    expect(made.images).toEqual(
+      expect.arrayContaining([
+        `/assets/alien-planet-${DEFAULT_PLANET_ID}.png`,
+        `/assets/planet-background-${DEFAULT_PLANET_ID}.jpg`,
+      ]),
+    );
   });
 
   it('asks to redo the planet when Redo Planet is pressed', () => {
@@ -372,15 +645,88 @@ describe('volume helpers', () => {
   });
 });
 
+describe('minigame select screen bounds', () => {
+  it('keeps both buttons inside the screen, skip left of play', () => {
+    for (const x of [MINIGAME_SKIP_X, MINIGAME_START_X]) {
+      checkBounds(
+        x,
+        MINI_GAME_BUTTON_Y,
+        MINI_GAME_BUTTON_WIDTH,
+        MINI_GAME_BUTTON_HEIGHT,
+      );
+    }
+    expect(MINIGAME_START_X).toBeGreaterThanOrEqual(
+      MINIGAME_SKIP_X + MINI_GAME_BUTTON_WIDTH,
+    );
+  });
+});
+
+describe('settings icon', () => {
+  it('sits in the top-right corner, inside the screen', () => {
+    checkBounds(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+    );
+    expect(SETTINGS_ICON_X + SETTINGS_ICON_SIZE).toBe(DESIGN_WIDTH);
+    expect(SETTINGS_ICON_Y).toBe(0);
+  });
+
+  it.each([
+    [
+      'lesson intro',
+      () =>
+        new LessonIntroScreenView(vi.fn(), {
+          type: 'intro',
+          title: 't',
+          description: 'd',
+        }),
+    ],
+    [
+      'minigame select',
+      () =>
+        new MiniGameSelectView(vi.fn(), {
+          type: 'miniGameSelect',
+          minigame: 'Asteroid',
+        }),
+    ],
+    [
+      'question result',
+      () =>
+        new QuestionResultScreenView(vi.fn(), {
+          type: 'questionResult',
+          result: true,
+        }),
+    ],
+    [
+      'lesson result',
+      () =>
+        new LessonResultScreenView(vi.fn(), {
+          type: 'lessonResult',
+          result: 'r',
+        }),
+    ],
+  ])('is drawn once on the %s screen', (name, build) => {
+    build();
+    expect(
+      made.images.filter(url => url === SETTINGS_ICON_IMAGE),
+      name,
+    ).toHaveLength(1);
+  });
+});
+
 describe('redo and settings screen bounds', () => {
-  it('keeps the Redo button inside the screen and clear of the Ok button', () => {
+  it('keeps the Redo button inside the screen, left of the Ok button', () => {
     checkBounds(
       REDO_BUTTON_X,
       REDO_BUTTON_Y,
       REDO_BUTTON_WIDTH,
       REDO_BUTTON_HEIGHT,
     );
-    expect(REDO_BUTTON_X).toBeGreaterThanOrEqual(OK_BUTTON_X + OK_BUTTON_WIDTH);
+    expect(OK_BUTTON_X).toBeGreaterThanOrEqual(
+      REDO_BUTTON_X + REDO_BUTTON_WIDTH,
+    );
   });
 
   it('keeps the retry warning components inside the screen, without overlap', () => {

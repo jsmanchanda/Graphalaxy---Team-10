@@ -2,26 +2,35 @@ import {Group} from 'konva/lib/Group';
 import {NavigationScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
 import {Component, ImageComponent, TextBoxComponent} from '../components';
-import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../constants';
+import {
+  DEFAULT_ALIEN_IMAGE,
+  DESIGN_HEIGHT,
+  DESIGN_WIDTH,
+  NAV_ALIEN_WIDTH,
+  NAV_ALIEN_X,
+  NAV_ALIEN_Y,
+  NAV_FRAME_IMAGE,
+  NAV_PROGRESS_HEIGHT,
+  NAV_PROGRESS_WIDTH,
+  NAV_PROGRESS_X,
+  NAV_PROGRESS_Y,
+  PLANET_DIAMETER,
+  PLANET_HOVER_TEXT_COLOR,
+  PLANET_HOVER_TEXT_FONT_SIZE,
+  PLANET_HOVER_TEXT_HEIGHT,
+  PLANET_HOVER_TEXT_WIDTH,
+  PLANET_PATH_COLOR_COMPLETE,
+  PLANET_PATH_COLOR_IN_PROGRESS,
+  PLANET_PATH_COLOR_REACHABLE,
+  PLANET_PATH_COLOR_UNREACHABLE,
+  PLANET_PATH_STROKE_WIDTH,
+  PLANET_POSITIONS,
+  SETTINGS_ICON_IMAGE,
+  SETTINGS_ICON_SIZE,
+  SETTINGS_ICON_X,
+  SETTINGS_ICON_Y,
+} from '../constants';
 import {PlanetSummary} from '@graphalaxy/shared';
-
-// Planet Path Colors
-const COLOR_COMPLETE = '#00FF19';
-const COLOR_IN_PROGRESS = '#EEF20D';
-const COLOR_REACHABLE = '#F20D0D';
-const COLOR_UNREACHABLE = '#434242';
-
-const PLANET_DIAMETER = 75;
-// correponds with planet id
-const PLANET_POSITIONS = [
-  {x: 75, y: 350}, // home planet
-  {x: 210, y: 260}, // planet 1
-  {x: 315, y: 130}, // planet 2 ...
-  {x: 385, y: 280},
-  {x: 490, y: 125},
-  {x: 515, y: 145},
-  {x: 515, y: 145},
-];
 
 const HOME_PLANET: PlanetSummary = {
   planetId: 0,
@@ -34,9 +43,6 @@ const HOME_PLANET: PlanetSummary = {
   correctCount: 0,
   questionCount: 0,
 };
-
-const HOVER_TEXT_WIDTH = 150;
-const HOVER_TEXT_HEIGHT = 35;
 
 /**
  * Planet Component Factory
@@ -51,16 +57,22 @@ export class PlanetComponent extends Component {
     super(positionX, positionY);
 
     // hover text
-    const hoverText = `${planet.name}\nProgress: ${String(Math.round(planet.completionPct * 100))}%`;
+    let hoverText = planet.unlocked
+      ? `${planet.name}\nProgress: ${String(Math.round(planet.completionPct * 100))}%`
+      : `${planet.name}\nLocked`;
+
+    if (planet.name === 'Home') {
+      hoverText = planet.name;
+    }
     const planetNameText = new TextBoxComponent(
-      (-1 * (HOVER_TEXT_WIDTH - PLANET_DIAMETER)) / 2,
+      (-1 * (PLANET_HOVER_TEXT_WIDTH - PLANET_DIAMETER)) / 2,
       (-1 * PLANET_DIAMETER) / 2,
-      HOVER_TEXT_WIDTH,
-      HOVER_TEXT_HEIGHT,
+      PLANET_HOVER_TEXT_WIDTH,
+      PLANET_HOVER_TEXT_HEIGHT,
       hoverText,
     );
-    planetNameText.setFontSize(12);
-    planetNameText.setTextColor('white');
+    planetNameText.setFontSize(PLANET_HOVER_TEXT_FONT_SIZE);
+    planetNameText.setTextColor(PLANET_HOVER_TEXT_COLOR);
     planetNameText.getGroup().hide();
     this.group.add(planetNameText.getGroup());
 
@@ -78,7 +90,11 @@ export class PlanetComponent extends Component {
     // Handle actions
     planetImage.on('mouseenter', e => {
       const stage = e.target.getStage();
-      if (stage && onClick) stage.container().style.cursor = 'pointer';
+      if (stage && onClick) {
+        stage.container().style.cursor = planet.unlocked
+          ? 'pointer'
+          : 'not-allowed';
+      }
 
       planetNameText.getGroup().show();
       this.group.getLayer()?.batchDraw();
@@ -92,6 +108,7 @@ export class PlanetComponent extends Component {
 
     if (onClick) {
       this.group.on('click tap', e => {
+        if (!planet.unlocked) return; // locked planets ignore clicks
         const stage = e.target.getStage();
         if (stage) stage.container().style.cursor = 'default';
         onClick();
@@ -116,6 +133,27 @@ export class NavigationScreenView implements View {
   ) {
     this.group = new Konva.Group();
 
+    // Draw Alien Buddy
+    const alien = new ImageComponent(
+      NAV_ALIEN_X,
+      NAV_ALIEN_Y,
+      NAV_ALIEN_WIDTH,
+      NAV_ALIEN_WIDTH,
+      DEFAULT_ALIEN_IMAGE,
+    );
+    this.group.add(alien.getGroup());
+
+    // Draw border image
+    const borderImage = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      NAV_FRAME_IMAGE,
+    );
+    this.group.add(borderImage.getGroup());
+    borderImage.getGroup().moveToBottom();
+
     for (const planet of model.planets) {
       // draw planet path
       for (const planetId of planet.prereqIds ?? []) {
@@ -127,7 +165,7 @@ export class NavigationScreenView implements View {
             PLANET_POSITIONS[planetId].y + PLANET_DIAMETER / 2,
           ],
           stroke: this.completionToColor(planet.completionPct),
-          strokeWidth: 2,
+          strokeWidth: PLANET_PATH_STROKE_WIDTH,
           lineCap: 'round',
           lineJoin: 'round',
         });
@@ -150,8 +188,8 @@ export class NavigationScreenView implements View {
         PLANET_POSITIONS[1].x + PLANET_DIAMETER / 2,
         PLANET_POSITIONS[1].y + PLANET_DIAMETER / 2,
       ],
-      stroke: COLOR_COMPLETE,
-      strokeWidth: 2,
+      stroke: PLANET_PATH_COLOR_COMPLETE,
+      strokeWidth: PLANET_PATH_STROKE_WIDTH,
       lineCap: 'round',
       lineJoin: 'round',
     });
@@ -161,6 +199,29 @@ export class NavigationScreenView implements View {
     // draw home planet
     const homePlanet = new PlanetComponent(HOME_PLANET, null);
     this.group.add(homePlanet.getGroup());
+
+    // Draw Total Progress
+    const roundedProgress = Math.round(model.overallStatus * 100);
+    const progressString =
+      'Intergalactic Peace: ' + String(roundedProgress) + '%';
+    const totalProgress = new TextBoxComponent(
+      NAV_PROGRESS_X,
+      NAV_PROGRESS_Y,
+      NAV_PROGRESS_WIDTH,
+      NAV_PROGRESS_HEIGHT,
+      progressString,
+    );
+    this.group.add(totalProgress.getGroup());
+
+    // Draw settings icon
+    const settingsIcon = new ImageComponent(
+      SETTINGS_ICON_X,
+      SETTINGS_ICON_Y,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_SIZE,
+      SETTINGS_ICON_IMAGE,
+    );
+    this.group.add(settingsIcon.getGroup());
   }
 
   /**
@@ -179,10 +240,10 @@ export class NavigationScreenView implements View {
   completionToColor(completion: number): string {
     // Written as !(in range) so NaN is rejected too
     const c = Math.min(1, Math.max(0, completion));
-    if (c === 0) return COLOR_UNREACHABLE;
-    if (c <= 0.4) return COLOR_REACHABLE;
-    if (c <= 0.7) return COLOR_IN_PROGRESS;
-    return COLOR_COMPLETE;
+    if (c === 0) return PLANET_PATH_COLOR_UNREACHABLE;
+    if (c <= 0.4) return PLANET_PATH_COLOR_REACHABLE;
+    if (c <= 0.7) return PLANET_PATH_COLOR_IN_PROGRESS;
+    return PLANET_PATH_COLOR_COMPLETE;
   }
 
   /**
@@ -192,8 +253,9 @@ export class NavigationScreenView implements View {
     const debugPoint = new Konva.Circle({
       x: DESIGN_WIDTH / 2, // X coordinate of the center
       y: DESIGN_HEIGHT / 2, // Y coordinate of the center
-      radius: 75 / 2, // Circle radius
+      radius: 25 / 2, // Circle radius
       fill: 'red', // Fill color
+
       draggable: true, // Enables drag and drop
     });
     debugPoint.moveToTop();

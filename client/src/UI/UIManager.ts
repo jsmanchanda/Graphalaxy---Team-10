@@ -15,6 +15,7 @@ import {ScreenModel, UiAction, View} from './types';
 import {ImageComponent} from './components';
 import {NavigationScreenView} from './screens/NavigationScreenView';
 import {MiniGameSelectView} from './screens/MiniGameSelectView';
+import {AsteroidMiniGameView} from '../Asteroids/views/AsteroidMiniGameView';
 
 /** Renders different Konva screens */
 export class UiManager {
@@ -40,7 +41,14 @@ export class UiManager {
       DESIGN_HEIGHT,
       '/assets/background.jpeg',
     );
-    this.layer = new Konva.Layer();
+    this.layer = new Konva.Layer({
+      clip: {
+        x: 0,
+        y: 0,
+        width: DESIGN_WIDTH,
+        height: DESIGN_HEIGHT,
+      },
+    });
     this.layer.add(background.getGroup());
     this.stage.add(this.layer);
 
@@ -91,7 +99,10 @@ export class UiManager {
         this.currentView = new NavigationScreenView(this.onAction, model);
         break;
       case 'miniGameSelect':
-        this.currentView = new MiniGameSelectView(this.onAction);
+        this.currentView = new MiniGameSelectView(this.onAction, model);
+        break;
+      case 'asteroidMinigame':
+        this.currentView = new AsteroidMiniGameView(this.onAction);
         break;
       case 'reading':
         this.currentView = new ReadingScreenView(this.onAction, model);

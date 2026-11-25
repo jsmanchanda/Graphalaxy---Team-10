@@ -48,7 +48,7 @@ const questionScreen: QuestionScreenModel = {
 
 const questionResultScreen: QuestionResultScreenModel = {
   type: 'questionResult',
-  result: 'Correct!',
+  result: true,
 };
 
 const lessonResultScreen: LessonResultScreenModel = {

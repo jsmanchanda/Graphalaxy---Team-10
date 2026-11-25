@@ -92,7 +92,7 @@ const screens: Array<[string, () => View]> = [
     () =>
       new QuestionResultScreenView(onAction, {
         type: 'questionResult',
-        result: 'r',
+        result: true,
       }),
   ],
   [

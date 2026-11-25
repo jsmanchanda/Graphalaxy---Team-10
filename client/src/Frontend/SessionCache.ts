@@ -103,7 +103,7 @@ export class SessionCache {
     const next = await this.client.getNextQuestion(planet.planetId);
     if (this.currentPlanet === planet) {
       this.currentQuestion = next.question;
-      this.storeProgress(next.progress);
+      await this.storeProgress(next.progress);
     }
     return next.question;
   }
@@ -120,7 +120,7 @@ export class SessionCache {
     const progress = await this.client.resetPlanet(planet.planetId);
     if (this.currentPlanet === planet) {
       this.currentQuestion = null;
-      this.storeProgress(progress);
+      await this.storeProgress(progress);
     }
     return progress;
   }
@@ -201,9 +201,28 @@ export class SessionCache {
 
   /**
    * Replaces the stored summary for a planet, or adds it if there is none.
+   * When the planet turns peaceful or hostile, other planets may unlock or
+   * lock, so the whole list is reloaded from the server. If that reload
+   * fails, the old list is kept until the next login.
    * @param progress The planet's latest summary.
    */
-  private storeProgress(progress: PlanetSummary): void {
+  private async storeProgress(progress: PlanetSummary): Promise<void> {
+    const before = this.progressFor(progress.planetId);
+    this.replaceProgress(progress);
+    if (before && before.status !== progress.status) {
+      try {
+        await this.loadPlanets();
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
+
+  /**
+   * Replaces the stored summary for a planet, or adds it if there is none.
+   * @param progress The planet's latest summary.
+   */
+  private replaceProgress(progress: PlanetSummary): void {
     const index = this.planets.findIndex(
       planet => planet.planetId === progress.planetId,
     );
