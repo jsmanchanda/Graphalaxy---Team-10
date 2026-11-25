@@ -1,11 +1,11 @@
 import Konva from 'konva';
 import {Component} from '../../UI/components';
 import {
+  ASTEROID_WINDOW,
   PREVIEW_BORDER_COLOR,
   PREVIEW_CURVE_COLOR,
   PREVIEW_SCREEN_COLOR,
 } from '../constants';
-import {WINDOW_MAX, WINDOW_MIN} from '../math/asteroids';
 import {expressionToFunction} from '../math/evaluate';
 
 // Samples per pixel of width: enough for a smooth curve, and cheap enough
@@ -73,25 +73,28 @@ export class TargetingPreviewComponent extends Component {
   }
 
   /**
-   * Samples the curve across the window and converts it to pixels, with the
-   * same maths as GraphComponent.convertToPixelsX/Y.
+   * Samples the curve across ASTEROID_WINDOW, the same range the main window
+   * is drawn with, and converts it to pixels with the same maths as
+   * GraphComponent.convertToPixelsX/Y. A test checks the two agree.
+   * (The window is square, so one interval and one scale cover both axes.)
    * @param fn the curve's function
    * @returns flat [x1, y1, x2, y2, ...] pixel points, skipping x values
    *   where fn isn't a finite number
    */
   private samplePoints(fn: (x: number) => number): number[] {
-    const span = WINDOW_MAX - WINDOW_MIN;
+    const start = ASTEROID_WINDOW.start;
+    const span = ASTEROID_WINDOW.getLength();
     const pixelsPerUnit = this.size / span;
     const samples = this.size * SAMPLES_PER_PIXEL;
     const points: number[] = [];
 
     for (let i = 0; i <= samples; i++) {
-      const x = WINDOW_MIN + (span * i) / samples;
+      const x = start + (span * i) / samples;
       const y = fn(x);
       if (Number.isFinite(y)) {
         points.push(
-          (x - WINDOW_MIN) * pixelsPerUnit,
-          this.size - (y - WINDOW_MIN) * pixelsPerUnit,
+          (x - start) * pixelsPerUnit,
+          this.size - (y - start) * pixelsPerUnit,
         );
       }
     }

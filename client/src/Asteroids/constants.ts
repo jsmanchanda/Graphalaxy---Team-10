@@ -1,4 +1,6 @@
+import {Interval} from '../Graphing/functions';
 import {DESIGN_WIDTH} from '../UI/constants';
+import {WINDOW_MAX, WINDOW_MIN} from './math/asteroids';
 
 // Layout for the asteroid minigame on the 800×500 design canvas. Kept apart
 // from UI/constants.ts so the team's shared file doesn't change.
@@ -51,6 +53,14 @@ export const FIELD_X = (DESIGN_WIDTH - FIELD_SIZE) * 0.5;
 export const FIELD_Y =
   FRAME_WINDOW_TOP +
   (FRAME_WINDOW_BOTTOM - FRAME_WINDOW_TOP - FIELD_SIZE) * 0.5;
+
+// The graph range shown in the window, on both axes, with a grid line every
+// unit. The single source for everything that maps the game's coordinates to
+// pixels: the window is drawn with it (passed to GraphComponent instead of
+// relying on GraphComponent's default) and the targeting preview samples it.
+// It comes from WINDOW_MIN/MAX, which the hit test and the spawn range use,
+// so the drawing and the game rules can't disagree.
+export const ASTEROID_WINDOW = new Interval(WINDOW_MIN, WINDOW_MAX, 1);
 
 // ============== Targeting preview (the frame's top-left square) ==============
 // Square, like the window, and centered in the frame's square with a small

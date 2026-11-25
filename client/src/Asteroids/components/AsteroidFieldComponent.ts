@@ -3,10 +3,10 @@ import {GraphComponent} from '../../Graphing/GraphComponent';
 import {ImageComponent} from '../../UI/components';
 import {
   ASTEROID_SPRITE_URL,
+  ASTEROID_WINDOW,
   DESTROYED_ASTEROID_SPRITE_URL,
   SHOT_COLOR,
 } from '../constants';
-import {WINDOW_MAX, WINDOW_MIN} from '../math/asteroids';
 import type {Asteroid, FireResult} from '../types';
 
 // Konva id of the player's curve, so there is only ever one.
@@ -33,10 +33,12 @@ export class AsteroidFieldComponent extends GraphComponent {
    * @param asteroids the current question's asteroids
    */
   constructor(x: number, y: number, size: number, asteroids: Asteroid[]) {
-    // GraphComponent's default window is -10..10, the same as WINDOW_MIN/MAX.
-    super(x, y, size, size);
+    // Pass the game's window explicitly rather than relying on
+    // GraphComponent's default, so the grid, the sprites and the shot use the
+    // same range as the hit test and the targeting preview.
+    super(x, y, size, size, ASTEROID_WINDOW, ASTEROID_WINDOW);
 
-    const pixelsPerUnit = size / (WINDOW_MAX - WINDOW_MIN);
+    const pixelsPerUnit = size / ASTEROID_WINDOW.getLength();
     this.sprites = asteroids.map(asteroid => {
       // A square around the center, the same size as the hit circle, so the
       // art covers exactly the area the hit test checks.

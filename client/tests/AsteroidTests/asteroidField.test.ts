@@ -7,7 +7,11 @@ import {
   DESTROYED_ASTEROID_SPRITE_URL,
   SHOT_COLOR,
 } from '../../src/Asteroids/constants';
-import {ASTEROID_RADIUS} from '../../src/Asteroids/math/asteroids';
+import {
+  ASTEROID_RADIUS,
+  WINDOW_MAX,
+  WINDOW_MIN,
+} from '../../src/Asteroids/math/asteroids';
 import type {Asteroid} from '../../src/Asteroids/types';
 
 // Build the real GraphComponent in Node; see helpers/konvaStubs.ts
@@ -44,6 +48,16 @@ function shotCurves(field: AsteroidFieldComponent): Konva.Line[] {
 }
 
 describe('AsteroidFieldComponent', () => {
+  it("spans the game's window, the range the hit test uses", () => {
+    const field = new AsteroidFieldComponent(0, 0, SIZE, []);
+
+    // WINDOW_MIN is the left and bottom edge, WINDOW_MAX the right and top.
+    expect(field.convertToPixelsX(WINDOW_MIN)).toBe(0);
+    expect(field.convertToPixelsX(WINDOW_MAX)).toBe(SIZE);
+    expect(field.convertToPixelsY(WINDOW_MIN)).toBe(SIZE);
+    expect(field.convertToPixelsY(WINDOW_MAX)).toBe(0);
+  });
+
   it('centers one sprite per asteroid on its grid position', () => {
     const field = new AsteroidFieldComponent(0, 0, SIZE, [
       asteroidAt(0, 0),

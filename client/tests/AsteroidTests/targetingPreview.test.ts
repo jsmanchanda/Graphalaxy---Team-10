@@ -1,6 +1,13 @@
 import {describe, expect, it} from 'vitest';
 import Konva from 'konva';
+import {installKonvaStubs} from '../helpers/konvaStubs';
+import {AsteroidFieldComponent} from '../../src/Asteroids/components/AsteroidFieldComponent';
 import {TargetingPreviewComponent} from '../../src/Asteroids/components/TargetingPreviewComponent';
+import {expressionToFunction} from '../../src/Asteroids/math/evaluate';
+
+// The cross-check test builds a real AsteroidFieldComponent (a GraphComponent)
+// in Node; see helpers/konvaStubs.ts
+installKonvaStubs();
 
 // 200 pixels for the 20-unit window: 10 pixels per unit.
 const SIZE = 200;
@@ -47,6 +54,24 @@ describe('TargetingPreviewComponent', () => {
     expect(points[0]).toEqual([0, SIZE]);
     expect(points.at(-1)).toEqual([SIZE, 0]);
     expect(points).toContainEqual([SIZE / 2, SIZE / 2]);
+  });
+
+  it('maps a curve to the same pixels as the main window', () => {
+    // Same size for both, so their pixels should match exactly.
+    const expression = '(x**2)/5-3';
+    const fn = expressionToFunction(expression);
+    const preview = new TargetingPreviewComponent(0, 0, SIZE);
+    const field = new AsteroidFieldComponent(0, 0, SIZE, []);
+    preview.draw(expression);
+    const points = pairs(curves(preview)[0]);
+
+    // x values the preview samples exactly, across the whole window.
+    for (const x of [-10, -5, 0, 5, 10]) {
+      expect(points).toContainEqual([
+        field.convertToPixelsX(x),
+        field.convertToPixelsY(fn(x)),
+      ]);
+    }
   });
 
   it('draws y = 0 as a flat line through the middle', () => {
