@@ -246,6 +246,12 @@ export class RadioWaveMinigameView implements View {
       return;
     }
     const {amplitude, frequency, horizontalShift, verticalShift} = this.inputs;
+    if (
+      !Number.isInteger(horizontalShift.valueAsNumber) ||
+      !Number.isInteger(verticalShift.valueAsNumber)
+    ) {
+      return;
+    }
     const matches =
       Math.abs(amplitude.valueAsNumber - this.currentQuestion.amplitude) <=
         ANSWER_TOLERANCE &&
@@ -411,10 +417,12 @@ export class RadioWaveMinigameView implements View {
     const horizontalShift = this.createInput(
       'horizontal-shift',
       String(DEFAULT_HORIZONTAL_SHIFT),
+      '1',
     );
     const verticalShift = this.createInput(
       'vertical-shift',
       String(DEFAULT_VERTICAL_SHIFT),
+      '1',
     );
     this.inputs = {amplitude, frequency, horizontalShift, verticalShift};
     const controls = document.createElement('div');
@@ -435,7 +443,7 @@ export class RadioWaveMinigameView implements View {
       frequency,
       document.createTextNode('(x -'),
       horizontalShift,
-      document.createTextNode(') +'),
+      document.createTextNode(')) +'),
       verticalShift,
     );
     document.body.append(controls);
@@ -466,8 +474,20 @@ export class RadioWaveMinigameView implements View {
     };
     amplitude.addEventListener('input', updateWave);
     frequency.addEventListener('input', updateWave);
-    horizontalShift.addEventListener('input', updateWave);
-    verticalShift.addEventListener('input', updateWave);
+    for (const shift of [horizontalShift, verticalShift]) {
+      shift.addEventListener('beforeinput', event => {
+        if (event.data && !/^-?\d*$/.test(event.data)) {
+          event.preventDefault();
+        }
+      });
+      shift.addEventListener('paste', event => {
+        const text = event.clipboardData?.getData('text').trim();
+        if (text && !/^-?\d+$/.test(text)) {
+          event.preventDefault();
+        }
+      });
+      shift.addEventListener('input', updateWave);
+    }
     this.removeControls = () => {
       controls.remove();
       window.removeEventListener('resize', positionControls);
@@ -477,11 +497,15 @@ export class RadioWaveMinigameView implements View {
   /**
    * Creates one numeric input for the wave expression.
    */
-  private createInput(name: string, value: string): HTMLInputElement {
+  private createInput(
+    name: string,
+    value: string,
+    step = '0.1',
+  ): HTMLInputElement {
     const input = document.createElement('input');
     input.name = name;
     input.type = 'number';
-    input.step = '0.1';
+    input.step = step;
     input.value = value;
     input.style.width = '75px';
     input.style.padding = '10px';
@@ -511,8 +535,8 @@ export class RadioWaveMinigameView implements View {
     if (
       !Number.isFinite(amplitudeValue) ||
       !Number.isFinite(frequencyValue) ||
-      !Number.isFinite(horizontalShiftValue) ||
-      !Number.isFinite(verticalShiftValue)
+      !Number.isInteger(horizontalShiftValue) ||
+      !Number.isInteger(verticalShiftValue)
     ) {
       return;
     }

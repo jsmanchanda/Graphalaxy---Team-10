@@ -211,11 +211,74 @@ describe('Radio-wave minigame', () => {
     expect(getScoreText()).toBe('Correct answers: 0');
   });
 
-  it('accepts a horizontal shift one full wave period away', () => {
+  it('uses whole-number steps for both shift controls', () => {
     startGame();
-    const equivalentShift = -2 + 2 * Math.PI;
-    submitAnswer('1', String(equivalentShift));
+    expect(
+      elements.find(input => input.name === 'horizontal-shift')?.step,
+    ).toBe('1');
+    expect(elements.find(input => input.name === 'vertical-shift')?.step).toBe(
+      '1',
+    );
+    expect(elements.find(input => input.name === 'amplitude')?.step).toBe(
+      '0.1',
+    );
+    expect(elements.find(input => input.name === 'frequency')?.step).toBe(
+      '0.1',
+    );
+  });
 
+  it.each([
+    {name: 'horizontal-shift', value: '-1.99'},
+    {name: 'vertical-shift', value: '-1.99'},
+  ])('does not score decimal values in $name', ({name, value}) => {
+    startGame();
+    setInputValue('amplitude', '1');
+    setInputValue('frequency', '1');
+    setInputValue('horizontal-shift', '-2');
+    setInputValue('vertical-shift', '-2');
+    setInputValue(name, value);
+    findButton('SUBMIT').fire('click');
+
+    vi.advanceTimersByTime(ROUND_LENGTH_MS);
+    expect(getScoreText()).toBe('Correct answers: 0');
+  });
+
+  it.each(['horizontal-shift', 'vertical-shift'])(
+    'blocks decimal typing and paste in %s while allowing integers',
+    name => {
+      startGame();
+      const input = elements.find(element => element.name === name);
+      const beforeInput = input?.addEventListener.mock.calls.find(
+        ([event]) => event === 'beforeinput',
+      )?.[1];
+      const paste = input?.addEventListener.mock.calls.find(
+        ([event]) => event === 'paste',
+      )?.[1];
+      const preventDefault = vi.fn();
+
+      beforeInput({data: '.', preventDefault});
+      paste({clipboardData: {getData: () => '-1.5'}, preventDefault});
+      expect(preventDefault).toHaveBeenCalledTimes(2);
+
+      beforeInput({data: '-', preventDefault});
+      beforeInput({data: '2', preventDefault});
+      paste({clipboardData: {getData: () => '-2'}, preventDefault});
+      expect(preventDefault).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it('accepts the whole-number target after rejecting a decimal shift', () => {
+    // This makes the target y = 4 sin(3(x - 2)) + 2.
+    vi.mocked(Math.random).mockReturnValue(0.99);
+    startGame();
+    setInputValue('amplitude', '4');
+    setInputValue('frequency', '3');
+    setInputValue('vertical-shift', '2');
+    setInputValue('horizontal-shift', '-0.1');
+    findButton('SUBMIT').fire('click');
+
+    setInputValue('horizontal-shift', '2');
+    findButton('SUBMIT').fire('click');
     vi.advanceTimersByTime(ROUND_LENGTH_MS);
     expect(getScoreText()).toBe('Correct answers: 1');
   });
