@@ -78,6 +78,10 @@ export const SHOT_STATUS_WIDTH = FIRE_SIDE_WIDTH;
 export const SHOT_STATUS_HEIGHT = PREVIEW_Y + PREVIEW_SIZE - SHOT_STATUS_Y;
 
 // ============== Asteroids ==============
+// Sprites in client/public/assets/. The destroyed one replaces the intact one
+// when the shot hits.
+export const ASTEROID_SPRITE_URL = '/assets/asteroid.png';
+export const DESTROYED_ASTEROID_SPRITE_URL = '/assets/asteroid-destroyed.png';
 export const ASTEROID_FILL_COLOR = 'rgba(255, 165, 0, 0.35)';
 export const ASTEROID_STROKE_COLOR = 'orange';
 export const DESTROYED_FILL_COLOR = 'rgba(239, 68, 68, 0.6)';
