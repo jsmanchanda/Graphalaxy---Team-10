@@ -40,18 +40,18 @@ export class QuestionManagerError extends Error {
 /** Returns a shuffled copy of a list. */
 export type Shuffle = <T>(items: readonly T[]) => T[];
 
-/** A variant to not shuffle. */
+/** Keeps the original order. QuestionManager uses it unless told otherwise. */
 const keepOrder: Shuffle = items => [...items];
 
-/** One attempt at a planet: its question order and the question on screen. */
+/** A player's attempt at a planet. */
 interface Attempt {
-  /** Question IDs in the order they are asked. */
+  /** The question IDs, in the order the player gets them. */
   order: number[];
-  /** The last question served, with its options already shuffled. */
+  /** The question the player sees now, with its options already shuffled. */
   current?: Question;
 }
 
-/** The key for a player's attempt at a planet. */
+/** Builds the key that stores a player's attempt at a planet. */
 function attemptKey(userId: number, planetId: number): string {
   return `${userId}:${planetId}`;
 }
@@ -64,9 +64,14 @@ function attemptKey(userId: number, planetId: number): string {
  */
 export class QuestionManager {
   /**
-   * Injects the Data Writer, a synchronous Progress Manager handler, and the
-   * function that shuffles questions and options. The server passes lodash's
-   * shuffle.
+   * Creates the manager. Only the server turns on shuffling and the
+   * per-attempt limit; tests usually leave both at their defaults.
+   * @param dataWriter reads questions and saves answers
+   * @param progress gets told about each first correct answer
+   * @param shuffle shuffles questions and options; the server passes
+   * lodash's shuffle, and the default keeps the original order
+   * @param questionsPerAttempt how many questions an attempt asks; the server
+   * passes 5, and the default asks every question
    */
   constructor(
     private readonly dataWriter: Pick<
@@ -75,11 +80,12 @@ export class QuestionManager {
     >,
     private readonly progress: AnswerProgress,
     private readonly shuffle: Shuffle = keepOrder,
+    private readonly questionsPerAttempt = Infinity,
   ) {}
 
   /**
-   * Each player's current attempt at each planet, by attemptKey(). Kept in
-   * memory: after a restart, the questions left get a new order.
+   * Stores each player's current attempt at each planet, in memory. After a
+   * restart, the player gets the questions they have left in a new order.
    */
   private readonly attempts = new Map<string, Attempt>();
 
@@ -105,23 +111,30 @@ export class QuestionManager {
   }
 
   /**
-   * Returns the next multiple-choice question on the planet that this user
-   * has not answered yet, or null once they have answered every one. A wrong
-   * answer counts: each question is asked once per attempt, and the player
-   * moves on. Questions of other types are never asked.
+   * Returns the player's next question on the planet, or null when the
+   * attempt is over. An attempt is over when the player has answered
+   * questionsPerAttempt questions, or every question. A wrong answer still
+   * counts as answered, so the player moves on.
    *
-   * Each attempt at a planet has its own shuffled question order and answer options.
-   * Call newAttempt() when the planet is reset to get a new order.
+   * Each attempt shuffles the question order and each question's options.
+   * Asking again before answering returns the same question, with its options
+   * in the same order. Call newAttempt() when the player redoes the planet.
    */
   nextQuestion(userId: number, planetId: number): Question | null {
     return this.withStorageError('Unable to load the next question.', () => {
       this.requirePlanet(planetId);
       const unanswered = this.unansweredQuestions(userId, planetId);
-      if (unanswered.length === 0) return null;
+      const noQuestionsLeft = unanswered.length === 0;
+      if (noQuestionsLeft || this.attemptIsOver(userId, planetId)) {
+        // Free the memory the finished attempt used.
+        this.attempts.delete(attemptKey(userId, planetId));
+        return null;
+      }
 
       const attempt = this.attemptFor(userId, planetId, unanswered);
       const next = this.firstInOrder(unanswered, attempt.order);
 
+      // Build each question once, so its options keep the same order.
       if (attempt.current?.questionId !== next.questionId) {
         attempt.current = this.toQuestion(next);
       }
@@ -130,37 +143,48 @@ export class QuestionManager {
   }
 
   /**
-   * Starts a new attempt: forgets this player's question order on the
-   * planet, so the next question gets a new shuffle. Call it on reset.
+   * Starts a new attempt: forgets the player's question order on the planet,
+   * so the next question comes from a new shuffle. Call it on a reset.
    */
   newAttempt(userId: number, planetId: number): void {
     this.attempts.delete(attemptKey(userId, planetId));
   }
 
-  /**
-   * The planet's multiple-choice questions that this player has not
-   * answered yet, right or wrong.
-   */
+  /** Lists the planet's multiple-choice questions. Other types are skipped. */
+  private multipleChoiceQuestions(planetId: number): StoredQuestion[] {
+    return this.dataWriter.content
+      .getQuestions(planetId)
+      .filter(question => question.qtype === 'mcq');
+  }
+
+  /** Lists the planet's questions that the player has not answered yet. */
   private unansweredQuestions(
     userId: number,
     planetId: number,
   ): StoredQuestion[] {
-    const questions = this.dataWriter.content.getQuestions(planetId);
-    return questions.filter(question => {
-      const isMultipleChoice = question.qtype === 'mcq';
-      const isAnswered = this.dataWriter.answers.hasAnswered(
-        userId,
-        question.questionId,
-      );
-      return isMultipleChoice && !isAnswered;
-    });
+    return this.multipleChoiceQuestions(planetId).filter(
+      question =>
+        !this.dataWriter.answers.hasAnswered(userId, question.questionId),
+    );
   }
 
   /**
-   * This player's current attempt at the planet. Its order is reused unless
-   * it is missing one of the unanswered questions: then this is a new
-   * attempt, the server restarted, or a question was added, and the
-   * questions are shuffled again.
+   * Checks whether the player has answered as many questions on the planet
+   * as an attempt asks. A reset deletes the planet's answers, so every answer
+   * counted here belongs to the current attempt.
+   */
+  private attemptIsOver(userId: number, planetId: number): boolean {
+    const questionCount = this.multipleChoiceQuestions(planetId).length;
+    const unansweredCount = this.unansweredQuestions(userId, planetId).length;
+    const answeredCount = questionCount - unansweredCount;
+    return answeredCount >= this.questionsPerAttempt;
+  }
+
+  /**
+   * Returns the player's current attempt at the planet, or starts a new one.
+   * It starts a new one, with a new shuffle, when there is none or when its
+   * order is missing an unanswered question. That happens after a server
+   * restart, or when someone adds a question to the planet.
    */
   private attemptFor(
     userId: number,
@@ -170,7 +194,9 @@ export class QuestionManager {
     const key = attemptKey(userId, planetId);
     const ids = unanswered.map(question => question.questionId);
     const saved = this.attempts.get(key);
-    if (saved && ids.every(id => saved.order.includes(id))) {
+    const savedHasEveryQuestion =
+      saved !== undefined && ids.every(id => saved.order.includes(id));
+    if (saved && savedHasEveryQuestion) {
       return saved;
     }
     const attempt: Attempt = {order: this.shuffle(ids)};
@@ -179,8 +205,8 @@ export class QuestionManager {
   }
 
   /**
-   * The question that comes first in the attempt's order. Every question
-   * passed in must be in the order, which attemptFor() makes sure of.
+   * Returns the question that comes first in the attempt's order. attemptFor()
+   * puts every unanswered question in the order, so one is always found.
    */
   private firstInOrder(
     questions: StoredQuestion[],
@@ -225,6 +251,13 @@ export class QuestionManager {
           throw new QuestionManagerError(
             'ALREADY_ANSWERED',
             `Question ${questionId} has already been answered.`,
+          );
+        }
+        // Stop the player from answering more questions than an attempt asks. e.g., trying to send more answer options when they've already finished answer all questions.
+        if (this.attemptIsOver(userId, question.planetId)) {
+          throw new QuestionManagerError(
+            'ALREADY_ANSWERED',
+            'This attempt is over. Redo the planet to answer more questions.',
           );
         }
         this.dataWriter.answers.record(

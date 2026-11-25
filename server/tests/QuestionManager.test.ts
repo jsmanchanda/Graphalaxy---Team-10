@@ -612,4 +612,21 @@ describe('QuestionManager random question order', () => {
     const rest = playThrough(manager);
     expect([first.questionId, ...rest].sort()).toEqual([1, 2, 3, 4]);
   });
+  it('asks a random subset when an attempt asks fewer questions than the planet has', () => {
+    const subsets = new Set<string>();
+    for (let run = 0; run < 20; run++) {
+      const manager = new QuestionManager(
+        new FakeDataWriter(),
+        {onAnswer: vi.fn()},
+        lodashShuffle,
+        2,
+      );
+      const asked = playThrough(manager);
+      expect(asked).toHaveLength(2);
+      expect(new Set(asked).size).toBe(2);
+      subsets.add([...asked].sort().join());
+    }
+    // 3 questions have 3 pairs; 20 random runs all picking one is ~1 in 10^9.
+    expect(subsets.size).toBeGreaterThan(1);
+  });
 });
