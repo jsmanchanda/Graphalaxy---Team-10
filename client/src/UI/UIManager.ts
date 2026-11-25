@@ -1,5 +1,6 @@
 import Konva from 'konva';
 import {TitleScreenView} from './screens/TitleScreenView';
+import {InstructionsScreenView} from './screens/InstructionsScreenView';
 import {ReadingScreenView} from './screens/ReadingScreenView';
 import {QuestionScreenView} from './screens/QuestionScreenView';
 import {RadioWaveMinigameView} from './screens/RadioWaveMinigameView';
@@ -91,6 +92,9 @@ export class UiManager {
         break;
       case 'title':
         this.currentView = new TitleScreenView(this.onAction, model);
+        break;
+      case 'instructions':
+        this.currentView = new InstructionsScreenView(this.onAction, model);
         break;
       case 'intro':
         this.currentView = new LessonIntroScreenView(this.onAction, model);

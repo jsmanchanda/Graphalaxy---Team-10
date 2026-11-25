@@ -5,6 +5,7 @@ import {
   ButtonComponent,
   ImageComponent,
   TextBoxComponent,
+  SettingsIconComponent,
 } from '../components';
 import {
   ALIEN_FRIEND_WIDTH,
@@ -47,10 +48,6 @@ import {
   QUESTION_HINT_BUTTON_X,
   QUESTION_HINT_BUTTON_Y,
   TEXT_BOX_FILL_COLOR,
-  SETTINGS_ICON_IMAGE,
-  SETTINGS_ICON_SIZE,
-  SETTINGS_ICON_X,
-  SETTINGS_ICON_Y,
 } from '../constants';
 import {QuestionScreenModel, UiAction, View} from '../types';
 
@@ -200,12 +197,8 @@ export class QuestionScreenView implements View {
     }
 
     this.group.add(alien.getGroup());
-    const settingsIcon = new ImageComponent(
-      SETTINGS_ICON_X,
-      SETTINGS_ICON_Y,
-      SETTINGS_ICON_SIZE,
-      SETTINGS_ICON_SIZE,
-      SETTINGS_ICON_IMAGE,
+    const settingsIcon = new SettingsIconComponent(() =>
+      onAction({type: 'openSettings'}),
     );
     this.group.add(border.getGroup());
     this.group.add(settingsIcon.getGroup());

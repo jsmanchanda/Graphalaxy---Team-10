@@ -1,7 +1,13 @@
 import {Group} from 'konva/lib/Group';
 import {NavigationScreenModel, UiAction, View} from '../types';
 import Konva from 'konva';
-import {Component, ImageComponent, TextBoxComponent} from '../components';
+import {
+  AlienDialogue,
+  Component,
+  ImageComponent,
+  SettingsIconComponent,
+  TextBoxComponent,
+} from '../components';
 import {
   DEFAULT_ALIEN_IMAGE,
   DESIGN_HEIGHT,
@@ -10,6 +16,12 @@ import {
   NAV_ALIEN_X,
   NAV_ALIEN_Y,
   NAV_FRAME_IMAGE,
+  NAV_HELP_BUBBLE_FONT_SIZE,
+  NAV_HELP_BUBBLE_HEIGHT,
+  NAV_HELP_BUBBLE_PADDING,
+  NAV_HELP_BUBBLE_WIDTH,
+  NAV_HELP_BUBBLE_X,
+  NAV_HELP_BUBBLE_Y,
   NAV_PROGRESS_HEIGHT,
   NAV_PROGRESS_WIDTH,
   NAV_PROGRESS_X,
@@ -25,11 +37,8 @@ import {
   PLANET_PATH_COLOR_UNREACHABLE,
   PLANET_PATH_STROKE_WIDTH,
   PLANET_POSITIONS,
-  SETTINGS_ICON_IMAGE,
-  SETTINGS_ICON_SIZE,
-  SETTINGS_ICON_X,
-  SETTINGS_ICON_Y,
 } from '../constants';
+import {NAV_ALIEN_HELP_TEXT} from '../instructions';
 import {PlanetSummary} from '@graphalaxy/shared';
 
 const HOME_PLANET: PlanetSummary = {
@@ -118,10 +127,13 @@ export class PlanetComponent extends Component {
 }
 
 /**
- * Reading task View
+ * Navigation map: the planets, the paths between them, the player's overall
+ * progress, and the alien co-pilot, who repeats the instructions when clicked.
  */
 export class NavigationScreenView implements View {
   private group: Konva.Group;
+  // The alien's speech bubble with the instructions; hidden until it is clicked.
+  private helpDialogue: AlienDialogue;
 
   /**
    * Constructs Screen View
@@ -133,7 +145,7 @@ export class NavigationScreenView implements View {
   ) {
     this.group = new Konva.Group();
 
-    // Draw Alien Buddy
+    // Draw Alien Buddy. Clicking it shows or hides the instructions.
     const alien = new ImageComponent(
       NAV_ALIEN_X,
       NAV_ALIEN_Y,
@@ -141,7 +153,34 @@ export class NavigationScreenView implements View {
       NAV_ALIEN_WIDTH,
       DEFAULT_ALIEN_IMAGE,
     );
+    alien.getGroup().name('navAlien');
+    alien.on('mouseenter', e => {
+      const stage = e.target.getStage();
+      if (stage) stage.container().style.cursor = 'pointer';
+    });
+    alien.on('mouseleave', e => {
+      const stage = e.target.getStage();
+      if (stage) stage.container().style.cursor = 'default';
+    });
+    alien.getGroup().on('click tap', () => this.toggleHelp());
     this.group.add(alien.getGroup());
+
+    // The instructions, in a bubble whose tail points down at the alien.
+    // Clicking the bubble closes it too.
+    this.helpDialogue = new AlienDialogue(
+      NAV_HELP_BUBBLE_X,
+      NAV_HELP_BUBBLE_Y,
+      NAV_HELP_BUBBLE_WIDTH,
+      NAV_HELP_BUBBLE_HEIGHT,
+      NAV_ALIEN_HELP_TEXT,
+      'right',
+    )
+      .setFontSize(NAV_HELP_BUBBLE_FONT_SIZE)
+      .setTextLayout({align: 'left', padding: NAV_HELP_BUBBLE_PADDING});
+    const helpGroup = this.helpDialogue.getGroup();
+    helpGroup.name('navHelpDialogue');
+    helpGroup.hide();
+    helpGroup.on('click tap', () => this.toggleHelp(false));
 
     // Draw border image
     const borderImage = new ImageComponent(
@@ -214,14 +253,37 @@ export class NavigationScreenView implements View {
     this.group.add(totalProgress.getGroup());
 
     // Draw settings icon
-    const settingsIcon = new ImageComponent(
-      SETTINGS_ICON_X,
-      SETTINGS_ICON_Y,
-      SETTINGS_ICON_SIZE,
-      SETTINGS_ICON_SIZE,
-      SETTINGS_ICON_IMAGE,
+    const settingsIcon = new SettingsIconComponent(() =>
+      onAction({type: 'openSettings'}),
     );
     this.group.add(settingsIcon.getGroup());
+
+    // Last, so the bubble covers the planets while it is open.
+    this.group.add(helpGroup);
+  }
+
+  /**
+   * Shows or hides the alien's instructions bubble.
+   * @param show true to show it, false to hide it; toggles when left out
+   */
+  toggleHelp(show?: boolean): void {
+    const helpGroup = this.helpDialogue.getGroup();
+    const visible = show ?? !helpGroup.visible();
+    if (visible) {
+      helpGroup.show();
+      helpGroup.moveToTop();
+    } else {
+      helpGroup.hide();
+    }
+    this.group.getLayer()?.batchDraw();
+  }
+
+  /**
+   * Says whether the alien's instructions bubble is showing.
+   * @returns true while the bubble is open
+   */
+  isHelpOpen(): boolean {
+    return this.helpDialogue.getGroup().visible();
   }
 
   /**

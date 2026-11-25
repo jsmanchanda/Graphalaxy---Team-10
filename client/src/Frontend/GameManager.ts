@@ -60,6 +60,7 @@ function answerFailureMessage(error: unknown): string {
 type Stage =
   | 'login'
   | 'title'
+  | 'instructions'
   | 'settings'
   | 'navigation'
   | 'miniGameSelect'
@@ -71,6 +72,27 @@ type Stage =
   | 'retryWarning';
 
 /**
+ * The screens with a settings icon, from which the settings screen opens.
+ * Minigames are left out: going back to one would restart it.
+ */
+const SETTINGS_FROM: ReadonlySet<Stage> = new Set<Stage>([
+  'title',
+  'instructions',
+  'navigation',
+  'miniGameSelect',
+  'lesson',
+  'question',
+  'questionResult',
+  'lessonResult',
+]);
+
+/** What the settings screen goes back to: the screen it was opened from. */
+interface ReturnPoint {
+  stage: Stage;
+  model: ScreenModel;
+}
+
+/**
  * GameManager - coordinates game logic between SessionCache and UiManager
  * Kind of like the controller in MVC where SessionCache is the model and UiManager is the view
  *
@@ -78,7 +100,12 @@ type Stage =
  * and progress, and the planet, and leads to the title screen.
  *
  * From the title screen the player opens the navigation map, picks a planet,
- * and chooses or skips a minigame before entering its lesson.
+ * and chooses or skips a minigame before entering its lesson. The first time
+ * the map is opened after logging in, the instructions are shown before it.
+ *
+ * The settings screen opens from the settings icon on the title and game
+ * screens, and Back returns to the screen it was opened from. Logging out
+ * there forgets the player and returns to the login screen.
  *
  * A planet is played as its intro, its readings, then its questions. The
  * questions are loaded from the server one at a time and each is answered
@@ -104,6 +131,13 @@ export class GameManager {
   private minigamePending = false;
   // The planet load started by selectPlanet, awaited before its lesson opens.
   private planetLoad: Promise<unknown> | null = null;
+  // True once the player has read the instructions since logging in, so the
+  // map opens straight away from then on.
+  private instructionsSeen = false;
+  // The screen showing now, so the settings screen can return to it.
+  private currentModel: ScreenModel | null = null;
+  // Where Back on the settings screen leads.
+  private settingsReturn: ReturnPoint | null = null;
 
   /**
    * Creates a new GameManager instance.
@@ -125,7 +159,8 @@ export class GameManager {
 
   /**
    * Logs the player in under the username they typed, which loads their
-   * settings and progress, then shows the title. A planet's content is loaded
+   * settings and progress, then shows the title. The first Start after that
+   * shows the instructions before the map. A planet's content is loaded
    * later, when the player picks it on the map. Stays on the login screen,
    * with a message, if the username is empty or anything fails, so the player
    * can try again.
@@ -154,6 +189,8 @@ export class GameManager {
     } finally {
       this.loginPending = false;
     }
+    // A new login reads the instructions again before the map.
+    this.instructionsSeen = false;
     this.showTitle();
   }
 
@@ -171,7 +208,14 @@ export class GameManager {
       return;
     }
     switch (action.type) {
-      case 'start':
+      case 'start': {
+        if (this.instructionsSeen) {
+          this.showNavigation();
+        } else {
+          this.showInstructions();
+        }
+        break;
+      }
       case 'navigate': {
         this.showNavigation();
         break;
@@ -234,6 +278,11 @@ export class GameManager {
         break;
       }
       case 'next': {
+        if (this.stage === 'instructions') {
+          this.instructionsSeen = true;
+          this.showNavigation();
+          break;
+        }
         const planet = this.session.currentPlanet;
         if (!planet) {
           return;
@@ -269,8 +318,13 @@ export class GameManager {
           this.showLesson();
         } else if (this.stage === 'miniGameSelect') {
           this.showNavigation();
-        } else if (this.stage === 'navigation' || this.stage === 'settings') {
+        } else if (
+          this.stage === 'navigation' ||
+          this.stage === 'instructions'
+        ) {
           this.showTitle();
+        } else if (this.stage === 'settings') {
+          this.leaveSettings();
         }
         break;
       }
@@ -293,18 +347,18 @@ export class GameManager {
         break;
       }
       case 'openSettings': {
-        const player = this.session.player;
-        if (this.stage === 'title' && player) {
-          this.show(
-            'settings',
-            screenModelMaker.makeSettingsScreen(player.settings),
-          );
-        }
+        this.openSettings();
         break;
       }
       case 'saveSettings': {
         if (this.stage === 'settings') {
           void this.saveSettings(action.settings);
+        }
+        break;
+      }
+      case 'logout': {
+        if (this.stage === 'settings') {
+          this.logout();
         }
         break;
       }
@@ -319,6 +373,7 @@ export class GameManager {
   private show(stage: Stage, model: ScreenModel): void {
     this.stage = stage;
     this.screenId++;
+    this.currentModel = model;
     this.ui.displayScreen(model);
   }
 
@@ -327,6 +382,62 @@ export class GameManager {
    */
   private showTitle(): void {
     this.show('title', {type: 'title', title: 'Graphalaxy'});
+  }
+
+  /**
+   * Shows how to play, before the navigation map.
+   */
+  private showInstructions(): void {
+    this.show('instructions', {type: 'instructions'});
+  }
+
+  /**
+   * Opens the settings screen from the screen showing now, which Back on the
+   * settings screen returns to. Does nothing on screens without a settings
+   * icon, or while an answer or a planet reset is with the server, since
+   * leaving would drop its reply.
+   */
+  private openSettings(): void {
+    const player = this.session.player;
+    const model = this.currentModel;
+    if (
+      !player ||
+      !model ||
+      !SETTINGS_FROM.has(this.stage) ||
+      this.answerPending ||
+      this.resetPending
+    ) {
+      return;
+    }
+    this.settingsReturn = {stage: this.stage, model};
+    this.show('settings', screenModelMaker.makeSettingsScreen(player.settings));
+  }
+
+  /**
+   * Leaves the settings screen for the screen it was opened from, or the
+   * title if that is unknown.
+   */
+  private leaveSettings(): void {
+    const back = this.settingsReturn;
+    this.settingsReturn = null;
+    if (back) {
+      this.show(back.stage, back.model);
+    } else {
+      this.showTitle();
+    }
+  }
+
+  /**
+   * Logs the player out and shows the login screen, so another player can
+   * log in. The instructions are shown again after the next login.
+   */
+  private logout(): void {
+    this.session.logout();
+    this.instructionsSeen = false;
+    this.settingsReturn = null;
+    this.planetLoad = null;
+    this.taskIndex = INTRO_INDEX;
+    this.show('login', screenModelMaker.makeLoginScreen('', 'Logged out.'));
   }
 
   /**

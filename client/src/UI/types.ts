@@ -28,6 +28,7 @@ export type UiAction =
   | {type: 'cancelRetry'}
   | {type: 'openSettings'}
   | {type: 'saveSettings'; settings: Settings}
+  | {type: 'logout'}
   | {type: 'enterPlanet'}
   | {type: 'selectPlanet'; planetId: number}
   | {type: 'navigate'}
@@ -51,6 +52,14 @@ export interface LoginScreenModel {
 export interface TitleScreenModel {
   type: 'title';
   title: string;
+}
+
+/**
+ * How-to-play screen, shown before the navigation map the first time it is
+ * opened after logging in.
+ */
+export interface InstructionsScreenModel {
+  type: 'instructions';
 }
 
 /**
@@ -186,6 +195,7 @@ export interface AsteroidMiniGameScreenModel {
 export type ScreenModel =
   | LoginScreenModel
   | TitleScreenModel
+  | InstructionsScreenModel
   | LessonIntroScreenModel
   | ReadingScreenModel
   | QuestionScreenModel

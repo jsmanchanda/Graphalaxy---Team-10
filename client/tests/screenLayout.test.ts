@@ -4,6 +4,7 @@ import {installKonvaStubs} from './helpers/konvaStubs';
 import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../src/UI/constants';
 import {View} from '../src/UI/types';
 import {TitleScreenView} from '../src/UI/screens/TitleScreenView';
+import {InstructionsScreenView} from '../src/UI/screens/InstructionsScreenView';
 import {LessonIntroScreenView} from '../src/UI/screens/LessonIntroScreenView';
 import {ReadingScreenView} from '../src/UI/screens/ReadingScreenView';
 import {QuestionScreenView} from '../src/UI/screens/QuestionScreenView';
@@ -52,6 +53,10 @@ const question = {prompt: 'p', options: ['a', 'b', 'c', 'd']};
 
 const screens: Array<[string, () => View]> = [
   ['title', () => new TitleScreenView(onAction, {type: 'title', title: 't'})],
+  [
+    'instructions',
+    () => new InstructionsScreenView(onAction, {type: 'instructions'}),
+  ],
   [
     'lesson intro',
     () =>

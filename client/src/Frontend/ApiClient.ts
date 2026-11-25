@@ -35,6 +35,8 @@ export interface ServerGateway {
   saveSettings(settings: Settings): Promise<Player>;
   submitAnswer(questionId: number, optionId: number): Promise<AnswerResult>;
   awardHintCredits(count: number): Promise<HintBalanceResult>;
+  /** Forgets the logged-in user. Optional: the server keeps no session. */
+  logout?(): void;
 }
 
 const DEFAULT_OPTIONS = {baseUrl: '/api', timeoutMs: 5000, retries: 2};
@@ -67,6 +69,14 @@ export class ApiClient implements ServerGateway {
     const player = parseWith(text, parsePlayer);
     this.userId = player.userId;
     return player;
+  }
+
+  /**
+   * Forgets the logged-in user, so user requests fail until the next login.
+   * The server keeps no session, so nothing is sent.
+   */
+  logout(): void {
+    this.userId = null;
   }
 
   /**

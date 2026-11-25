@@ -6,6 +6,7 @@ import {
   ButtonComponent,
   ImageComponent,
   TextBoxComponent,
+  SettingsIconComponent,
 } from '../components';
 import {
   NEXT_BUTTON_HEIGHT,
@@ -30,10 +31,6 @@ import {
   ALIEN_FRIEND_X,
   ALIEN_FRIEND_WIDTH,
   DEFAULT_PLANET_ID,
-  SETTINGS_ICON_IMAGE,
-  SETTINGS_ICON_SIZE,
-  SETTINGS_ICON_X,
-  SETTINGS_ICON_Y,
 } from '../constants';
 
 /**
@@ -113,12 +110,8 @@ export class LessonIntroScreenView implements View {
 
     this.group.add(background.getGroup());
     this.group.add(alien.getGroup());
-    const settingsIcon = new ImageComponent(
-      SETTINGS_ICON_X,
-      SETTINGS_ICON_Y,
-      SETTINGS_ICON_SIZE,
-      SETTINGS_ICON_SIZE,
-      SETTINGS_ICON_IMAGE,
+    const settingsIcon = new SettingsIconComponent(() =>
+      onAction({type: 'openSettings'}),
     );
     this.group.add(border.getGroup());
     this.group.add(settingsIcon.getGroup());
