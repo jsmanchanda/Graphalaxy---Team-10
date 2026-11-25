@@ -73,6 +73,7 @@ interface FakeInputs extends CoefficientInputsHandle {
   options: CoefficientInputsOptions;
   disabled: boolean;
   focused: boolean;
+  visible: boolean;
   /** Types into every box, as the player would. */
   type(values: string[]): void;
   /** Presses Enter in a box. */
@@ -85,12 +86,16 @@ function fakeInputs(options: CoefficientInputsOptions): FakeInputs {
     options,
     disabled: false,
     focused: false,
+    visible: true,
     values: () => typed,
     focus: () => {
       fake.focused = true;
     },
     disable: () => {
       fake.disabled = true;
+    },
+    setVisible: visible => {
+      fake.visible = visible;
     },
     remove: () => {},
     type: values => {

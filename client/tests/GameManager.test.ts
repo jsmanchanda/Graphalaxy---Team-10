@@ -18,11 +18,17 @@ import type {ScreenModel, UiAction} from '../src/UI/types';
 // the action callback GameManager hands it and every screen it is told to show.
 const ui = vi.hoisted(() => ({
   displayScreen: vi.fn<(model: ScreenModel) => void>(),
+  suspendScreen: vi.fn<() => void>(),
+  resumeScreen: vi.fn<() => boolean>(() => true),
+  discardSuspendedScreen: vi.fn<() => void>(),
   onAction: null as ((action: UiAction) => void) | null,
 }));
 vi.mock('../src/UI/UIManager', () => {
   class UiManager {
     displayScreen = ui.displayScreen;
+    suspendScreen = ui.suspendScreen;
+    resumeScreen = ui.resumeScreen;
+    discardSuspendedScreen = ui.discardSuspendedScreen;
     constructor(containerId: string, onAction: (action: UiAction) => void) {
       void containerId;
       ui.onAction = onAction;
@@ -272,6 +278,9 @@ async function setupAtLessonResult() {
 
 beforeEach(() => {
   ui.displayScreen.mockReset();
+  ui.suspendScreen.mockClear();
+  ui.resumeScreen.mockClear();
+  ui.discardSuspendedScreen.mockClear();
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -1401,16 +1410,94 @@ describe('GameManager settings', () => {
     expect(lastScreen()).toEqual(CORRECT);
   });
 
-  it('ignores openSettings during a minigame', async () => {
-    await setup();
+  it.each(['Asteroid', 'Radio'] as const)(
+    'pauses the %s minigame behind settings and resumes it on Back',
+    async name => {
+      await setup();
+      openMap();
+      act({type: 'selectPlanet', planetId: 1});
+      act({type: 'startMiniGame', name});
+      ui.displayScreen.mockClear();
+
+      act({type: 'openSettings'});
+      expect(ui.suspendScreen).toHaveBeenCalledOnce();
+      expect(lastScreen()).toEqual({
+        type: 'settings',
+        settings: PLAYER.settings,
+      });
+
+      ui.displayScreen.mockClear();
+      act({type: 'back'});
+
+      // The same minigame carries on: nothing is rebuilt or thrown away.
+      expect(ui.resumeScreen).toHaveBeenCalledOnce();
+      expect(ui.displayScreen).not.toHaveBeenCalled();
+      expect(ui.discardSuspendedScreen).not.toHaveBeenCalled();
+
+      // And it still finishes into the lesson.
+      await actAndWait({type: 'endMiniGame', addHint: false});
+      expect(lastScreen()).toEqual(INTRO);
+    },
+  );
+
+  it('resumes the minigame after saving settings over it', async () => {
+    const {gateway} = await setup();
     openMap();
     act({type: 'selectPlanet', planetId: 1});
     act({type: 'startMiniGame', name: 'Asteroid'});
+
+    act({type: 'openSettings'});
+    await actAndWait({type: 'saveSettings', settings: CHOSEN});
+    expect(gateway.saveSettings).toHaveBeenCalledWith(CHOSEN);
+    ui.displayScreen.mockClear();
+    act({type: 'back'});
+
+    expect(ui.resumeScreen).toHaveBeenCalledOnce();
+    expect(ui.displayScreen).not.toHaveBeenCalled();
+    expect(ui.discardSuspendedScreen).not.toHaveBeenCalled();
+  });
+
+  it('discards the paused minigame on logging out from settings', async () => {
+    await setup();
+    openMap();
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'startMiniGame', name: 'Radio'});
+    act({type: 'openSettings'});
+
+    act({type: 'logout'});
+
+    expect(ui.discardSuspendedScreen).toHaveBeenCalledOnce();
+    expect(ui.resumeScreen).not.toHaveBeenCalled();
+    expect(lastScreen()).toEqual(loginScreen('', 'Logged out.'));
+  });
+
+  it('does not pause other screens: Back rebuilds them as before', async () => {
+    await setup();
+    act({type: 'openSettings'});
+    act({type: 'back'});
+
+    expect(ui.suspendScreen).not.toHaveBeenCalled();
+    expect(ui.resumeScreen).not.toHaveBeenCalled();
+    expect(lastScreen()).toEqual(TITLE);
+  });
+
+  it('ignores openSettings once the minigame has reported its result', async () => {
+    const {gateway} = await setup();
+    const load = deferred<Planet>();
+    gateway.getPlanet.mockReturnValueOnce(load.promise);
+    openMap();
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'startMiniGame', name: 'Asteroid'});
+    act({type: 'endMiniGame', addHint: false});
     ui.displayScreen.mockClear();
 
     act({type: 'openSettings'});
-
+    expect(ui.suspendScreen).not.toHaveBeenCalled();
     expect(ui.displayScreen).not.toHaveBeenCalled();
+
+    load.resolve(makePlanet());
+    await flush();
+    expect(lastScreen()).toEqual(INTRO);
   });
 
   it('ignores openSettings while an answer is being graded', async () => {

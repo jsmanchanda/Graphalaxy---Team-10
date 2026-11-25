@@ -73,23 +73,35 @@ type Stage =
 
 /**
  * The screens with a settings icon, from which the settings screen opens.
- * Minigames are left out: going back to one would restart it.
  */
 const SETTINGS_FROM: ReadonlySet<Stage> = new Set<Stage>([
   'title',
   'instructions',
   'navigation',
   'miniGameSelect',
+  'miniGame',
   'lesson',
   'question',
   'questionResult',
   'lessonResult',
 ]);
 
-/** What the settings screen goes back to: the screen it was opened from. */
+/**
+ * Screens that are paused, not rebuilt, while the settings screen is open,
+ * because rebuilding them would lose the player's place. A minigame would
+ * restart, with a new timer and new questions.
+ */
+const SUSPEND_FOR_SETTINGS: ReadonlySet<Stage> = new Set<Stage>(['miniGame']);
+
+/**
+ * What the settings screen goes back to: the screen it was opened from.
+ * `suspended` is true when that screen was set aside with
+ * UiManager.suspendScreen and is resumed rather than shown again.
+ */
 interface ReturnPoint {
   stage: Stage;
   model: ScreenModel;
+  suspended: boolean;
 }
 
 /**
@@ -104,8 +116,9 @@ interface ReturnPoint {
  * the map is opened after logging in, the instructions are shown before it.
  *
  * The settings screen opens from the settings icon on the title and game
- * screens, and Back returns to the screen it was opened from. Logging out
- * there forgets the player and returns to the login screen.
+ * screens, and Back returns to the screen it was opened from. A minigame is
+ * paused while settings is open and carries on from where it was. Logging
+ * out there forgets the player and returns to the login screen.
  *
  * A planet is played as its intro, its readings, then its questions. The
  * questions are loaded from the server one at a time and each is answered
@@ -138,6 +151,8 @@ export class GameManager {
   private currentModel: ScreenModel | null = null;
   // Where Back on the settings screen leads.
   private settingsReturn: ReturnPoint | null = null;
+  // True while a screen (a minigame) is paused behind the settings screen.
+  private screenSuspended = false;
 
   /**
    * Creates a new GameManager instance.
@@ -371,6 +386,12 @@ export class GameManager {
    * @param model the screen's data
    */
   private show(stage: Stage, model: ScreenModel): void {
+    if (stage !== 'settings' && this.screenSuspended) {
+      // Leaving settings for anywhere but the paused screen (e.g. logging
+      // out) ends that screen for good.
+      this.screenSuspended = false;
+      this.ui.discardSuspendedScreen();
+    }
     this.stage = stage;
     this.screenId++;
     this.currentModel = model;
@@ -393,9 +414,11 @@ export class GameManager {
 
   /**
    * Opens the settings screen from the screen showing now, which Back on the
-   * settings screen returns to. Does nothing on screens without a settings
-   * icon, or while an answer or a planet reset is with the server, since
-   * leaving would drop its reply.
+   * settings screen returns to. A minigame is paused and kept rather than
+   * replaced, so it carries on afterwards. Does nothing on screens without a
+   * settings icon, while an answer or a planet reset is with the server,
+   * since leaving would drop its reply, or once a minigame has reported its
+   * result.
    */
   private openSettings(): void {
     const player = this.session.player;
@@ -405,25 +428,38 @@ export class GameManager {
       !model ||
       !SETTINGS_FROM.has(this.stage) ||
       this.answerPending ||
-      this.resetPending
+      this.resetPending ||
+      this.minigamePending
     ) {
       return;
     }
-    this.settingsReturn = {stage: this.stage, model};
+    const suspended = SUSPEND_FOR_SETTINGS.has(this.stage);
+    if (suspended) {
+      this.ui.suspendScreen();
+      this.screenSuspended = true;
+    }
+    this.settingsReturn = {stage: this.stage, model, suspended};
     this.show('settings', screenModelMaker.makeSettingsScreen(player.settings));
   }
 
   /**
    * Leaves the settings screen for the screen it was opened from, or the
-   * title if that is unknown.
+   * title if that is unknown. A paused minigame is resumed, not restarted.
    */
   private leaveSettings(): void {
     const back = this.settingsReturn;
     this.settingsReturn = null;
-    if (back) {
-      this.show(back.stage, back.model);
-    } else {
+    if (!back) {
       this.showTitle();
+    } else if (back.suspended && this.screenSuspended) {
+      // The paused screen is showing again, so record it as current.
+      this.screenSuspended = false;
+      this.ui.resumeScreen();
+      this.stage = back.stage;
+      this.screenId++;
+      this.currentModel = back.model;
+    } else {
+      this.show(back.stage, back.model);
     }
   }
 

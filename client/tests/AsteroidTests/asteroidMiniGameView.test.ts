@@ -58,6 +58,7 @@ const ONE_MISS = [HITS[0], ['0', '0', '-5'], HITS[2]];
 interface FakeInputs extends CoefficientInputsHandle {
   type(values: string[]): void;
   remove: ReturnType<typeof vi.fn<() => void>>;
+  setVisible: ReturnType<typeof vi.fn<(visible: boolean) => void>>;
 }
 
 /**
@@ -75,6 +76,7 @@ function setup() {
         values: () => typed,
         focus: () => {},
         disable: () => {},
+        setVisible: vi.fn<(visible: boolean) => void>(),
         remove: vi.fn<() => void>(),
         type: values => {
           typed = values;
@@ -93,6 +95,15 @@ function setup() {
     return row;
   };
   return {view, screen: view.getGroup(), onAction, rows, inputs};
+}
+
+/** The group holding the screen showing now, under the settings icon. */
+function screens(screen: Konva.Group): Konva.Group {
+  const group = screen.findOne('.asteroidScreens');
+  if (!(group instanceof Konva.Group)) {
+    throw new Error('No screen container');
+  }
+  return group;
 }
 
 /** The node showing the given text, anywhere on the screen. */
@@ -132,7 +143,7 @@ describe('AsteroidMiniGameView', () => {
     const {screen} = setup();
     click(screen, 'Launch');
 
-    expect(screen.getChildren()).toHaveLength(1);
+    expect(screens(screen).getChildren()).toHaveLength(1);
     expect(findText(screen, 'Launch')).toBeUndefined();
     expect(
       findText(screen, 'Question 1/3 · Slope-intercept form'),
@@ -146,7 +157,7 @@ describe('AsteroidMiniGameView', () => {
     play(screen, inputs, HITS[1], 'Next');
     play(screen, inputs, HITS[2], 'Results');
 
-    expect(screen.getChildren()).toHaveLength(1);
+    expect(screens(screen).getChildren()).toHaveLength(1);
     expect(findText(screen, 'Score: 3/3\nHint earned!')).toBeDefined();
   });
 
@@ -174,6 +185,42 @@ describe('AsteroidMiniGameView', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0].remove).toHaveBeenCalledOnce();
     expect(rows[1].remove).not.toHaveBeenCalled();
+  });
+
+  it('opens settings from the gear icon on every screen', () => {
+    const {view, screen, onAction} = setup();
+    const gear = () => screen.findOne('.settingsIcon');
+
+    gear()?.fire('click');
+    click(screen, 'Launch');
+    gear()?.fire('click');
+
+    expect(onAction).toHaveBeenCalledTimes(2);
+    expect(onAction).toHaveBeenCalledWith({type: 'openSettings'});
+    // The gear stays above the screen showing now.
+    expect(view.getGroup().getChildren().at(-1)).toBe(gear());
+  });
+
+  it('hides the boxes while paused and shows them again on resume', () => {
+    const {view, screen, inputs} = setup();
+    click(screen, 'Launch');
+    inputs().type(['2', '']);
+
+    view.pause();
+    expect(inputs().setVisible).toHaveBeenLastCalledWith(false);
+
+    view.resume();
+    expect(inputs().setVisible).toHaveBeenLastCalledWith(true);
+    // What was typed is kept, so the question carries on.
+    expect(inputs().values()).toEqual(['2', '']);
+    expect(inputs().remove).not.toHaveBeenCalled();
+  });
+
+  it('pauses harmlessly on the intro screen', () => {
+    const {view, screen} = setup();
+    view.pause();
+    view.resume();
+    expect(findText(screen, 'Launch')).toBeDefined();
   });
 
   it('removes the boxes if the whole minigame is destroyed mid-question', () => {

@@ -12,6 +12,16 @@ export interface View {
    * keyboard listener. UiManager calls it before it removes the view.
    */
   destroy?(): void;
+  /**
+   * Freezes the view while another screen (settings) is shown over it: stops
+   * its timers and hides anything it holds outside its Konva group, such as
+   * HTML inputs. UiManager calls it before it hides the view.
+   */
+  pause?(): void;
+  /**
+   * Undoes pause once the view is shown again, carrying on from where it was.
+   */
+  resume?(): void;
 }
 
 /**
