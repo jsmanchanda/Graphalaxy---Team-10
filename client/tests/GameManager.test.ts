@@ -1462,6 +1462,20 @@ describe('GameManager hints', () => {
     expect(lastScreen()).toEqual(withHint(2, {hints: ['Hint one.']}));
   });
 
+  it('ignores a hint request while an answer is with the server, so its result still shows', async () => {
+    const {gateway} = await setupAtQuestion1();
+    const answer = deferred<AnswerResult>();
+    gateway.submitAnswer.mockReturnValueOnce(answer.promise);
+
+    act({type: 'answer', option: RIGHT_OPTION});
+    act({type: 'requestHint', selectedOption: RIGHT_OPTION});
+    answer.resolve(verdict(1, true));
+    await flush();
+
+    expect(gateway.unlockNextHint).not.toHaveBeenCalled();
+    expect(lastScreen()).toEqual(CORRECT);
+  });
+
   it('ignores hint requests on every screen but a question', async () => {
     const {gateway} = await setup();
 

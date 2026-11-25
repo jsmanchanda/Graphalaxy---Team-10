@@ -253,7 +253,14 @@ export class GameManager {
       }
       case 'requestHint': {
         const question = this.session.currentQuestion;
-        if (this.stage !== 'question' || !question || this.hintPending) {
+        // Also waits for a pending answer: redrawing the question now would
+        // drop the answer's result.
+        if (
+          this.stage !== 'question' ||
+          !question ||
+          this.hintPending ||
+          this.answerPending
+        ) {
           return;
         }
         this.selection =
