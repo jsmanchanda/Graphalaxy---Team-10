@@ -192,10 +192,10 @@ function correctIndex(planet: Planet, task: QuestionTask): number {
     question => question.prompt === task.question.prompt,
   );
   if (!seed) throw new Error('Question missing from production seed');
-  expect(task.question.options.map(option => option.text)).toEqual(
-    seed.options,
-  );
-  return seed.correct;
+  // Options arrive shuffled, so find the correct one by its text.
+  const texts = task.question.options.map(option => option.text);
+  expect([...texts].sort()).toEqual([...seed.options].sort());
+  return texts.indexOf(seed.options[seed.correct]);
 }
 
 /** Completes the remaining real questions and verifies the final persisted score. */
@@ -287,6 +287,10 @@ test('plays the complete seeded planet with real server grading and returns to n
   page,
 }) => {
   const planet = await openGame(page);
+  // An attempt asks 5 questions, fewer than the planet has.
+  const seeded = PLANETS.find(item => item.name === planet.name);
+  expect(planet.questionCount).toBe(5);
+  expect(seeded?.questions.length).toBeGreaterThan(planet.questionCount);
   const first = await reachFirstQuestion(page, planet);
   await finishPlanet(page, planet, first);
   await clickLabel(page, 'Ok');
@@ -321,9 +325,8 @@ test('shows wrong feedback, resumes after explicit login, and retries through co
   const again = await openGame(page, planet.username);
   expect(again.userId).toBe(planet.userId);
   const second = await reachFirstQuestion(page, again);
-  expect(second.question.questionId).toBeGreaterThan(
-    question.question.questionId,
-  );
+  // Questions are shuffled; the one answered wrong is not asked again.
+  expect(second.question.questionId).not.toBe(question.question.questionId);
   await finishPlanet(page, again, second, 0, 1);
   const resets: string[] = [];
   page.on('request', request => {
@@ -352,15 +355,47 @@ test('shows wrong feedback, resumes after explicit login, and retries through co
     status: 'hostile',
   });
   const restarted: NextQuestion = await (await next).json();
-  expect(restarted.question?.questionId).toBe(question.question.questionId);
+  // After a reset every question can be asked again, in a new shuffled order.
+  if (!restarted.question) throw new Error('Reset planet has no question');
+  const first: QuestionTask = {type: 'Question', question: restarted.question};
   expect(resets).toHaveLength(1);
-  await expect
-    .poll(() => screenTexts(page))
-    .toContain(question.question.prompt);
-  const right = await answer(page, question, correctIndex(planet, question));
+  await expect.poll(() => screenTexts(page)).toContain(first.question.prompt);
+  const right = await answer(page, first, correctIndex(planet, first));
   expect(right.status()).toBe(200);
   expect((await right.json()).correct).toBe(true);
   await expect.poll(() => screenTexts(page)).toContain('Correct!');
+});
+
+test('shows the same question and option order after logging in again', async ({
+  page,
+}) => {
+  const planet = await openGame(page);
+  const before = await reachFirstQuestion(page, planet);
+  const again = await openGame(page, planet.username);
+  const after = await reachFirstQuestion(page, again);
+  // Same question ID, prompt, and options in the same order.
+  expect(after.question).toEqual(before.question);
+});
+
+test('gives different players different first questions', async ({request}) => {
+  const firstQuestionIds = new Set<number>();
+  for (let i = 0; i < 10; i++) {
+    const login = await request.post('/api/users', {
+      data: {username: `e2e-${randomUUID().slice(0, 16)}`},
+    });
+    expect(login.status()).toBe(200);
+    const player = await login.json();
+    const next = await request.get(
+      `/api/users/${player.userId}/planets/1/questions/next`,
+    );
+    expect(next.status()).toBe(200);
+    const body: NextQuestion = await next.json();
+    if (!body.question) throw new Error('Planet 1 has no questions');
+    firstQuestionIds.add(body.question.questionId);
+  }
+  // With 12 questions, 10 players all getting the same first one is about
+  // 1 in 10^10, so this does not fail by chance.
+  expect(firstQuestionIds.size).toBeGreaterThan(1);
 });
 
 test('selection alone never submits and changing selection submits the final option', async ({

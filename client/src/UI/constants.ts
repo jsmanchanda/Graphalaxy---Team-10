@@ -36,6 +36,8 @@ export const PRELOAD_IMAGES: readonly string[] = [
   '/assets/general-nav.png',
   '/assets/nav-frame.png',
   '/assets/setting-symbol.png',
+  '/assets/asteroid.png',
+  '/assets/asteroid-destroyed.png', // both asteroid imports appear in the Asteroids/constants.ts and this file to avoid circular imports (the asteroids constants imports this file)
   ...[1, 2, 3, 4].flatMap(id => [
     `/assets/alien-planet-${id}.png`,
     `/assets/planet-background-${id}.jpg`,

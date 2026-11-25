@@ -98,6 +98,53 @@ export const PLANETS: SeedPlanet[] = [
         options: ['y = x + 1', 'y = -x - 1', 'y = x - 1', 'y = -x + 1'],
         correct: 3,
       },
+      {
+        prompt:
+          'A labrador runs along y = -3x + 2. What is the slope of its path?',
+        fn: '-3*x+2',
+        options: ['3', '2', '-3', '-2'],
+        correct: 2,
+      },
+      {
+        prompt:
+          'A labrador runs along y = 5x - 4. What is its head start, the y-intercept?',
+        fn: '5*x-4',
+        options: ['-4', '5', '4', '1'],
+        correct: 0,
+      },
+      {
+        prompt:
+          'The graph shows the fastest labrador, with the steepest path. Which equation is it?',
+        fn: '5*x',
+        options: ['y = x + 5', 'y = 5x', 'y = 2x + 1', 'y = -2x'],
+        correct: 1,
+      },
+      {
+        prompt:
+          "A labrador's distance after x seconds is f(x) = 4x + 2. What is f(3)?",
+        fn: '4*x+2',
+        options: ['12', '9', '10', '14'],
+        correct: 3,
+      },
+      {
+        prompt:
+          'A labrador runs along y = -2x + 6. Which way does its path go?',
+        fn: '-2*x+6',
+        options: [
+          'Rises to the right',
+          'Falls to the right',
+          'Flat, like sitting still',
+          'Straight up',
+        ],
+        correct: 1,
+      },
+      {
+        prompt:
+          'A labrador runs 4 meters every second and starts 1 meter ahead. Which equation is its path?',
+        fn: '4*x+1',
+        options: ['y = x + 4', 'y = 4x', 'y = 5x', 'y = 4x + 1'],
+        correct: 3,
+      },
     ],
   },
   {
@@ -160,6 +207,53 @@ export const PLANETS: SeedPlanet[] = [
         options: ['-1', '1', '-5', '5'],
         correct: 3,
       },
+      {
+        prompt:
+          'A cat leaps along y = -2x^2 + 8. How high is it at x = 0, the y-intercept?',
+        fn: '-2*(x**2)+8',
+        options: ['-2', '8', '2', '-8'],
+        correct: 1,
+      },
+      {
+        prompt:
+          'A kitten dips along y = x^2 - 4. Which way does its parabola open?',
+        fn: 'x**2-4',
+        options: ['Upward', 'Downward', 'Left', 'Right'],
+        correct: 0,
+      },
+      {
+        prompt:
+          'A kitten dips along y = (x - 3)^2 - 2. Where is the bottom of its dip, the vertex?',
+        fn: '(x-3)**2-2',
+        options: ['(-3, -2)', '(3, 2)', '(3, -2)', '(-3, 2)'],
+        correct: 2,
+      },
+      {
+        prompt:
+          'A cat leaps along y = -x^2 + 25. Where does it take off and land, the roots?',
+        fn: '-(x**2)+25',
+        options: [
+          'x = 25 only',
+          'x = 0 only',
+          'x = 25 and x = -25',
+          'x = 5 and x = -5',
+        ],
+        correct: 3,
+      },
+      {
+        prompt:
+          'A cat leaps along y = -(x - 1)^2 + 6. How high is it at x = 3?',
+        fn: '-((x-1)**2)+6',
+        options: ['6', '4', '2', '-2'],
+        correct: 2,
+      },
+      {
+        prompt:
+          'A kitten dips along y = x^2 + 3. How high is the lowest point of its dip?',
+        fn: 'x**2+3',
+        options: ['0', '9', '3', '-3'],
+        correct: 2,
+      },
     ],
   },
   {
@@ -218,6 +312,55 @@ export const PLANETS: SeedPlanet[] = [
           'y = sin(x) + 6',
         ],
         correct: 1,
+      },
+      {
+        prompt:
+          'The graph shows the seal with the bumpiest ride, the biggest amplitude. Which equation is it?',
+        fn: '5*sin(x)',
+        options: [
+          'y = 2*sin(x)',
+          'y = 5*sin(x)',
+          'y = sin(x) + 5',
+          'y = 3*sin(x) + 1',
+        ],
+        correct: 1,
+      },
+      {
+        prompt:
+          'The tide goes out and the sea follows y = 2*sin(x) - 3. What is the calm sea level, the midline?',
+        fn: '2*sin(x)-3',
+        options: ['y = 2', 'y = -3', 'y = 3', 'y = -1'],
+        correct: 1,
+      },
+      {
+        prompt: 'A seal rides y = 3*sin(x) - 1. What is its highest point?',
+        fn: '3*sin(x)-1',
+        options: ['3', '-1', '2', '-4'],
+        correct: 2,
+      },
+      {
+        prompt: 'A seal rides y = 2*sin(x) + 5. What is its lowest point?',
+        fn: '2*sin(x)+5',
+        options: ['7', '5', '-3', '3'],
+        correct: 3,
+      },
+      {
+        prompt: 'A seal rides y = 3*sin(x) + 2. How high is it at x = 0?',
+        fn: '3*sin(x)+2',
+        options: ['5', '3', '2', '0'],
+        correct: 2,
+      },
+      {
+        prompt:
+          'The graph shows a wave with an amplitude of 3 and a calm sea level of y = -2. Which equation is it?',
+        fn: '3*sin(x)-2',
+        options: [
+          'y = 3*sin(x) - 2',
+          'y = -2*sin(x) + 3',
+          'y = 3*sin(x) + 2',
+          'y = sin(x) - 5',
+        ],
+        correct: 0,
       },
     ],
   },
@@ -297,6 +440,46 @@ export const PLANETS: SeedPlanet[] = [
           'Period 2π, shifted right by 1',
           'Period π, shifted right by 2',
           'Period π, shifted left by 1',
+        ],
+        correct: 0,
+      },
+      {
+        prompt:
+          "A hamster's wheel follows y = sin(4*x). What is the period of one turn?",
+        fn: 'sin(4*x)',
+        options: ['π/2', '2π', '4π', 'π/4'],
+        correct: 0,
+      },
+      {
+        prompt:
+          "A slow hamster's wheel follows y = 2*sin(x/2). What is the period of one turn?",
+        fn: '2*sin(x/2)',
+        options: ['π', '4π', '2π', 'π/2'],
+        correct: 1,
+      },
+      {
+        prompt:
+          "A hamster's wheel follows y = sin(x + 3). How is its wave shifted from y = sin(x)?",
+        fn: 'sin(x+3)',
+        options: ['Right by 3', 'Up by 3', 'Down by 3', 'Left by 3'],
+        correct: 3,
+      },
+      {
+        prompt:
+          "A hamster's wheel follows y = 2*sin(3*x - 3). How is its wave shifted from y = 2*sin(3*x)?",
+        fn: '2*sin(3*x-3)',
+        options: ['Right by 3', 'Right by 1', 'Left by 1', 'Left by 3'],
+        correct: 1,
+      },
+      {
+        prompt:
+          "A hamster's wheel follows y = 3*sin(x - 2) + 1. What are its amplitude and midline?",
+        fn: '3*sin(x-2)+1',
+        options: [
+          'Amplitude 3, midline y = 1',
+          'Amplitude 1, midline y = 3',
+          'Amplitude 3, midline y = -2',
+          'Amplitude 2, midline y = 1',
         ],
         correct: 0,
       },
