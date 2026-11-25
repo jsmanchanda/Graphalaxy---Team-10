@@ -17,6 +17,11 @@ export class FakeText extends Konva.Rect {
     return this;
   }
 
+  /** Approximates text width for layout calculations in Node. */
+  getTextWidth(): number {
+    return String(this.getAttr('text')).length * this.getAttr('fontSize');
+  }
+
   /**
    * Keeps the new text so TextBoxComponent.setText still works and tests can
    * read it back with getAttr('text').
