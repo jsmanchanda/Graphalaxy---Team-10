@@ -8,12 +8,14 @@ import type {
   FunctionType,
 } from './types';
 
-const QUESTION_TYPES: FunctionType[] = ['linear', 'quadratic', 'cubic'];
+// Linear only for now; put 'quadratic' / 'cubic' back here when those forms return.
+const QUESTION_TYPES: FunctionType[] = ['linear', 'linear', 'linear'];
 const DIFFICULTIES: Difficulty[] = [1, 2, 3];
 
 /**
  * Builds one run's questions: question i gets DIFFICULTIES[i] and a random
- * form of type QUESTION_TYPES[i].
+ * form of type QUESTION_TYPES[i]. Each question picks its form on its own, so
+ * a form can come up more than once in a run.
  * @param rng random function, returns a number in [0, 1)
  * @returns the questions, in the order they are asked
  */

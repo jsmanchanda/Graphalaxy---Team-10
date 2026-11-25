@@ -111,15 +111,20 @@ export class AsteroidMiniGameController {
   /**
    * Turns the player's text into coefficients for the current question.
    * @param texts what the player typed, one per coefficient, in form order
-   * @returns the numbers, or null if the count is wrong or any field fails
-   *   parseCoefficient
+   * @returns the numbers, or null if the count is wrong, any field fails
+   *   parseCoefficient, or the form can't use them (standard form's B = 0)
    */
   private parse(texts: string[]): number[] | null {
-    const formId = this.model.currentQuestion.formId;
-    if (texts.length !== FORMS[formId].coefficients.length) {
+    const form = FORMS[this.model.currentQuestion.formId];
+    if (texts.length !== form.coefficients.length) {
       return null;
     }
     const coeffs = texts.map(parseCoefficient);
-    return coeffs.every((c): c is number => c !== null) ? coeffs : null;
+    if (!coeffs.every((c): c is number => c !== null)) {
+      return null;
+    }
+    // Treated like any other invalid field, so Fire stays dimmed instead of
+    // toExpression throwing on every keystroke.
+    return form.accepts?.(coeffs) === false ? null : coeffs;
   }
 }
