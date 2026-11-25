@@ -20,7 +20,7 @@ demo HTTP API. These are not yet one connected browser-to-database game.
 | HTTP API | User creation/lookup by username, planet payload, settings update, answer submission | Demo code; no password/session authentication or route tests |
 | Question Manager | Reading pages, next unsolved MCQ, grading, safe service responses, first-correct callback | Only `submit` is currently exposed through HTTP |
 | Data Writer | Users, content, answers, progress, hints, and transactions | Persists rows; does not decide game progression |
-| Database | Official migration, connection helper, migration runner, seed, tests | Four planets seeded (Linear Land, Quadratic Quay, Sine Shores, Phase Planet), each with readings and at least five MCQs |
+| Database | Official migration, connection helper, migration runner, seed, tests | Four planets seeded (Linear Land, Quadratic Quay, Sine Shores, Phase Planet), each with readings, three hints, and at least five MCQs |
 | Progress | Repository operations and `AnswerProgress` interface | Server startup supplies a no-op handler; no Progress Manager implementation |
 | Other game services | Planned Game Manager/Session Cache/API Client, Profile/Hint Managers, graph renderer, minigames, navigation/settings screens | No standalone implementations of these services in the current source tree; the demo has a local mock `GameManager` |
 
