@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 import Konva from 'konva';
 import {installKonvaStubs} from '../helpers/konvaStubs';
 import {AsteroidFieldComponent} from '../../src/Asteroids/components/AsteroidFieldComponent';
@@ -12,6 +12,14 @@ import type {Asteroid} from '../../src/Asteroids/types';
 
 // Build the real GraphComponent in Node; see helpers/konvaStubs.ts
 installKonvaStubs();
+
+// The stub is installed once per file; clear its calls so each test only
+// sees the images it loaded itself.
+const loadImage = vi.mocked(Konva.Image.fromURL);
+// Braces matter: a function returned from beforeEach runs as its cleanup.
+beforeEach(() => {
+  loadImage.mockClear();
+});
 
 // 200 pixels for the 20-unit window: 10 pixels per unit.
 const SIZE = 200;
@@ -61,11 +69,13 @@ describe('AsteroidFieldComponent', () => {
   it('loads both sprites for every asteroid', () => {
     const field = new AsteroidFieldComponent(0, 0, SIZE, [asteroidAt(1, 1)]);
 
-    expect(Konva.Image.fromURL).toHaveBeenCalledWith(
+    // One intact and one destroyed sprite for the single asteroid.
+    expect(loadImage).toHaveBeenCalledTimes(2);
+    expect(loadImage).toHaveBeenCalledWith(
       ASTEROID_SPRITE_URL,
       expect.any(Function),
     );
-    expect(Konva.Image.fromURL).toHaveBeenCalledWith(
+    expect(loadImage).toHaveBeenCalledWith(
       DESTROYED_ASTEROID_SPRITE_URL,
       expect.any(Function),
     );

@@ -1,4 +1,4 @@
-import {describe, expect, it, vi} from 'vitest';
+import {beforeEach, describe, expect, it, vi} from 'vitest';
 import Konva from 'konva';
 import {installKonvaStubs} from '../helpers/konvaStubs';
 import {AsteroidMiniGameController} from '../../src/Asteroids/AsteroidMiniGameController';
@@ -19,6 +19,14 @@ import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../../src/UI/constants';
 
 // Build the real components in Node; see helpers/konvaStubs.ts
 installKonvaStubs();
+
+// The stub is installed once per file; clear its calls so each test only
+// sees the images it loaded itself.
+const loadImage = vi.mocked(Konva.Image.fromURL);
+// Braces matter: a function returned from beforeEach runs as its cleanup.
+beforeEach(() => {
+  loadImage.mockClear();
+});
 
 /** An asteroid at (x, y) with the default radius. */
 function asteroidAt(x: number, y: number): Asteroid {
@@ -159,7 +167,7 @@ describe('AsteroidGameView', () => {
     const frame = screen.findOne<Konva.Group>('.cockpitFrame');
     const image = frame?.findOne<Konva.Image>('Image');
 
-    expect(Konva.Image.fromURL).toHaveBeenCalledWith(
+    expect(loadImage).toHaveBeenCalledWith(
       PANEL_FRAME_IMAGE,
       expect.any(Function),
     );
