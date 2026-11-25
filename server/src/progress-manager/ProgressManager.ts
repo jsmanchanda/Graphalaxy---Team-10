@@ -7,8 +7,8 @@ import type {
 import {QuestionManagerError} from '../question-manager/QuestionManager';
 
 /**
- * The share of a planet's questions, from 0 to 1, that a player must answer
- * correctly before the planet turns peaceful.
+ * The share of an attempt's questions, from 0 to 1, that a player must get
+ * right to make the planet peaceful.
  */
 export const PEACEFUL_THRESHOLD = 1;
 
@@ -21,13 +21,31 @@ export const PEACEFUL_THRESHOLD = 1;
  * once, so this class does not check them again.
  */
 export class ProgressManager implements AnswerProgress {
-  /** Injects the Data Writer that Question Manager also writes through. */
+  /**
+   * Creates the manager.
+   * @param dataWriter reads questions and saves progress; Question Manager
+   * writes through the same one
+   * @param questionsPerAttempt how many questions an attempt asks; pass the
+   * same number as Question Manager. The default asks every question.
+   */
   constructor(
     private readonly dataWriter: Pick<
       DataWriter,
       'content' | 'answers' | 'progress' | 'transaction'
     >,
+    private readonly questionsPerAttempt = Infinity,
   ) {}
+
+  /**
+   * Returns how many questions an attempt at the planet asks:
+   * questionsPerAttempt, or fewer when the planet has fewer questions.
+   */
+  private attemptSize(planetId: number): number {
+    return Math.min(
+      this.questionsPerAttempt,
+      this.dataWriter.content.countQuestions(planetId),
+    );
+  }
 
   /**
    * Counts a first correct answer, and makes the planet peaceful once enough
@@ -40,9 +58,7 @@ export class ProgressManager implements AnswerProgress {
       userId,
       planetId,
     );
-    const needed = Math.ceil(
-      PEACEFUL_THRESHOLD * this.dataWriter.content.countQuestions(planetId),
-    );
+    const needed = Math.ceil(PEACEFUL_THRESHOLD * this.attemptSize(planetId));
     if (progress.status === 'hostile' && progress.correctCount >= needed) {
       this.dataWriter.progress.setStatus(userId, planetId, 'peaceful');
     }
@@ -66,9 +82,9 @@ export class ProgressManager implements AnswerProgress {
         .map(edge => edge.prereqPlanetId)
         .sort((a, b) => a - b);
       const correctCount = row?.correctCount ?? 0;
-      const questionCount = this.dataWriter.content.countQuestions(
-        planet.planetId,
-      );
+      // Report the attempt size, so "3 of 5 correct" and the percentage
+      // match the questions the player got.
+      const questionCount = this.attemptSize(planet.planetId);
       return {
         planetId: planet.planetId,
         name: planet.name,

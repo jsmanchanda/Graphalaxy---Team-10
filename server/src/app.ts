@@ -46,7 +46,10 @@ const MAX_USERNAME_LENGTH = 32;
 
 /** What the HTTP layer needs. Narrow types keep tests easy to fake. */
 export interface AppDeps {
-  questions: Pick<QuestionManager, 'submit' | 'getPlanet' | 'nextQuestion'>;
+  questions: Pick<
+    QuestionManager,
+    'submit' | 'getPlanet' | 'nextQuestion' | 'newAttempt'
+  >;
   progress: Pick<
     ProgressManager,
     'listPlanets' | 'getPlanetSummary' | 'resetPlanet'
@@ -215,8 +218,9 @@ export function createApp({
     res.json(body);
   });
 
-  // Questions are served one at a time: the first one, in question ID order,
-  // that the player has not answered yet, right or wrong.
+  // Questions are served one at a time, in a shuffled order, until the player
+  // has answered each one. Asking again before answering
+  // returns the same question.
   app.get('/api/users/:userId/planets/:planetId/questions/next', (req, res) => {
     const user = requireUser(req.params.userId);
     const planetId = parseId(req.params.planetId, 'planetId');
@@ -227,11 +231,13 @@ export function createApp({
     res.json(body);
   });
 
-  // Redoes a planet: forgets the player's answers and progress on it.
+  // Redoes a planet: forgets the player's answers and progress on it, and
+  // shuffles its questions again.
   app.delete('/api/users/:userId/planets/:planetId/progress', (req, res) => {
     const user = requireUser(req.params.userId);
     const planetId = parseId(req.params.planetId, 'planetId');
     const body: PlanetSummary = progress.resetPlanet(user.userId, planetId);
+    questions.newAttempt(user.userId, planetId);
     res.json(body);
   });
 
