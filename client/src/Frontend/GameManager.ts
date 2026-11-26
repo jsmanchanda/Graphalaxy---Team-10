@@ -1,6 +1,7 @@
 import type {PlanetSummary, Question, Settings} from '@graphalaxy/shared';
 
 // --- view stuff ---
+import {MUSIC_URL} from '../UI/constants';
 import {HintPanelModel, ScreenModel, UiAction} from '../UI/types';
 import {UiManager} from '../UI/UIManager';
 import {ALREADY_ANSWERED, SessionCache} from './SessionCache';
@@ -171,6 +172,9 @@ export class GameManager {
   private settingsReturn: ReturnPoint | null = null;
   // True while a screen (a minigame) is paused behind the settings screen.
   private screenSuspended = false;
+  // The background music. Kept here, not on a screen, so it keeps playing
+  // when screens change. Made on first use, since tests have no Audio.
+  private music: HTMLAudioElement | null = null;
 
   /**
    * Creates a new GameManager instance.
@@ -446,6 +450,9 @@ export class GameManager {
    * Shows the title screen.
    */
   private showTitle(): void {
+    // The music starts on the title screen and keeps playing from there. The
+    // title always follows a click (login or Back), so the browser allows it.
+    this.startMusic(this.session.player?.settings.musicVolume ?? 1);
     this.show('title', {type: 'title', title: 'Graphalaxy'});
   }
 
@@ -513,6 +520,7 @@ export class GameManager {
    */
   private logout(): void {
     this.session.logout();
+    this.stopMusic();
     this.instructionsSeen = false;
     this.settingsReturn = null;
     this.planetLoad = null;
@@ -742,6 +750,42 @@ export class GameManager {
   }
 
   /**
+   * Starts the looping background music at the given volume, unless it is
+   * already playing. Must follow a click, or the browser blocks it. Does
+   * nothing where there is no Audio, as in tests.
+   * @param volume the music volume, from 0 to 1
+   */
+  private startMusic(volume: number): void {
+    if (typeof Audio === 'undefined') return;
+    if (!this.music) {
+      this.music = new Audio(MUSIC_URL);
+      // Restart from the beginning automatically when the track ends.
+      this.music.loop = true;
+    }
+    this.music.volume = volume;
+    if (!this.music.paused) return;
+    // A blocked or missing file should not break the game.
+    this.music.play().catch((error: unknown) => console.warn(error));
+  }
+
+  /**
+   * Changes the music volume, if the music has been started.
+   * @param volume the music volume, from 0 to 1
+   */
+  private setMusicVolume(volume: number): void {
+    if (this.music) this.music.volume = volume;
+  }
+
+  /**
+   * Stops the music and rewinds it, so the next login starts it from the top.
+   */
+  private stopMusic(): void {
+    if (!this.music) return;
+    this.music.pause();
+    this.music.currentTime = 0;
+  }
+
+  /**
    * Saves the settings chosen on the settings screen, then shows the screen
    * again with the outcome.
    * @param settings the settings to save
@@ -750,6 +794,7 @@ export class GameManager {
     const screenId = this.screenId;
     try {
       const player = await this.session.saveSettings(settings);
+      this.setMusicVolume(player.settings.musicVolume);
       if (screenId === this.screenId) {
         this.show(
           'settings',
