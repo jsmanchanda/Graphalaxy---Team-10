@@ -20,11 +20,17 @@ import type {ScreenModel, UiAction} from '../src/UI/types';
 // the action callback GameManager hands it and every screen it is told to show.
 const ui = vi.hoisted(() => ({
   displayScreen: vi.fn<(model: ScreenModel) => void>(),
+  suspendScreen: vi.fn<() => void>(),
+  resumeScreen: vi.fn<() => boolean>(() => true),
+  discardSuspendedScreen: vi.fn<() => void>(),
   onAction: null as ((action: UiAction) => void) | null,
 }));
 vi.mock('../src/UI/UIManager', () => {
   class UiManager {
     displayScreen = ui.displayScreen;
+    suspendScreen = ui.suspendScreen;
+    resumeScreen = ui.resumeScreen;
+    discardSuspendedScreen = ui.discardSuspendedScreen;
     constructor(containerId: string, onAction: (action: UiAction) => void) {
       void containerId;
       ui.onAction = onAction;
@@ -188,6 +194,7 @@ async function actAndWait(action: UiAction) {
 }
 
 const TITLE: ScreenModel = {type: 'title', title: 'Graphalaxy'};
+const INSTRUCTIONS: ScreenModel = {type: 'instructions'};
 /** The lesson intro, which shows the player's progress on the planet. */
 const intro = (progress: string): ScreenModel => ({
   type: 'intro',
@@ -264,11 +271,22 @@ async function setup(gateway = fakeGateway()) {
 }
 
 /**
+ * Presses Start on the title, and Continue on the instructions if they show
+ * (they do the first time after logging in), which opens the map.
+ */
+function openMap() {
+  act({type: 'start'});
+  if (lastScreen()?.type === 'instructions') {
+    act({type: 'next'});
+  }
+}
+
+/**
  * Opens the map, picks the demo planet, and skips the minigame, which leaves
  * the player on the planet's lesson intro.
  */
 async function enterPlanet() {
-  act({type: 'start'});
+  openMap();
   act({type: 'selectPlanet', planetId: 1});
   await actAndWait({type: 'enterPlanet'});
 }
@@ -296,6 +314,9 @@ async function setupAtLessonResult() {
 
 beforeEach(() => {
   ui.displayScreen.mockReset();
+  ui.suspendScreen.mockClear();
+  ui.resumeScreen.mockClear();
+  ui.discardSuspendedScreen.mockClear();
   vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -449,6 +470,7 @@ describe('GameManager login', () => {
     {type: 'confirmRetry'},
     {type: 'openSettings'},
     {type: 'saveSettings', settings: {musicVolume: 1, sfxVolume: 1}},
+    {type: 'logout'},
     {type: 'navigate'},
     {type: 'selectPlanet', planetId: 1},
     {type: 'enterPlanet'},
@@ -467,11 +489,55 @@ describe('GameManager login', () => {
   });
 });
 
+describe('GameManager instructions', () => {
+  it('shows the instructions on the first Start after logging in', async () => {
+    await setup();
+
+    act({type: 'start'});
+
+    expect(lastScreen()).toEqual(INSTRUCTIONS);
+  });
+
+  it('opens the map on Continue, and skips the instructions on later Starts', async () => {
+    await setup();
+    act({type: 'start'});
+
+    act({type: 'next'});
+    expect(lastScreen()).toEqual(NAV);
+    act({type: 'back'});
+    expect(lastScreen()).toEqual(TITLE);
+    act({type: 'start'});
+
+    expect(lastScreen()).toEqual(NAV);
+  });
+
+  it('goes back to the title from the instructions, and shows them again on the next Start', async () => {
+    await setup();
+    act({type: 'start'});
+
+    act({type: 'back'});
+    expect(lastScreen()).toEqual(TITLE);
+    act({type: 'start'});
+
+    expect(lastScreen()).toEqual(INSTRUCTIONS);
+  });
+
+  it('opens the map on navigate without showing the instructions', async () => {
+    await setup();
+
+    act({type: 'navigate'});
+
+    expect(lastScreen()).toEqual(NAV);
+  });
+});
+
 describe('GameManager navigation', () => {
-  it('shows the navigation map on start, built from the loaded progress', async () => {
+  it('shows the navigation map after the instructions, built from the loaded progress', async () => {
     const {gateway, session} = await setup();
 
     act({type: 'start'});
+    expect(lastScreen()).toEqual(INSTRUCTIONS);
+    act({type: 'next'});
 
     expect(lastScreen()).toEqual({
       type: 'navigation',
@@ -495,7 +561,7 @@ describe('GameManager navigation', () => {
     gateway.answers.set(1, true);
     await setup(gateway);
 
-    act({type: 'start'});
+    openMap();
 
     expect(lastScreen()).toEqual(
       expect.objectContaining({type: 'navigation', overallStatus: 0.5}),
@@ -504,7 +570,7 @@ describe('GameManager navigation', () => {
 
   it('shows the minigame select screen on selecting a planet', async () => {
     await setup();
-    act({type: 'start'});
+    openMap();
 
     act({type: 'selectPlanet', planetId: 1});
 
@@ -523,7 +589,7 @@ describe('GameManager navigation', () => {
     'connects Radio to the lesson and awards only earned hints (addHint: %s)',
     async addHint => {
       const {gateway, session} = await setup();
-      act({type: 'start'});
+      openMap();
       act({type: 'selectPlanet', planetId: 1});
       act({type: 'startMiniGame', name: 'Radio'});
       expect(lastScreen()).toEqual(
@@ -548,7 +614,7 @@ describe('GameManager navigation', () => {
     const {gateway} = await setup();
     const pending = deferred<{hintQuota: number}>();
     gateway.awardHintCredits.mockReturnValueOnce(pending.promise);
-    act({type: 'start'});
+    openMap();
     act({type: 'selectPlanet', planetId: 1});
     act({type: 'startMiniGame', name: 'Radio'});
 
@@ -567,7 +633,7 @@ describe('GameManager navigation', () => {
     gateway.awardHintCredits.mockRejectedValueOnce(
       new ApiError('timeout', 'slow'),
     );
-    act({type: 'start'});
+    openMap();
     act({type: 'selectPlanet', planetId: 1});
     act({type: 'startMiniGame', name: 'Radio'});
 
@@ -582,7 +648,7 @@ describe('GameManager navigation', () => {
 
   it('ignores completion events when no minigame is running', async () => {
     const {gateway} = await setup();
-    act({type: 'start'});
+    openMap();
     await actAndWait({type: 'endMiniGame', addHint: true});
     expect(gateway.awardHintCredits).not.toHaveBeenCalled();
     expect(lastScreen()).toEqual(NAV);
@@ -592,7 +658,7 @@ describe('GameManager navigation', () => {
     const {gateway} = await setup();
     const pending = deferred<Planet>();
     gateway.getPlanet.mockReturnValueOnce(pending.promise);
-    act({type: 'start'});
+    openMap();
     act({type: 'selectPlanet', planetId: 2});
     act({type: 'startMiniGame', name: 'Radio'});
     await actAndWait({type: 'endMiniGame', addHint: false});
@@ -607,7 +673,7 @@ describe('GameManager navigation', () => {
 
   it('shows the asteroid minigame when it starts', async () => {
     await setup();
-    act({type: 'start'});
+    openMap();
     act({type: 'selectPlanet', planetId: 1});
 
     act({type: 'startMiniGame', name: 'Asteroid'});
@@ -617,7 +683,7 @@ describe('GameManager navigation', () => {
 
   it('loads the picked planet while the player chooses a minigame', async () => {
     const {gateway} = await setup();
-    act({type: 'start'});
+    openMap();
 
     act({type: 'selectPlanet', planetId: 1});
     expect(gateway.getPlanet).toHaveBeenCalledExactlyOnceWith(1);
@@ -636,7 +702,7 @@ describe('GameManager navigation', () => {
       const gateway = fakeGateway();
       gateway.getPlanet.mockRejectedValue(error);
       await setup(gateway);
-      act({type: 'start'});
+      openMap();
       act({type: 'selectPlanet', planetId: 1});
 
       await actAndWait({type: 'enterPlanet'});
@@ -651,7 +717,7 @@ describe('GameManager navigation', () => {
       {...gateway.progress(), unlocked: false},
     ]);
     await setup(gateway);
-    act({type: 'start'});
+    openMap();
     ui.displayScreen.mockClear();
 
     act({type: 'selectPlanet', planetId: 1});
@@ -662,7 +728,7 @@ describe('GameManager navigation', () => {
 
   it('goes back from the minigame select to the map, and from the map to the title', async () => {
     await setup();
-    act({type: 'start'});
+    openMap();
     act({type: 'selectPlanet', planetId: 1});
 
     act({type: 'back'});
@@ -973,6 +1039,8 @@ describe('GameManager answers', () => {
 
     act({type: 'answer', option: 0}); // title
     act({type: 'start'});
+    act({type: 'answer', option: 0}); // instructions
+    act({type: 'next'});
     act({type: 'answer', option: 0}); // navigation map
     await enterPlanet();
     act({type: 'answer', option: 0}); // lesson intro
@@ -1325,14 +1393,162 @@ describe('GameManager settings', () => {
     expect(lastScreen()).toEqual(TITLE);
   });
 
-  it('ignores openSettings away from the title screen', async () => {
+  it('opens from the map and goes back to the map', async () => {
+    await setup();
+    openMap();
+    const map = lastScreen();
+
+    act({type: 'openSettings'});
+    expect(lastScreen()).toEqual({type: 'settings', settings: PLAYER.settings});
+    act({type: 'back'});
+
+    expect(lastScreen()).toEqual(map);
+    act({type: 'selectPlanet', planetId: 1});
+    expect(lastScreen()).toEqual(MINI_GAME_SELECT);
+  });
+
+  it('opens from the instructions and goes back to them', async () => {
     await setup();
     act({type: 'start'});
+
+    act({type: 'openSettings'});
+    act({type: 'back'});
+
+    expect(lastScreen()).toEqual(INSTRUCTIONS);
+    act({type: 'next'});
+    expect(lastScreen()).toEqual(NAV);
+  });
+
+  it('goes back to the same lesson slide, which still moves on', async () => {
+    await setup();
+    await enterPlanet();
+    act({type: 'next'});
+    expect(lastScreen()).toEqual(READING);
+
+    act({type: 'openSettings'});
+    act({type: 'back'});
+
+    expect(lastScreen()).toEqual(READING);
+    await actAndWait({type: 'next'});
+    expect(lastScreen()).toEqual(QUESTION_1);
+  });
+
+  it('goes back to the question after saving, and the question can still be answered', async () => {
+    const {gateway} = await setupAtQuestion1();
+
+    act({type: 'openSettings'});
+    await actAndWait({type: 'saveSettings', settings: CHOSEN});
+    act({type: 'back'});
+
+    expect(lastScreen()).toEqual(QUESTION_1);
+    await actAndWait({type: 'answer', option: RIGHT_OPTION});
+    expect(gateway.submitAnswer).toHaveBeenCalledWith(1, 11);
+    expect(lastScreen()).toEqual(CORRECT);
+  });
+
+  it.each(['Asteroid', 'Radio'] as const)(
+    'pauses the %s minigame behind settings and resumes it on Back',
+    async name => {
+      await setup();
+      openMap();
+      act({type: 'selectPlanet', planetId: 1});
+      act({type: 'startMiniGame', name});
+      ui.displayScreen.mockClear();
+
+      act({type: 'openSettings'});
+      expect(ui.suspendScreen).toHaveBeenCalledOnce();
+      expect(lastScreen()).toEqual({
+        type: 'settings',
+        settings: PLAYER.settings,
+      });
+
+      ui.displayScreen.mockClear();
+      act({type: 'back'});
+
+      // The same minigame carries on: nothing is rebuilt or thrown away.
+      expect(ui.resumeScreen).toHaveBeenCalledOnce();
+      expect(ui.displayScreen).not.toHaveBeenCalled();
+      expect(ui.discardSuspendedScreen).not.toHaveBeenCalled();
+
+      // And it still finishes into the lesson.
+      await actAndWait({type: 'endMiniGame', addHint: false});
+      expect(lastScreen()).toEqual(INTRO);
+    },
+  );
+
+  it('resumes the minigame after saving settings over it', async () => {
+    const {gateway} = await setup();
+    openMap();
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'startMiniGame', name: 'Asteroid'});
+
+    act({type: 'openSettings'});
+    await actAndWait({type: 'saveSettings', settings: CHOSEN});
+    expect(gateway.saveSettings).toHaveBeenCalledWith(CHOSEN);
+    ui.displayScreen.mockClear();
+    act({type: 'back'});
+
+    expect(ui.resumeScreen).toHaveBeenCalledOnce();
+    expect(ui.displayScreen).not.toHaveBeenCalled();
+    expect(ui.discardSuspendedScreen).not.toHaveBeenCalled();
+  });
+
+  it('discards the paused minigame on logging out from settings', async () => {
+    await setup();
+    openMap();
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'startMiniGame', name: 'Radio'});
+    act({type: 'openSettings'});
+
+    act({type: 'logout'});
+
+    expect(ui.discardSuspendedScreen).toHaveBeenCalledOnce();
+    expect(ui.resumeScreen).not.toHaveBeenCalled();
+    expect(lastScreen()).toEqual(loginScreen('', 'Logged out.'));
+  });
+
+  it('does not pause other screens: Back rebuilds them as before', async () => {
+    await setup();
+    act({type: 'openSettings'});
+    act({type: 'back'});
+
+    expect(ui.suspendScreen).not.toHaveBeenCalled();
+    expect(ui.resumeScreen).not.toHaveBeenCalled();
+    expect(lastScreen()).toEqual(TITLE);
+  });
+
+  it('ignores openSettings once the minigame has reported its result', async () => {
+    const {gateway} = await setup();
+    const load = deferred<Planet>();
+    gateway.getPlanet.mockReturnValueOnce(load.promise);
+    openMap();
+    act({type: 'selectPlanet', planetId: 1});
+    act({type: 'startMiniGame', name: 'Asteroid'});
+    act({type: 'endMiniGame', addHint: false});
     ui.displayScreen.mockClear();
 
     act({type: 'openSettings'});
-
+    expect(ui.suspendScreen).not.toHaveBeenCalled();
     expect(ui.displayScreen).not.toHaveBeenCalled();
+
+    load.resolve(makePlanet());
+    await flush();
+    expect(lastScreen()).toEqual(INTRO);
+  });
+
+  it('ignores openSettings while an answer is being graded', async () => {
+    const {gateway} = await setupAtQuestion1();
+    const pending = deferred<AnswerResult>();
+    gateway.submitAnswer.mockReturnValueOnce(pending.promise);
+    act({type: 'answer', option: RIGHT_OPTION});
+    ui.displayScreen.mockClear();
+
+    act({type: 'openSettings'});
+    expect(ui.displayScreen).not.toHaveBeenCalled();
+
+    pending.resolve(verdict(1, true));
+    await flush();
+    expect(lastScreen()).toEqual(CORRECT);
   });
 
   it('ignores saveSettings when the settings screen is not showing', async () => {
@@ -1484,5 +1700,74 @@ describe('GameManager hints', () => {
     act({type: 'requestHint', selectedOption: null}); // lesson intro
 
     expect(gateway.unlockNextHint).not.toHaveBeenCalled();
+  });
+});
+
+describe('GameManager logout', () => {
+  it('logs out from the settings screen to an empty login screen', async () => {
+    const {session} = await setup();
+    await enterPlanet();
+    act({type: 'openSettings'});
+
+    act({type: 'logout'});
+
+    expect(lastScreen()).toEqual(loginScreen('', 'Logged out.'));
+    expect(session.player).toBeNull();
+    expect(session.planets).toEqual([]);
+    expect(session.currentPlanet).toBeNull();
+  });
+
+  it('ignores logout away from the settings screen', async () => {
+    const {session} = await setup();
+    openMap();
+    ui.displayScreen.mockClear();
+
+    act({type: 'logout'});
+
+    expect(ui.displayScreen).not.toHaveBeenCalled();
+    expect(session.player).toEqual(PLAYER);
+  });
+
+  it('ignores game actions after logging out until the next login', async () => {
+    const {gateway} = await setup();
+    act({type: 'openSettings'});
+    act({type: 'logout'});
+    ui.displayScreen.mockClear();
+
+    act({type: 'start'});
+    act({type: 'openSettings'});
+    act({type: 'selectPlanet', planetId: 1});
+
+    expect(ui.displayScreen).not.toHaveBeenCalled();
+    expect(gateway.getPlanet).not.toHaveBeenCalled();
+  });
+
+  it('logs back in, and shows the instructions again before the map', async () => {
+    const {gateway} = await setup();
+    openMap();
+    act({type: 'openSettings'});
+    act({type: 'logout'});
+
+    await actAndWait({type: 'login', username: 'bob'});
+    expect(gateway.login).toHaveBeenLastCalledWith('bob');
+    expect(lastScreen()).toEqual(TITLE);
+    act({type: 'start'});
+
+    expect(lastScreen()).toEqual(INSTRUCTIONS);
+  });
+
+  it('drops a settings save that finishes after logging out', async () => {
+    const {gateway, session} = await setup();
+    const pending = deferred<Player>();
+    gateway.saveSettings.mockReturnValueOnce(pending.promise);
+    act({type: 'openSettings'});
+    act({type: 'saveSettings', settings: {musicVolume: 1, sfxVolume: 1}});
+
+    act({type: 'logout'});
+    pending.resolve({...PLAYER, settings: {musicVolume: 1, sfxVolume: 1}});
+    await flush();
+
+    expect(lastScreen()).toEqual(loginScreen('', 'Logged out.'));
+    expect(session.player).toBeNull();
   });
 });

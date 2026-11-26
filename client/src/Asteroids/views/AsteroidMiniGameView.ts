@@ -1,4 +1,5 @@
 import Konva from 'konva';
+import {SettingsIconComponent} from '../../UI/components';
 import type {UiAction, View} from '../../UI/types';
 import {AsteroidMiniGameController} from '../AsteroidMiniGameController';
 import {AsteroidMiniGameModel} from '../AsteroidMiniGameModel';
@@ -17,11 +18,15 @@ export interface AsteroidMiniGameViewOptions {
 
 /**
  * The asteroid minigame as one screen for UiManager. It runs the controller
- * and swaps the intro, game and result screens inside its own group. When
- * the player leaves, it sends endMiniGame, with a hint only for 3/3.
+ * and swaps the intro, game and result screens inside its own group, under
+ * the settings icon. When the player leaves, it sends endMiniGame, with a
+ * hint only for 3/3. While the settings screen is open, UiManager pauses it
+ * and the current screen hides its HTML boxes.
  */
 export class AsteroidMiniGameView implements View {
   private readonly group = new Konva.Group();
+  // Holds the one screen showing now; the settings icon sits above it.
+  private readonly screens = new Konva.Group({name: 'asteroidScreens'});
   private readonly controller: AsteroidMiniGameController;
   private readonly createInputs?: CreateInputs;
   private current: View | null = null;
@@ -36,6 +41,10 @@ export class AsteroidMiniGameView implements View {
     options: AsteroidMiniGameViewOptions = {},
   ) {
     this.createInputs = options.createInputs;
+    const settingsIcon = new SettingsIconComponent(() =>
+      onAction({type: 'openSettings'}),
+    );
+    this.group.add(this.screens, settingsIcon.getGroup());
     this.controller = new AsteroidMiniGameController(
       screen => this.mount(screen),
       result =>
@@ -57,6 +66,16 @@ export class AsteroidMiniGameView implements View {
     return this.group;
   }
 
+  /** Pauses the current screen while the settings screen is open. */
+  pause(): void {
+    this.current?.pause?.();
+  }
+
+  /** Carries on with the current screen after pause. */
+  resume(): void {
+    this.current?.resume?.();
+  }
+
   /**
    * Replaces the current screen with the one the controller asked for.
    * Destroying the old screen's group also removes the game screen's HTML
@@ -66,7 +85,7 @@ export class AsteroidMiniGameView implements View {
   private mount(screen: Screen): void {
     this.current?.getGroup().destroy();
     this.current = this.build(screen);
-    this.group.add(this.current.getGroup());
+    this.screens.add(this.current.getGroup());
     this.group.getLayer()?.batchDraw();
   }
 

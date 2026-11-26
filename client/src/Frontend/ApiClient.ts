@@ -41,6 +41,8 @@ export interface ServerGateway {
   awardHintCredits(count: number): Promise<HintBalanceResult>;
   getUnlockedHints(planetId: number): Promise<UnlockedHint[]>;
   unlockNextHint(planetId: number): Promise<HintUnlockResult>;
+  /** Forgets the logged-in user. Optional: the server keeps no session. */
+  logout?(): void;
 }
 
 const DEFAULT_OPTIONS = {baseUrl: '/api', timeoutMs: 5000, retries: 2};
@@ -73,6 +75,14 @@ export class ApiClient implements ServerGateway {
     const player = parseWith(text, parsePlayer);
     this.userId = player.userId;
     return player;
+  }
+
+  /**
+   * Forgets the logged-in user, so user requests fail until the next login.
+   * The server keeps no session, so nothing is sent.
+   */
+  logout(): void {
+    this.userId = null;
   }
 
   /**

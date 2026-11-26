@@ -1,5 +1,10 @@
 import Konva from 'konva';
-import {ButtonComponent, TextBoxComponent} from '../../UI/components';
+import {
+  ButtonComponent,
+  ImageComponent,
+  TextBoxComponent,
+} from '../../UI/components';
+import {DESIGN_HEIGHT, DESIGN_WIDTH} from '../../UI/constants';
 import type {View} from '../../UI/types';
 import type {AsteroidMiniGameController} from '../AsteroidMiniGameController';
 import {AsteroidFieldComponent} from '../components/AsteroidFieldComponent';
@@ -8,6 +13,7 @@ import {
   type CoefficientInputsHandle,
   type CoefficientInputsOptions,
 } from '../components/CoefficientInputs';
+import {TargetingPreviewComponent} from '../components/TargetingPreviewComponent';
 import {
   EQUATION_ROW_HEIGHT,
   EQUATION_WIDTH,
@@ -21,12 +27,10 @@ import {
   FIRE_BUTTON_Y,
   HEADER_Y,
   INPUTS_Y,
-  PANEL_BORDER_COLOR,
-  PANEL_FILL_COLOR,
-  PANEL_HEIGHT,
-  PANEL_WIDTH,
-  PANEL_X,
-  PANEL_Y,
+  PANEL_FRAME_IMAGE,
+  PREVIEW_SIZE,
+  PREVIEW_X,
+  PREVIEW_Y,
   SHOT_STATUS_HEIGHT,
   SHOT_STATUS_WIDTH,
   SHOT_STATUS_X,
@@ -60,14 +64,17 @@ function shotMessage(shot: FireResult): string {
 }
 
 /**
- * The cockpit screen for one question: the window with the asteroids, and a
- * control panel with the form, the coefficient boxes and Fire. After the
- * shot, Fire turns into Next (or Results on the last question).
+ * The cockpit screen for one question, inside the general-nav frame: the
+ * window with the asteroids, the targeting preview in the frame's top-left
+ * square, and a strip along the bottom with the form, the coefficient boxes
+ * and Fire. After the shot, Fire turns into Next (or Results on the last
+ * question).
  */
 export class AsteroidGameView implements View {
   private readonly group = new Konva.Group();
   private readonly controller: AsteroidMiniGameController;
   private readonly field: AsteroidFieldComponent;
+  private readonly preview: TargetingPreviewComponent;
   private readonly status: TextBoxComponent;
   private readonly fireButton: ButtonComponent;
   private readonly nextButton: ButtonComponent;
@@ -90,21 +97,30 @@ export class AsteroidGameView implements View {
     const question = model.currentQuestion;
     const form = FORMS[question.formId];
 
-    // Decoration only; drawn first so everything sits on top of it.
-    const panel = new Konva.Rect({
-      x: PANEL_X,
-      y: PANEL_Y,
-      width: PANEL_WIDTH,
-      height: PANEL_HEIGHT,
-      fill: PANEL_FILL_COLOR,
-      stroke: PANEL_BORDER_COLOR,
-    });
+    // The cockpit frame, full screen. Decoration only; added first so
+    // everything sits on top of it. Its window and top-left square are
+    // transparent, so the space background shows through.
+    const frame = new ImageComponent(
+      0,
+      0,
+      DESIGN_WIDTH,
+      DESIGN_HEIGHT,
+      PANEL_FRAME_IMAGE,
+    );
+    frame.getGroup().name('cockpitFrame');
 
     this.field = new AsteroidFieldComponent(
       FIELD_X,
       FIELD_Y,
       FIELD_SIZE,
       question.asteroids,
+    );
+
+    // Shows the curve while the player types; the window shows it after Fire.
+    this.preview = new TargetingPreviewComponent(
+      PREVIEW_X,
+      PREVIEW_Y,
+      PREVIEW_SIZE,
     );
 
     const header = new TextBoxComponent(
@@ -153,8 +169,9 @@ export class AsteroidGameView implements View {
     this.nextButton.getGroup().visible(false);
 
     this.group.add(
-      panel,
+      frame.getGroup(),
       this.field.getGroup(),
+      this.preview.getGroup(),
       header.getGroup(),
       template.getGroup(),
       this.status.getGroup(),
@@ -185,14 +202,34 @@ export class AsteroidGameView implements View {
   }
 
   /**
-   * Enables Fire exactly when every box holds a valid number.
+   * Hides the HTML boxes, which sit above the canvas, while the settings
+   * screen is open. What the player typed is kept.
+   */
+  pause(): void {
+    this.inputs.setVisible(false);
+  }
+
+  /** Shows the boxes again after pause, with the cursor back in them. */
+  resume(): void {
+    this.inputs.setVisible(true);
+    if (!this.fired) {
+      this.inputs.focus();
+    }
+  }
+
+  /**
+   * Redraws the targeting screen and enables Fire, both exactly when every
+   * box holds a valid number.
    * @param values what is typed in each box
    */
   private updateFire(values: string[]): void {
     if (this.fired) {
       return;
     }
-    this.canFire = this.controller.preview(values) !== null;
+    // One call drives both the targeting screen and the Fire button.
+    const expression = this.controller.preview(values);
+    this.preview.draw(expression);
+    this.canFire = expression !== null;
     this.fireButton.getGroup().opacity(this.canFire ? 1 : DISABLED_OPACITY);
     this.group.getLayer()?.batchDraw();
   }

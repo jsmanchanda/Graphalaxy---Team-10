@@ -63,6 +63,20 @@ export class SessionCache {
   }
 
   /**
+   * Logs the player out: forgets them and everything loaded for them, so the
+   * next login starts fresh. Replies to requests still in flight are dropped,
+   * since they belong to a player who is no longer logged in.
+   */
+  logout(): void {
+    this.player = null;
+    this.planets = [];
+    this.currentPlanet = null;
+    this.currentQuestion = null;
+    this.planetRequestId++;
+    this.client.logout?.();
+  }
+
+  /**
    * Loads the logged-in player's progress on every planet and stores it,
    * unless another player logged in while the request was in flight.
    * @returns The planet summaries.

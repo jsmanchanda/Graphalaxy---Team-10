@@ -13,6 +13,10 @@ import {
   NEXT_BUTTON_Y,
   SETTINGS_LABEL_WIDTH,
   SETTINGS_LABEL_X,
+  SETTINGS_LOGOUT_BUTTON_HEIGHT,
+  SETTINGS_LOGOUT_BUTTON_WIDTH,
+  SETTINGS_LOGOUT_BUTTON_X,
+  SETTINGS_LOGOUT_BUTTON_Y,
   SETTINGS_MESSAGE_HEIGHT,
   SETTINGS_MESSAGE_WIDTH,
   SETTINGS_MESSAGE_X,
@@ -54,14 +58,14 @@ export function formatVolume(volume: number): string {
 
 /**
  * Settings screen: shows the player's music and sound effect volumes and lets
- * them change and save them.
+ * them change and save them, or log out.
  */
 export class SettingsScreenView implements View {
   private group: Konva.Group;
 
   /**
    * Builds the settings screen from the player's current settings.
-   * @param onAction Called when the player selects Save or Back.
+   * @param onAction Called when the player selects Save, Back, or Log Out.
    */
   constructor(
     onAction: (action: UiAction) => void,
@@ -118,7 +122,17 @@ export class SettingsScreenView implements View {
       () => onAction({type: 'saveSettings', settings: {...settings}}),
     );
 
+    const logoutButton = new ButtonComponent(
+      SETTINGS_LOGOUT_BUTTON_X,
+      SETTINGS_LOGOUT_BUTTON_Y,
+      SETTINGS_LOGOUT_BUTTON_WIDTH,
+      SETTINGS_LOGOUT_BUTTON_HEIGHT,
+      'Log Out',
+      () => onAction({type: 'logout'}),
+    );
+
     this.group.add(backButton.getGroup());
+    this.group.add(logoutButton.getGroup());
     this.group.add(saveButton.getGroup());
   }
 

@@ -100,6 +100,7 @@ function fakeGateway() {
       .mockResolvedValue([]),
     unlockNextHint: vi.fn<ServerGateway['unlockNextHint']>(),
     submitAnswer: vi.fn<ServerGateway['submitAnswer']>(),
+    logout: vi.fn<() => void>(),
   };
 }
 
@@ -238,6 +239,41 @@ describe('SessionCache progress and settings at login', () => {
       kind: 'http',
     });
     expect(cache.planets).toEqual([]);
+  });
+
+  it('forgets the player and everything loaded for them on logout', async () => {
+    const gateway = fakeGateway();
+    const cache = new SessionCache(gateway);
+    await cache.login(PLAYER.name);
+    await cache.loadPlanet(1);
+    await cache.loadNextQuestion();
+
+    cache.logout();
+
+    expect(cache.player).toBeNull();
+    expect(cache.planets).toEqual([]);
+    expect(cache.currentPlanet).toBeNull();
+    expect(cache.currentQuestion).toBeNull();
+    expect(gateway.logout).toHaveBeenCalledOnce();
+  });
+
+  it('drops a planet that finishes loading after logout', async () => {
+    const gateway = fakeGateway();
+    let resolve!: (planet: typeof PLANET) => void;
+    gateway.getPlanet.mockReturnValueOnce(
+      new Promise(res => {
+        resolve = res;
+      }),
+    );
+    const cache = new SessionCache(gateway);
+    await cache.login(PLAYER.name);
+    const load = cache.loadPlanet(1);
+
+    cache.logout();
+    resolve(PLANET);
+    await load;
+
+    expect(cache.currentPlanet).toBeNull();
   });
 
   it("clears the previous player's progress and question on a new login", async () => {
