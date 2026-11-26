@@ -23,6 +23,15 @@ import {
   DEFAULT_PLANET_ID,
   DESIGN_HEIGHT,
   DESIGN_WIDTH,
+  HINT_CLOSE_BUTTON_HEIGHT,
+  HINT_CLOSE_BUTTON_WIDTH,
+  HINT_CLOSE_BUTTON_X,
+  HINT_CLOSE_BUTTON_Y,
+  HINT_OVERLAY_COLOR,
+  HINT_PANEL_HEIGHT,
+  HINT_PANEL_WIDTH,
+  HINT_PANEL_X,
+  HINT_PANEL_Y,
   MULTIPLE_CHOICE_OPTION_BOTTOM_Y,
   MULTIPLE_CHOICE_OPTION_HEIGHT,
   MULTIPLE_CHOICE_OPTION_LEFT_X,
@@ -49,10 +58,31 @@ import {
   QUESTION_HINT_BUTTON_Y,
   TEXT_BOX_FILL_COLOR,
 } from '../constants';
-import {QuestionScreenModel, UiAction, View} from '../types';
+import {HintPanelModel, QuestionScreenModel, UiAction, View} from '../types';
 
 /**
- * Question screen view
+ * The text of the hint panel: each unlocked hint, numbered, then the message.
+ * @param panel the hint panel's data
+ * @returns the text to show
+ */
+export function hintPanelText(panel: HintPanelModel): string {
+  const lines = panel.hints.map((hint, i) => `Hint ${i + 1}: ${hint}`);
+  if (panel.message) lines.push(panel.message);
+  return lines.join('\n\n');
+}
+
+/**
+ * The hint button's label.
+ * @param hintsLeft the player's hint credits, if known
+ * @returns e.g. "Hint (3 left)"
+ */
+export function hintButtonLabel(hintsLeft?: number): string {
+  return hintsLeft === undefined ? 'Hint' : `Hint (${hintsLeft} left)`;
+}
+
+/**
+ * Question screen view. While a hint panel is open it covers the screen, so
+ * the options and buttons under it cannot be clicked.
  */
 export class QuestionScreenView implements View {
   private group: Konva.Group;
@@ -141,9 +171,8 @@ export class QuestionScreenView implements View {
       QUESTION_HINT_BUTTON_Y,
       QUESTION_HINT_BUTTON_WIDTH,
       QUESTION_HINT_BUTTON_HEIGHT,
-      'Hint',
-      () => {}, // Make Alien dialogue say hint
-      // look at components.ts ~L113
+      hintButtonLabel(model.hintsLeft),
+      () => onAction({type: 'requestHint', selectedOption}),
     );
 
     const alien = new ImageComponent(
@@ -209,6 +238,46 @@ export class QuestionScreenView implements View {
     this.group.add(prompt.getGroup());
     this.group.add(confirmButton.getGroup());
     options.forEach(option => this.group.add(option.getGroup()));
+
+    if (model.selectedOption !== undefined) {
+      selectOption(model.selectedOption);
+    }
+    if (model.hintPanel) {
+      this.addHintPanel(onAction, model.hintPanel);
+    }
+  }
+
+  /**
+   * Covers the screen with the hint panel and its Close button.
+   * @param onAction reports the Close button
+   * @param panel the hint panel's data
+   */
+  private addHintPanel(
+    onAction: (action: UiAction) => void,
+    panel: HintPanelModel,
+  ): void {
+    // Catches clicks so nothing under the panel can be pressed.
+    const overlay = new Konva.Rect({
+      width: DESIGN_WIDTH,
+      height: DESIGN_HEIGHT,
+      fill: HINT_OVERLAY_COLOR,
+    });
+    const text = new TextBoxComponent(
+      HINT_PANEL_X,
+      HINT_PANEL_Y,
+      HINT_PANEL_WIDTH,
+      HINT_PANEL_HEIGHT,
+      hintPanelText(panel),
+    );
+    const close = new ButtonComponent(
+      HINT_CLOSE_BUTTON_X,
+      HINT_CLOSE_BUTTON_Y,
+      HINT_CLOSE_BUTTON_WIDTH,
+      HINT_CLOSE_BUTTON_HEIGHT,
+      'Close',
+      () => onAction({type: 'closeHints'}),
+    );
+    this.group.add(overlay, text.getGroup(), close.getGroup());
   }
 
   /**

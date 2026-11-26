@@ -5,12 +5,25 @@ import type {
   Player,
   Question,
   Settings,
+  UnlockedHint,
 } from '@graphalaxy/shared';
 import {ApiClient, type ServerGateway} from './ApiClient';
 import {ApiError} from './ApiError';
 
 /** The server's error code for a second answer to the same question. */
 export const ALREADY_ANSWERED = 'ALREADY_ANSWERED';
+
+/** The server's error code for an unlock when the player has no credits. */
+export const NO_HINTS_LEFT = 'NO_HINTS_LEFT';
+
+/**
+ * What happened when the player asked for a hint, with every hint they have
+ * unlocked on the planet so far. 'noMoreHints' and 'noCredits' spend nothing.
+ */
+export interface HintOutcome {
+  result: 'unlocked' | 'noMoreHints' | 'noCredits';
+  hints: UnlockedHint[];
+}
 
 /**
  * Holds the player's session data and loads data from the backend.
@@ -171,6 +184,44 @@ export class SessionCache {
   }
 
   /**
+   * Unlocks the current planet's next hint, spending one credit, and stores
+   * the player's remaining credits. Then loads every hint unlocked on the
+   * planet, which is free. If only that second request fails, the new hint is
+   * still returned on its own.
+   * @returns The outcome and the unlocked hints, in hint number order.
+   * @throws {Error} If no player is logged in or no planet is loaded.
+   * @throws {ApiError} If the unlock fails for any reason other than having
+   * no credits, or nothing was unlocked and the hints cannot be loaded.
+   */
+  async unlockHint(): Promise<HintOutcome> {
+    const player = this.player;
+    if (!player) throw new Error('Must log in before unlocking a hint');
+    const planet = this.requirePlanet();
+    let unlocked: UnlockedHint | null = null;
+    let result: HintOutcome['result'];
+    try {
+      const response = await this.client.unlockNextHint(planet.planetId);
+      unlocked = response.hint;
+      result = unlocked ? 'unlocked' : 'noMoreHints';
+      this.storeHintQuota(player, response.hintQuota);
+    } catch (error) {
+      if (!(error instanceof ApiError && error.code === NO_HINTS_LEFT)) {
+        throw error;
+      }
+      result = 'noCredits';
+      this.storeHintQuota(player, 0);
+    }
+    try {
+      const hints = await this.client.getUnlockedHints(planet.planetId);
+      return {result, hints};
+    } catch (error) {
+      if (!unlocked) throw error;
+      console.error(error);
+      return {result, hints: [unlocked]};
+    }
+  }
+
+  /**
    * Sends an answer to the server, which grades it. Once currentQuestion is
    * graded, right or wrong, forgets it: each question is answered once. Also
    * forgets it if the server says it was answered before, which happens when
@@ -198,6 +249,18 @@ export class SessionCache {
         forget();
       }
       throw error;
+    }
+  }
+
+  /**
+   * Stores the player's hint credits, unless another player logged in while
+   * the request was in flight.
+   * @param player The player the request was made for.
+   * @param hintQuota Their credits, as reported by the server.
+   */
+  private storeHintQuota(player: Player, hintQuota: number): void {
+    if (this.player === player) {
+      this.player = {...player, hintQuota};
     }
   }
 

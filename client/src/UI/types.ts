@@ -43,7 +43,9 @@ export type UiAction =
   | {type: 'selectPlanet'; planetId: number}
   | {type: 'navigate'}
   | {type: 'startMiniGame'; name: 'Asteroid' | 'Radio'}
-  | {type: 'endMiniGame'; addHint: boolean};
+  | {type: 'endMiniGame'; addHint: boolean}
+  | {type: 'requestHint'; selectedOption: number | null}
+  | {type: 'closeHints'};
 
 // ================== Screens Models ===================
 /**
@@ -102,13 +104,28 @@ export interface QuestionDisplay {
 }
 
 /**
- * Question Screen Data
+ * The hint panel shown over the question screen: every hint the player has
+ * unlocked on the planet, and a message such as "Loading hint..." or why no
+ * new hint was unlocked.
+ */
+export interface HintPanelModel {
+  hints: string[];
+  message?: string;
+}
+
+/**
+ * Question Screen Data. `hintsLeft` is the player's hint credits,
+ * `selectedOption` the option to highlight when the screen is redrawn, and
+ * `hintPanel` is set while the hint panel is open.
  */
 export interface QuestionScreenModel {
   type: 'question';
   question: QuestionDisplay;
   equation?: string;
   planetId?: number; // picks the alien and background; defaults to planet 2
+  hintsLeft?: number;
+  selectedOption?: number;
+  hintPanel?: HintPanelModel;
 }
 
 /**

@@ -155,6 +155,18 @@ export const QUESTION_BACK_BUTTON_HEIGHT = 50;
 export const QUESTION_BACK_BUTTON_X = 65;
 export const QUESTION_BACK_BUTTON_Y = 403;
 
+// Hint panel, drawn over the question screen
+export const HINT_OVERLAY_COLOR = 'rgba(0, 0, 0, 0.85)';
+export const HINT_PANEL_WIDTH = 560;
+export const HINT_PANEL_HEIGHT = 300;
+export const HINT_PANEL_X = (DESIGN_WIDTH - HINT_PANEL_WIDTH) * 0.5;
+export const HINT_PANEL_Y = 60;
+export const HINT_CLOSE_BUTTON_WIDTH = 160;
+export const HINT_CLOSE_BUTTON_HEIGHT = 40;
+export const HINT_CLOSE_BUTTON_X =
+  (DESIGN_WIDTH - HINT_CLOSE_BUTTON_WIDTH) * 0.5;
+export const HINT_CLOSE_BUTTON_Y = HINT_PANEL_Y + HINT_PANEL_HEIGHT + 10;
+
 export const QUESTION_HINT_BUTTON_WIDTH = 120;
 export const QUESTION_HINT_BUTTON_HEIGHT = 30;
 export const QUESTION_HINT_BUTTON_X = 613;

@@ -11,6 +11,7 @@ import type {
   GraphSpec,
   NextQuestion,
   HintBalanceResult,
+  HintUnlockResult,
   Planet,
   PlanetSummary,
   Player,
@@ -19,6 +20,7 @@ import type {
   ReadingTask,
   Settings,
   Task,
+  UnlockedHint,
 } from '@graphalaxy/shared';
 
 import {
@@ -340,4 +342,45 @@ export function parseNextQuestion(json: unknown): NextQuestion {
 export function parseHintBalanceResult(json: unknown): HintBalanceResult {
   assertHasFields(json, ['hintQuota']);
   return {hintQuota: requireInteger(json.hintQuota, 'hintQuota', 0)};
+}
+
+/**
+ * Parses a hint the player has unlocked.
+ * @param json The parsed JSON value.
+ * @returns The unlocked hint.
+ */
+export function parseUnlockedHint(json: unknown): UnlockedHint {
+  assertHasFields(json, ['hintId', 'planetId', 'hintNumber', 'text']);
+  return {
+    hintId: requireInteger(json.hintId, 'hintId', 1),
+    planetId: requireInteger(json.planetId, 'planetId', 1),
+    hintNumber: requireInteger(json.hintNumber, 'hintNumber', 1),
+    text: requireString(json.text, 'text'),
+  };
+}
+
+/**
+ * Parses the hints a player has unlocked on a planet.
+ * @param json The parsed JSON value.
+ * @returns The unlocked hints, in the order the server sent them.
+ */
+export function parseUnlockedHints(json: unknown): UnlockedHint[] {
+  if (!Array.isArray(json)) {
+    throw new Error(TYPE_ERROR('hints', 'array'));
+  }
+  return json.map(parseUnlockedHint);
+}
+
+/**
+ * Parses the result of unlocking a hint, whose hint is null when the planet
+ * has no more hints.
+ * @param json The parsed JSON value.
+ * @returns The unlocked hint (or null) and the remaining credits.
+ */
+export function parseHintUnlockResult(json: unknown): HintUnlockResult {
+  assertHasFields(json, ['hint', 'hintQuota']);
+  return {
+    hint: json.hint === null ? null : parseUnlockedHint(json.hint),
+    hintQuota: requireInteger(json.hintQuota, 'hintQuota', 0),
+  };
 }

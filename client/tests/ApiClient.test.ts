@@ -363,3 +363,63 @@ describe('ApiClient error responses', () => {
     });
   });
 });
+
+describe('ApiClient hints', () => {
+  const HINT = {hintId: 1, planetId: 1, hintNumber: 1, text: 'Look at x.'};
+
+  it("gets the planet's unlocked hints with a GET and parses them", async () => {
+    const {client, http} = await loggedIn(json([HINT]));
+    await expect(client.getUnlockedHints(1)).resolves.toEqual([HINT]);
+    const [url, init] = http.mock.calls[1];
+    expect(url).toBe('/api/users/7/planets/1/hints');
+    expect(init?.method).toBe('GET');
+  });
+
+  it('unlocks the next hint with a POST and parses it, or null once none are left', async () => {
+    const {client, http} = await loggedIn(
+      json({hint: HINT, hintQuota: 2}),
+      json({hint: null, hintQuota: 2}),
+    );
+    await expect(client.unlockNextHint(1)).resolves.toEqual({
+      hint: HINT,
+      hintQuota: 2,
+    });
+    await expect(client.unlockNextHint(1)).resolves.toEqual({
+      hint: null,
+      hintQuota: 2,
+    });
+    const [url, init] = http.mock.calls[1];
+    expect(url).toBe('/api/users/7/planets/1/hints/unlock');
+    expect(init?.method).toBe('POST');
+  });
+
+  it('never retries an unlock, since each one spends a credit', async () => {
+    const {client, http} = await loggedIn(json({}, 500));
+    await expect(client.unlockNextHint(1)).rejects.toMatchObject({
+      kind: 'http',
+      status: 500,
+    });
+    // login + 1 try
+    expect(http).toHaveBeenCalledTimes(2);
+  });
+
+  it('carries the NO_HINTS_LEFT code of a 409', async () => {
+    const body = {error: {code: 'NO_HINTS_LEFT', message: 'No credits.'}};
+    const {client} = await loggedIn(json(body, 409));
+    await expect(client.unlockNextHint(1)).rejects.toMatchObject({
+      kind: 'http',
+      status: 409,
+      code: 'NO_HINTS_LEFT',
+    });
+  });
+
+  it.each([{}, {hint: {hintId: 1}, hintQuota: 1}, {hint: null, hintQuota: -1}])(
+    'rejects malformed unlock responses: %j',
+    async result => {
+      const {client} = await loggedIn(json(result));
+      await expect(client.unlockNextHint(1)).rejects.toMatchObject({
+        kind: 'parse',
+      });
+    },
+  );
+});

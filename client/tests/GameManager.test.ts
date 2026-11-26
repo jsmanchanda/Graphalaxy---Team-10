@@ -1,12 +1,14 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import type {
   AnswerResult,
+  HintUnlockResult,
   NextQuestion,
   Planet,
   PlanetSummary,
   Player,
   Question,
   Settings,
+  UnlockedHint,
 } from '@graphalaxy/shared';
 import type {ServerGateway} from '../src/Frontend/ApiClient';
 import {ApiError} from '../src/Frontend/ApiError';
@@ -56,6 +58,9 @@ const QUESTIONS: Question[] = [1, 2].map(questionId => ({
   ],
 }));
 
+/** The hints on planet 1, in hint number order. */
+const HINT_TEXTS = ['Hint one.', 'Hint two.'];
+
 /** Builds a planet with one reading slide. Its questions are not part of it. */
 function makePlanet(planetId = 1): Planet {
   return {
@@ -84,6 +89,15 @@ const verdict = (questionId: number, correct: boolean): AnswerResult => ({
 function fakeGateway() {
   // questionId -> whether the answer was correct
   const answers = new Map<number, boolean>();
+  // Planet 1's hints, how many the player has unlocked, and their credits.
+  const hints = {texts: HINT_TEXTS, unlocked: 0, quota: PLAYER.hintQuota};
+  const unlockedHints = (): UnlockedHint[] =>
+    hints.texts.slice(0, hints.unlocked).map((text, i) => ({
+      hintId: i + 1,
+      planetId: 1,
+      hintNumber: i + 1,
+      text,
+    }));
   const progress = (): PlanetSummary => {
     const correctCount = [...answers.values()].filter(Boolean).length;
     return {
@@ -101,6 +115,7 @@ function fakeGateway() {
   return {
     answers,
     progress,
+    hints,
     login: vi.fn<ServerGateway['login']>().mockResolvedValue(PLAYER),
     getPlanets: vi
       .fn<ServerGateway['getPlanets']>()
@@ -126,6 +141,25 @@ function fakeGateway() {
     awardHintCredits: vi
       .fn<ServerGateway['awardHintCredits']>()
       .mockResolvedValue({hintQuota: 4}),
+    getUnlockedHints: vi
+      .fn<ServerGateway['getUnlockedHints']>()
+      .mockImplementation(async () => unlockedHints()),
+    unlockNextHint: vi
+      .fn<ServerGateway['unlockNextHint']>()
+      .mockImplementation(async () => {
+        if (hints.unlocked === hints.texts.length) {
+          return {hint: null, hintQuota: hints.quota};
+        }
+        if (hints.quota === 0) {
+          throw new ApiError('http', 'No credits.', 409, 'NO_HINTS_LEFT');
+        }
+        hints.quota--;
+        hints.unlocked++;
+        return {
+          hint: unlockedHints()[hints.unlocked - 1],
+          hintQuota: hints.quota,
+        };
+      }),
     submitAnswer: vi
       .fn<ServerGateway['submitAnswer']>()
       .mockImplementation(async (questionId, optionId) => {
@@ -178,11 +212,13 @@ const QUESTION_1: ScreenModel = {
   type: 'question',
   question: {prompt: 'Question 1', options: ['2', '3']},
   planetId: 1,
+  hintsLeft: 3,
 };
 const QUESTION_2: ScreenModel = {
   type: 'question',
   question: {prompt: 'Question 2', options: ['2', '3']},
   planetId: 1,
+  hintsLeft: 3,
 };
 const CORRECT: ScreenModel = {
   type: 'questionResult',
@@ -1522,6 +1558,148 @@ describe('GameManager settings', () => {
 
     expect(gateway.saveSettings).not.toHaveBeenCalled();
     expect(ui.displayScreen).not.toHaveBeenCalled();
+  });
+});
+
+describe('GameManager hints', () => {
+  /** The first question with a hint panel, credits and selection. */
+  const withHint = (
+    hintsLeft: number,
+    hintPanel?: {hints: string[]; message?: string},
+    selectedOption?: number,
+  ): ScreenModel => ({
+    ...QUESTION_1,
+    hintsLeft,
+    ...(selectedOption === undefined ? {} : {selectedOption}),
+    ...(hintPanel ? {hintPanel} : {}),
+  });
+
+  it('shows "Loading hint..." and then the unlocked hint, with one credit less', async () => {
+    const {gateway} = await setupAtQuestion1();
+
+    act({type: 'requestHint', selectedOption: null});
+    expect(lastScreen()).toEqual(
+      withHint(3, {hints: [], message: 'Loading hint...'}),
+    );
+    await flush();
+
+    expect(gateway.unlockNextHint).toHaveBeenCalledExactlyOnceWith(1);
+    expect(lastScreen()).toEqual(withHint(2, {hints: ['Hint one.']}));
+  });
+
+  it('keeps the selected option through the hint panel and after Close', async () => {
+    await setupAtQuestion1();
+
+    await actAndWait({type: 'requestHint', selectedOption: WRONG_OPTION});
+    expect(lastScreen()).toEqual(
+      withHint(2, {hints: ['Hint one.']}, WRONG_OPTION),
+    );
+
+    act({type: 'closeHints'});
+    expect(lastScreen()).toEqual(withHint(2, undefined, WRONG_OPTION));
+  });
+
+  it('shows every unlocked hint and says there are no more, without spending a credit', async () => {
+    const {gateway} = await setupAtQuestion1();
+    gateway.hints.unlocked = HINT_TEXTS.length;
+
+    await actAndWait({type: 'requestHint', selectedOption: null});
+
+    expect(lastScreen()).toEqual(
+      withHint(3, {
+        hints: HINT_TEXTS,
+        message: 'No more hints for this planet.',
+      }),
+    );
+  });
+
+  it('says the planet has no hints when it has none', async () => {
+    const {gateway} = await setupAtQuestion1();
+    gateway.hints.texts = [];
+
+    await actAndWait({type: 'requestHint', selectedOption: null});
+
+    expect(lastScreen()).toEqual(
+      withHint(3, {hints: [], message: 'No hints for this planet.'}),
+    );
+  });
+
+  it('says to play a minigame when the player has no credits', async () => {
+    const {gateway} = await setupAtQuestion1();
+    gateway.hints.quota = 0;
+
+    await actAndWait({type: 'requestHint', selectedOption: null});
+
+    expect(lastScreen()).toEqual(
+      withHint(0, {
+        hints: [],
+        message: 'No hint credits left. Play a minigame to earn more.',
+      }),
+    );
+  });
+
+  it.each([
+    {
+      error: new ApiError('network', 'offline'),
+      message: 'Server offline. Try again.',
+    },
+    {
+      error: new ApiError('http', 'boom', 500),
+      message: "Couldn't get a hint. Try again.",
+    },
+  ])(
+    'shows "$message" and no hint when the unlock fails',
+    async ({error, message}) => {
+      const {gateway} = await setupAtQuestion1();
+      gateway.unlockNextHint.mockRejectedValueOnce(error);
+
+      await actAndWait({type: 'requestHint', selectedOption: null});
+
+      expect(lastScreen()).toEqual(withHint(3, {hints: [], message}));
+    },
+  );
+
+  it('sends one unlock for a double click on the hint button', async () => {
+    const {gateway} = await setupAtQuestion1();
+    const unlock = deferred<HintUnlockResult>();
+    gateway.unlockNextHint.mockReturnValueOnce(unlock.promise);
+
+    act({type: 'requestHint', selectedOption: null});
+    act({type: 'requestHint', selectedOption: null});
+    act({type: 'closeHints'}); // ignored while the unlock is pending
+    gateway.hints.unlocked = 1; // what the server recorded for the unlock
+    unlock.resolve({
+      hint: {hintId: 1, planetId: 1, hintNumber: 1, text: 'Hint one.'},
+      hintQuota: 2,
+    });
+    await flush();
+
+    expect(gateway.unlockNextHint).toHaveBeenCalledTimes(1);
+    expect(lastScreen()).toEqual(withHint(2, {hints: ['Hint one.']}));
+  });
+
+  it('ignores a hint request while an answer is with the server, so its result still shows', async () => {
+    const {gateway} = await setupAtQuestion1();
+    const answer = deferred<AnswerResult>();
+    gateway.submitAnswer.mockReturnValueOnce(answer.promise);
+
+    act({type: 'answer', option: RIGHT_OPTION});
+    act({type: 'requestHint', selectedOption: RIGHT_OPTION});
+    answer.resolve(verdict(1, true));
+    await flush();
+
+    expect(gateway.unlockNextHint).not.toHaveBeenCalled();
+    expect(lastScreen()).toEqual(CORRECT);
+  });
+
+  it('ignores hint requests on every screen but a question', async () => {
+    const {gateway} = await setup();
+
+    act({type: 'requestHint', selectedOption: null}); // title
+    await enterPlanet();
+    act({type: 'requestHint', selectedOption: null}); // lesson intro
+
+    expect(gateway.unlockNextHint).not.toHaveBeenCalled();
   });
 });
 
