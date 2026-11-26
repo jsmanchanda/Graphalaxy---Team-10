@@ -73,7 +73,14 @@ Migrations are tracked by filename only. There is no checksum and no down-migrat
 
 ### Seed (`seed.ts`)
 
-`seed(db, planets = PLANETS)` does nothing if `planets` already has any row. Otherwise, in one transaction, it inserts every planet in the `PLANETS` array at the top of the file: Linear Land (labradors), Quadratic Quay (cats), Sine Shores (seals) and Phase Planet (hamsters), with `graph_order` 0-3. Each planet has its lesson readings (stored in order as `reading_number` 1, 2, ...), its hints, and at least 5 multiple-choice questions with options `a`-`d` and one correct answer. It does not insert any `planet_prereqs`.
+`seed(db, planets = PLANETS)` does nothing if `planets` already has any row. Otherwise, in one transaction, it inserts every planet in the `PLANETS` array at the top of the file: Linear Land (labradors), Quadratic Quay (cats), Sine Shores (seals) and Phase Planet (hamsters), with `graph_order` 0-3. Each planet has its lesson readings (stored in order as `reading_number` 1, 2, ...), three hints (stored in order as `hint_number` 1-3), and at least 5 multiple-choice questions with options `a`-`d` and one correct answer. It does not insert any `planet_prereqs`.
+
+Hints belong to a planet, not to a question. The Hint Manager unlocks them in `hint_number` order, one credit each, and the hint panel shows every hint unlocked so far on any question of that planet. When you write or change hints:
+
+- Make each hint useful for every question on the planet, not just one.
+- Order them from general to specific: the first hint is the basic rule, the last is the most direct help.
+- Keep each hint to one or two sentences, under about 150 characters, so three of them fit in the hint panel (560 x 300 px at 16 px).
+- Use the same notation as the planet's readings (`x^2`, `a*sin(x)`, `π`).
 
 Each question's `fn` is stored in `questions.graph` as `{"fn": "<fn>"}`. The client's `GraphComponent` turns `sin` and `cos` into `Math.sin` and `Math.cos`, then runs it as `new Function('x', 'return <fn>;')` on a `[-10, 10]` grid. So `fn` must be a JavaScript expression in `x`: `2*x+3`, `x**2`, `3*sin(2*x)`. Write a negated power as `-(x**2)`, because `-x**2` is a syntax error. `server/tests/seed.test.ts` checks all of this.
 
@@ -122,7 +129,7 @@ Install once from the repo root, then run the database scripts from `server/`. Y
 npm install                 # repo root: installs client, server and shared workspaces
 cd server
 npm run db:migrate          # create/upgrade the schema in var/game.db
-npm run db:seed             # insert the Linear Land sample content
+npm run db:seed             # insert the four planets with their readings, hints and questions
 npm run db:reset            # delete var/game.db, then migrate and seed
 ```
 

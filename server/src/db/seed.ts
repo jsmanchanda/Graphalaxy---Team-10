@@ -159,7 +159,11 @@ export const PLANETS: SeedPlanet[] = [
       'In vertex form y = a(x - h)^2 + k, the vertex is the point (h, k). When the parabola opens downward, the vertex is the top of the leap (the maximum). When it opens upward, the vertex is the lowest point (the minimum).',
       'The roots are the x-values where y = 0, where the parabola crosses the x-axis: where a cat takes off and lands. For y = -x^2 + 16, the roots are x = 4 and x = -4.',
     ],
-    hints: [],
+    hints: [
+      'The sign of the number multiplied by x^2 sets the direction: negative opens downward, positive opens upward.',
+      'In y = a(x - h)^2 + k, the vertex is (h, k) and its height is k. Watch the sign: (x + 1) means h = -1.',
+      'To find y at some x, replace x with that number; the y-intercept is y at x = 0. The roots are the x-values where y = 0.',
+    ],
     questions: [
       {
         prompt:
@@ -267,7 +271,11 @@ export const PLANETS: SeedPlanet[] = [
       'In y = a*sin(x), |a| is the amplitude: how far the waves lift a seal above calm sea level and drop it below. A bigger amplitude means a bumpier ride.',
       "In y = a*sin(x) + d, d moves the whole sea up or down, like a tide. The midline, or calm sea level, is the line y = d. A seal's highest point is d + |a| and its lowest point is d - |a|.",
     ],
-    hints: [],
+    hints: [
+      'In y = a*sin(x) + d, the amplitude is |a|, the number multiplied by sin(x).',
+      'The calm sea level, the midline, is y = d, the number added after sin(x).',
+      'The highest point is d + |a| and the lowest is d - |a|. Since sin(0) = 0, the wave is at y = d when x = 0.',
+    ],
     questions: [
       {
         prompt:
@@ -377,7 +385,11 @@ export const PLANETS: SeedPlanet[] = [
       'A hamster that starts at the top of its wheel follows y = cos(x). Cosine is sine moved left by π/2, so cos(x) = sin(x + π/2).',
       'Putting it all together, y = a*sin(b*x + c) + d has amplitude |a|, period 2π / |b|, and midline y = d. The wave is shifted left by c / b, or right when c / b is negative. Divide by b first: y = sin(2*x + 2) is shifted left by 2 / 2 = 1, not 2.',
     ],
-    hints: [],
+    hints: [
+      'The period of y = sin(b*x) is 2π / |b|, so a bigger |b| means a shorter period and a faster hamster.',
+      'In y = sin(x + c), a positive c shifts the wave left and a negative c shifts it right. cos(x) is sin(x + π/2).',
+      'With b*x + c inside, divide c by b to get the shift: sin(2*x + 2) is shifted left by 1. Amplitude is |a| and the midline is y = d.',
+    ],
     questions: [
       {
         prompt:
