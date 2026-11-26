@@ -11,8 +11,9 @@ import {
   INTRO_RULES_Y,
   INTRO_TITLE_X,
   INTRO_TITLE_Y,
+  LAUNCH_BUTTON_X,
+  LAUNCH_BUTTON_Y,
 } from '../../src/Asteroids/constants';
-import {START_BUTTON_X, START_BUTTON_Y} from '../../src/UI/constants';
 
 // Build the real components in Node; see helpers/konvaStubs.ts
 installKonvaStubs();
@@ -43,7 +44,10 @@ describe('AsteroidIntroView', () => {
 
     expect([title.x(), title.y()]).toEqual([INTRO_TITLE_X, INTRO_TITLE_Y]);
     expect([rules.x(), rules.y()]).toEqual([INTRO_RULES_X, INTRO_RULES_Y]);
-    expect([launch.x(), launch.y()]).toEqual([START_BUTTON_X, START_BUTTON_Y]);
+    expect([launch.x(), launch.y()]).toEqual([
+      LAUNCH_BUTTON_X,
+      LAUNCH_BUTTON_Y,
+    ]);
   });
 
   it('calls onLaunch once when Launch is clicked, and not before', () => {
