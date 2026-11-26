@@ -24,65 +24,69 @@ export const FORMS: Record<FormId, FormDefinition> = {
     /** Builds `m*(x - h) + k` as a JS expression. */
     toExpression: ([m, h, k]) => `(${m})*(x-(${h}))+(${k})`,
   },
-  // Commented out until the team decides whether to keep it.
-  // linearStandard: {
-  //   type: 'linear',
+  linearStandard: {
+    type: 'linear',
+    name: 'Standard form',
+    template: 'Ax + By = C',
+    coefficients: ['A', 'B', 'C'],
+    /** Builds `(C - A*x) / B` as a JS expression. */
+    toExpression: ([a, b, c]) => {
+      if (b === 0) {
+        throw new RangeError('B cannot be 0 in Ax + By = C');
+      }
+      return `((${c})-(${a})*x)/(${b})`;
+    },
+    /** B = 0 would make a vertical line, which isn't a function. */
+    accepts: ([, b]) => b !== 0,
+  },
+  // Quadratic and cubic forms are off for now: the minigame is linear only.
+  // Put their types back in types.ts (FunctionType, FormId) along with them.
+  // quadraticStandard: {
+  //   type: 'quadratic',
   //   name: 'Standard form',
-  //   template: 'Ax + By = C',
-  //   coefficients: ['A', 'B', 'C'],
-  //   /** Builds `(C - A*x) / B` as a JS expression. */
-  //   toExpression: ([a, b, c]) => {
-  //     if (b === 0) {
-  //       throw new RangeError('B cannot be 0 in Ax + By = C');
-  //     }
-  //     return `((${c})-(${a})*x)/(${b})`;
-  //   },
+  //   template: 'y = ax² + bx + c',
+  //   coefficients: ['a', 'b', 'c'],
+  //   /** Builds `a*x**2 + b*x + c` as a JS expression. */
+  //   toExpression: ([a, b, c]) => `(${a})*x**2+(${b})*x+(${c})`,
   // },
-  quadraticStandard: {
-    type: 'quadratic',
-    name: 'Standard form',
-    template: 'y = ax² + bx + c',
-    coefficients: ['a', 'b', 'c'],
-    /** Builds `a*x**2 + b*x + c` as a JS expression. */
-    toExpression: ([a, b, c]) => `(${a})*x**2+(${b})*x+(${c})`,
-  },
-  quadraticVertex: {
-    type: 'quadratic',
-    name: 'Vertex form',
-    template: 'y = a(x - h)² + k',
-    coefficients: ['a', 'h', 'k'],
-    /** Builds `a*(x - h)**2 + k` as a JS expression. */
-    toExpression: ([a, h, k]) => `(${a})*(x-(${h}))**2+(${k})`,
-  },
-  quadraticIntercept: {
-    type: 'quadratic',
-    name: 'Intercept form',
-    template: 'y = a(x - p)(x - q)',
-    coefficients: ['a', 'p', 'q'],
-    /** Builds `a*(x - p)*(x - q)` as a JS expression. */
-    toExpression: ([a, p, q]) => `(${a})*(x-(${p}))*(x-(${q}))`,
-  },
-  cubicStandard: {
-    type: 'cubic',
-    name: 'Standard form',
-    template: 'y = ax³ + bx² + cx + d',
-    coefficients: ['a', 'b', 'c', 'd'],
-    /** Builds `a*x**3 + b*x**2 + c*x + d` as a JS expression. */
-    toExpression: ([a, b, c, d]) => `(${a})*x**3+(${b})*x**2+(${c})*x+(${d})`,
-  },
-  cubicIntercept: {
-    type: 'cubic',
-    name: 'Intercept form',
-    template: 'y = a(x - p)(x - q)(x - r)',
-    coefficients: ['a', 'p', 'q', 'r'],
-    /** Builds `a*(x - p)*(x - q)*(x - r)` as a JS expression. */
-    toExpression: ([a, p, q, r]) => `(${a})*(x-(${p}))*(x-(${q}))*(x-(${r}))`,
-  },
+  // quadraticVertex: {
+  //   type: 'quadratic',
+  //   name: 'Vertex form',
+  //   template: 'y = a(x - h)² + k',
+  //   coefficients: ['a', 'h', 'k'],
+  //   /** Builds `a*(x - h)**2 + k` as a JS expression. */
+  //   toExpression: ([a, h, k]) => `(${a})*(x-(${h}))**2+(${k})`,
+  // },
+  // quadraticIntercept: {
+  //   type: 'quadratic',
+  //   name: 'Intercept form',
+  //   template: 'y = a(x - p)(x - q)',
+  //   coefficients: ['a', 'p', 'q'],
+  //   /** Builds `a*(x - p)*(x - q)` as a JS expression. */
+  //   toExpression: ([a, p, q]) => `(${a})*(x-(${p}))*(x-(${q}))`,
+  // },
+  // cubicStandard: {
+  //   type: 'cubic',
+  //   name: 'Standard form',
+  //   template: 'y = ax³ + bx² + cx + d',
+  //   coefficients: ['a', 'b', 'c', 'd'],
+  //   /** Builds `a*x**3 + b*x**2 + c*x + d` as a JS expression. */
+  //   toExpression: ([a, b, c, d]) => `(${a})*x**3+(${b})*x**2+(${c})*x+(${d})`,
+  // },
+  // cubicIntercept: {
+  //   type: 'cubic',
+  //   name: 'Intercept form',
+  //   template: 'y = a(x - p)(x - q)(x - r)',
+  //   coefficients: ['a', 'p', 'q', 'r'],
+  //   /** Builds `a*(x - p)*(x - q)*(x - r)` as a JS expression. */
+  //   toExpression: ([a, p, q, r]) => `(${a})*(x-(${p}))*(x-(${q}))*(x-(${r}))`,
+  // },
 };
 
 /**
  * Picks a random form of the given type. Which type each of the 3
- * questions uses is the model's decision, not this function's.
+ * questions uses is the model's decision, not this function's. Only linear
+ * forms are on for now.
  * @param type the function type the question needs
  * @param rng random function to select form, returns a number in [0, 1)
  * @returns one of the FormIds of that type
@@ -126,6 +130,9 @@ export function toExpression(formId: FormId, coeffs: number[]): string {
   }
   if (!coeffs.every(Number.isFinite)) {
     throw new Error(`${formId} coefficients must be finite numbers`);
+  }
+  if (form.accepts?.(coeffs) === false) {
+    throw new RangeError(`${formId} can't use ${coeffs.join(', ')}`);
   }
   return form.toExpression(coeffs);
 }

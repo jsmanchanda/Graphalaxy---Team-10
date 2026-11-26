@@ -41,8 +41,9 @@ export interface Asteroid {
 
 /**
  * type of possible functions to be used to shoot asteroids
+ * (linear only for now; 'quadratic' and 'cubic' are off with their forms)
  */
-export type FunctionType = 'linear' | 'quadratic' | 'cubic';
+export type FunctionType = 'linear'; // | 'quadratic' | 'cubic'
 
 /**
  * The equation forms a question can use. Each id names its function type,
@@ -51,12 +52,13 @@ export type FunctionType = 'linear' | 'quadratic' | 'cubic';
 export type FormId =
   | 'linearSlopeIntercept'
   | 'linearPointSlope'
-  // | 'linearStandard' // should we include this? bring up w team lator
-  | 'quadraticStandard'
-  | 'quadraticVertex'
-  | 'quadraticIntercept'
-  | 'cubicStandard'
-  | 'cubicIntercept';
+  // Off for now, the minigame is linear only:
+  // | 'quadraticStandard'
+  // | 'quadraticVertex'
+  // | 'quadraticIntercept'
+  // | 'cubicStandard'
+  // | 'cubicIntercept'
+  | 'linearStandard';
 
 /**
  * interface for AsteroidQuestion to be generated
@@ -79,6 +81,8 @@ export interface FormDefinition {
   template: string; // "y = a(x - h)² + k"
   coefficients: string[]; // ['a', 'h', 'k']
   toExpression: (c: number[]) => string;
+  // false for coefficients the form can't use (standard form's B = 0)
+  accepts?: (c: number[]) => boolean;
 }
 
 /**
