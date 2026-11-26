@@ -13,6 +13,9 @@ export const DEFAULT_ALIEN_IMAGE = '/assets/alien-planet-2.png';
 // Question screen uses this planet's alien and background when none is given
 export const DEFAULT_PLANET_ID = 2;
 
+// Background music, looped from the start whenever it ends
+export const MUSIC_URL = '/assets/MokkaMusic-Cosmic-Voyager.mp3';
+
 // Settings icon in the top-right corner of every game screen
 export const SETTINGS_ICON_IMAGE = '/assets/setting-symbol.png';
 export const SETTINGS_ICON_SIZE = 50;
