@@ -318,6 +318,8 @@ beforeEach(() => {
   ui.resumeScreen.mockClear();
   ui.discardSuspendedScreen.mockClear();
   vi.spyOn(console, 'error').mockImplementation(() => {});
+  // Planets offer a random minigame; 0 makes it always the Asteroid one.
+  vi.spyOn(Math, 'random').mockReturnValue(0);
 });
 
 describe('GameManager login', () => {

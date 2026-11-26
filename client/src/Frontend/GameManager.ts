@@ -270,12 +270,9 @@ export class GameManager {
         this.planetLoad.catch(() => undefined);
         this.taskIndex = INTRO_INDEX;
 
-        // Randomize minigame here
-        // Currently hardcoded for asteroid
         this.show('miniGameSelect', {
           type: 'miniGameSelect',
-          minigame: 'Asteroid',
-          // minigame: 'Radio',
+          minigame: Math.random() < 0.5 ? 'Asteroid' : 'Radio',
         });
         break;
       }
