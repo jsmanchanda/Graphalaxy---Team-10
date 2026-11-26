@@ -709,8 +709,16 @@ export class RadioWaveMinigameView implements View {
    * Creates the editable expression beneath the graph.
    */
   private createControls(): void {
-    const amplitude = this.createInput('amplitude', String(DEFAULT_AMPLITUDE));
-    const frequency = this.createInput('frequency', String(DEFAULT_FREQUENCY));
+    const amplitude = this.createInput(
+      'amplitude',
+      String(DEFAULT_AMPLITUDE),
+      '1',
+    );
+    const frequency = this.createInput(
+      'frequency',
+      String(DEFAULT_FREQUENCY),
+      '1',
+    );
     const horizontalShift = this.createInput(
       'horizontal-shift',
       String(DEFAULT_HORIZONTAL_SHIFT),
