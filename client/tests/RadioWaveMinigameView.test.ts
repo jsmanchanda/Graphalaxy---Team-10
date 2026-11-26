@@ -241,21 +241,13 @@ describe('Radio-wave minigame', () => {
     expect(getScoreText()).toBe('0 of 3 waves matched.');
   });
 
-  it('uses whole-number steps for both shift controls', () => {
-    startGame();
-    expect(
-      elements.find(input => input.name === 'horizontal-shift')?.step,
-    ).toBe('1');
-    expect(elements.find(input => input.name === 'vertical-shift')?.step).toBe(
-      '1',
-    );
-    expect(elements.find(input => input.name === 'amplitude')?.step).toBe(
-      '0.1',
-    );
-    expect(elements.find(input => input.name === 'frequency')?.step).toBe(
-      '0.1',
-    );
-  });
+  it.each(['amplitude', 'frequency', 'horizontal-shift', 'vertical-shift'])(
+    'uses a whole-number step for the %s control',
+    name => {
+      startGame();
+      expect(elements.find(input => input.name === name)?.step).toBe('1');
+    },
+  );
 
   it.each([
     {name: 'horizontal-shift', value: '-1.99'},
