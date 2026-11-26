@@ -7,11 +7,10 @@ import {ASTEROID_RADIUS} from '../../src/Asteroids/math/asteroids';
 import type {Asteroid, AsteroidQuestion} from '../../src/Asteroids/types';
 import {AsteroidResultView} from '../../src/Asteroids/views/AsteroidResultView';
 import {
-  OK_BUTTON_X,
-  OK_BUTTON_Y,
-  RESULT_TEXT_X,
-  RESULT_TEXT_Y,
-} from '../../src/UI/constants';
+  CONTINUE_BUTTON_X,
+  CONTINUE_BUTTON_Y,
+} from '../../src/Asteroids/constants';
+import {RESULT_TEXT_X, RESULT_TEXT_Y} from '../../src/UI/constants';
 
 // Build the real components in Node; see helpers/konvaStubs.ts
 installKonvaStubs();
@@ -111,7 +110,10 @@ describe('AsteroidResultView', () => {
     const button = findComponent(screen, 'Continue');
 
     expect([text.x(), text.y()]).toEqual([RESULT_TEXT_X, RESULT_TEXT_Y]);
-    expect([button.x(), button.y()]).toEqual([OK_BUTTON_X, OK_BUTTON_Y]);
+    expect([button.x(), button.y()]).toEqual([
+      CONTINUE_BUTTON_X,
+      CONTINUE_BUTTON_Y,
+    ]);
   });
 
   it('reports the result once when Continue is clicked', () => {

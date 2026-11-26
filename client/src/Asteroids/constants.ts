@@ -1,22 +1,51 @@
 import {Interval} from '../Graphing/functions';
-import {DESIGN_WIDTH} from '../UI/constants';
+import {
+  BUBBLE_HEIGHT,
+  BUBBLE_WIDTH,
+  BUBBLE_X,
+  BUBBLE_Y,
+  DESIGN_WIDTH,
+  LESSON_INTRO_DESCRIPTION_HEIGHT,
+  LESSON_INTRO_DESCRIPTION_WIDTH,
+  LESSON_INTRO_DESCRIPTION_X,
+  LESSON_INTRO_DESCRIPTION_Y,
+  OK_BUTTON_HEIGHT,
+  OK_BUTTON_WIDTH,
+  OK_BUTTON_Y,
+} from '../UI/constants';
 import {WINDOW_MAX, WINDOW_MIN} from './math/asteroids';
 
 // Layout for the asteroid minigame on the 800×500 design canvas. Kept apart
 // from UI/constants.ts so the team's shared file doesn't change.
-// The intro's Launch button and the result screen reuse UI/constants.ts
-// (START_BUTTON_*, RESULT_TEXT_*, OK_BUTTON_*).
+// The intro and result screens borrow sizes from UI/constants.ts
+// (RESULT_TEXT_*, OK_BUTTON_*); Launch and Continue share the lesson Ok
+// button's size and height, centered.
 
 // ============== Intro screen ==============
-export const INTRO_TITLE_WIDTH = 400;
-export const INTRO_TITLE_HEIGHT = 70;
-export const INTRO_TITLE_X = (DESIGN_WIDTH - INTRO_TITLE_WIDTH) * 0.5;
-export const INTRO_TITLE_Y = 40;
+// Same layout as the lesson intro: the title is the alien's speech bubble
+// and the rules sit in the description box below it.
+export const INTRO_TITLE_WIDTH = BUBBLE_WIDTH;
+export const INTRO_TITLE_HEIGHT = BUBBLE_HEIGHT;
+export const INTRO_TITLE_X = BUBBLE_X;
+export const INTRO_TITLE_Y = BUBBLE_Y;
 
-export const INTRO_RULES_WIDTH = 600;
-export const INTRO_RULES_HEIGHT = 160;
-export const INTRO_RULES_X = (DESIGN_WIDTH - INTRO_RULES_WIDTH) * 0.5;
-export const INTRO_RULES_Y = INTRO_TITLE_Y + INTRO_TITLE_HEIGHT + 20;
+export const INTRO_RULES_WIDTH = LESSON_INTRO_DESCRIPTION_WIDTH;
+export const INTRO_RULES_HEIGHT = LESSON_INTRO_DESCRIPTION_HEIGHT;
+export const INTRO_RULES_X = LESSON_INTRO_DESCRIPTION_X;
+export const INTRO_RULES_Y = LESSON_INTRO_DESCRIPTION_Y;
+
+// Same size and place as the result screen's Continue button.
+export const LAUNCH_BUTTON_WIDTH = OK_BUTTON_WIDTH;
+export const LAUNCH_BUTTON_HEIGHT = OK_BUTTON_HEIGHT;
+export const LAUNCH_BUTTON_X = (DESIGN_WIDTH - LAUNCH_BUTTON_WIDTH) * 0.5;
+export const LAUNCH_BUTTON_Y = OK_BUTTON_Y;
+
+// ============== Result screen ==============
+// The lesson Ok button's size and height, centered since there's no Redo.
+export const CONTINUE_BUTTON_WIDTH = OK_BUTTON_WIDTH;
+export const CONTINUE_BUTTON_HEIGHT = OK_BUTTON_HEIGHT;
+export const CONTINUE_BUTTON_X = (DESIGN_WIDTH - CONTINUE_BUTTON_WIDTH) * 0.5;
+export const CONTINUE_BUTTON_Y = OK_BUTTON_Y;
 
 // ============== Cockpit frame (general-nav.png) ==============
 // The same full-screen frame the lesson screens use. The slots below were
